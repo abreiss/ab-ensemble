@@ -62,7 +62,7 @@ paths (image compression, id validation, tag-range validation).
 - [x] 1.5 RED→GREEN: `DynamoDbTableInitializerIT` asserts the table exists after startup (TestContainers); implement `DynamoDbTableInitializer` (create-if-absent on `ApplicationRunner`).
 - [x] 1.6 Update `.gitignore` to exclude `ensemble.photos.dir` contents and any DynamoDB Local data directory.
 
-### [ ] 2.0 Item model + WardrobeRepository (Enhanced Client CRUD)
+### [x] 2.0 Item model + WardrobeRepository (Enhanced Client CRUD)
 
 #### 2.0 Proof Artifact(s)
 
@@ -72,11 +72,11 @@ paths (image compression, id validation, tag-range validation).
 
 #### 2.0 Tasks
 
-- [ ] 2.1 RED: write `WardrobeRepositoryIT` (TestContainers DynamoDB Local) asserting a create→get round-trip; run and confirm it fails.
-- [ ] 2.2 GREEN: implement `Item` as a `@DynamoDbBean` — `itemId` partition key, `category`, `primaryColor`, `secondaryColor`, `formality` (int), `pattern`, `warmth` (int), `descriptors` (list), `photoKey`, `createdAt`, `lastWorn`, `wornCount`.
-- [ ] 2.3 GREEN: implement `WardrobeRepository` (put/get/list-scan/update/delete) over the enhanced table; make the round-trip test pass.
-- [ ] 2.4 RED→GREEN: extend `WardrobeRepositoryIT` with update, delete, list-all, and empty-wardrobe cases; implement to green.
-- [ ] 2.5 REFACTOR: tidy naming/structure; confirm `jacocoTestReport` ≥90% line on the package.
+- [x] 2.1 RED: write `WardrobeRepositoryIT` (TestContainers DynamoDB Local) asserting a create→get round-trip; run and confirm it fails.
+- [x] 2.2 GREEN: implement `Item` as a `@DynamoDbBean` — `itemId` partition key, `category`, `primaryColor`, `secondaryColor`, `formality` (int), `pattern`, `warmth` (int), `descriptors` (list), `photoKey`, `createdAt`, `lastWorn`, `wornCount`.
+- [x] 2.3 GREEN: implement `WardrobeRepository` (put/get/list-scan/update/delete) over the enhanced table; make the round-trip test pass.
+- [x] 2.4 RED→GREEN: extend `WardrobeRepositoryIT` with update, delete, list-all, and empty-wardrobe cases; implement to green.
+- [x] 2.5 REFACTOR: tidy naming/structure; confirm `jacocoTestReport` ≥90% line on the package.
 
 ### [ ] 3.0 PhotoStorage interface + LocalDiskPhotoStorage (≤800px JPEG)
 
