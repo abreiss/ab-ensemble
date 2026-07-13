@@ -35,3 +35,45 @@ jacocoTestReport {
 		html.required = true
 	}
 }
+
+// --- Frontend build wiring -------------------------------------------------
+// Builds the React/Vite app and emits its assets into Spring's static
+// resources so a single jar serves both the API and the UI.
+//
+// The build is bound to resource processing / packaging, NOT to `test`/`check`
+// via a direct edge (see below), and can be skipped entirely with
+// `-PskipFrontend` for backend-only dev loops or Node-less environments (the
+// Docker Gradle stage uses this after copying pre-built assets from the Node
+// stage). Documented in README.md.
+def frontendDir = file("${projectDir}/frontend")
+def frontendStaticDir = file("${projectDir}/src/main/resources/static")
+def skipFrontend = project.hasProperty('skipFrontend')
+def isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows()
+
+tasks.register('buildFrontend', Exec) {
+	group = 'build'
+	description = 'Installs frontend deps and builds the Vite app into Spring static resources.'
+	workingDir = frontendDir
+	// Incremental: only re-run when inputs change.
+	inputs.dir(file("${frontendDir}/src")).withPropertyName('frontendSrc')
+	inputs.file(file("${frontendDir}/index.html")).withPropertyName('indexHtml')
+	inputs.file(file("${frontendDir}/package.json")).withPropertyName('packageJson')
+	inputs.file(file("${frontendDir}/package-lock.json")).withPropertyName('packageLock')
+	inputs.file(file("${frontendDir}/vite.config.ts")).withPropertyName('viteConfig')
+	outputs.dir(frontendStaticDir).withPropertyName('staticOutput')
+	// `npm ci` for a clean, lockfile-exact install, then the production build.
+	if (isWindows) {
+		commandLine 'cmd', '/c', 'npm ci && npm run build'
+	} else {
+		commandLine 'sh', '-c', 'npm ci && npm run build'
+	}
+}
+
+if (!skipFrontend) {
+	// Bind to packaging via processResources so the built UI is embedded in the
+	// jar. Guarded by -PskipFrontend so `./gradlew test -PskipFrontend` (and the
+	// Docker Gradle stage) need no Node toolchain.
+	tasks.named('processResources') {
+		dependsOn 'buildFrontend'
+	}
+}

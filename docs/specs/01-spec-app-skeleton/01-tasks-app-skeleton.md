@@ -80,7 +80,7 @@ Scaffold React 19 + Vite 6 + TypeScript in `frontend/` with a mobile-first shell
 - [x] 2.6 (GREEN) Implement `App` to call health on load and render "ok" / "unreachable"; confirm the test passes.
 - [x] 2.7 Verify: `npm run dev` (with backend running) shows the status in the browser (screenshot); `npm run build` succeeds.
 
-### [ ] 3.0 Single-process serving from Spring
+### [x] 3.0 Single-process serving from Spring
 
 Wire the frontend build into Gradle so its output lands in Spring static resources; serve the SPA at `/` with fallback to `index.html`, without shadowing `/api/**`.
 
@@ -93,10 +93,10 @@ Wire the frontend build into Gradle so its output lands in Spring static resourc
 
 #### 3.0 Tasks
 
-- [ ] 3.1 Add a Gradle task that runs `npm ci && npm run build` in `frontend/` and outputs to `src/main/resources/static`; make `processResources`/`build` depend on it.
-- [ ] 3.2 (RED) Write `SpaForwardingTest` (MockMvc): `GET /` and `GET /some/client/route` return `index.html`; `GET /api/health` still returns 200 (fallback must not shadow the API); confirm it fails.
-- [ ] 3.3 (GREEN) Implement `SpaForwardingController` (or a resource resolver) forwarding non-API, non-asset routes to `index.html`; confirm the test passes.
-- [ ] 3.4 Verify: `./gradlew build`, run the jar, `curl` `/`, `/api/health`, and a client route for the 200 proofs; screenshot the UI at `:8080`.
+- [x] 3.1 Add a Gradle task that runs `npm ci && npm run build` in `frontend/` and outputs to `src/main/resources/static`; make `processResources`/`build` depend on it.
+- [x] 3.2 (RED) Write `SpaForwardingTest` (MockMvc): `GET /` and `GET /some/client/route` return `index.html`; `GET /api/health` still returns 200 (fallback must not shadow the API); confirm it fails.
+- [x] 3.3 (GREEN) Implement `SpaForwardingController` (or a resource resolver) forwarding non-API, non-asset routes to `index.html`; confirm the test passes.
+- [x] 3.4 Verify: `./gradlew build`, run the jar, `curl` `/`, `/api/health`, and a client route for the 200 proofs; screenshot the UI at `:8080`.
 
 ### [ ] 4.0 Multi-stage Docker image
 
