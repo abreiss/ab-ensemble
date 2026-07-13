@@ -114,7 +114,7 @@ Author a multi-stage Dockerfile (node build → Gradle jar → slim JRE) produci
 - [x] 4.2 Order layers for cache efficiency (copy wrapper/manifests before sources); expose 8080.
 - [x] 4.3 Verify: `docker build`, `docker run`, `curl /api/health` → 200; screenshot the UI from the container.
 
-### [ ] 5.0 Dev tooling & README bootstrap
+### [x] 5.0 Dev tooling & README bootstrap
 
 Add `.gitignore`, a lightweight `.pre-commit-config.yaml`, and README run/build instructions so a new developer can start from the README alone.
 
@@ -126,7 +126,7 @@ Add `.gitignore`, a lightweight `.pre-commit-config.yaml`, and README run/build 
 
 #### 5.0 Tasks
 
-- [ ] 5.1 Add `.gitignore` (`build/`, `.gradle/`, `node_modules/`, `frontend/dist/`, `*.env`, `.env*`, `.DS_Store`).
-- [ ] 5.2 Add `.pre-commit-config.yaml` per `docs/PRECOMMIT.md`: fast backend tests, `npm test -- --run`, format/lint, secret scan.
-- [ ] 5.3 Update `README.md`: prerequisites, local run (`bootRun` + `npm run dev`), build, docker, and test/coverage commands.
-- [ ] 5.4 Verify: clean-state README bootstrap reaches `/api/health` → 200; `pre-commit run --all-files` passes.
+- [x] 5.1 Add `.gitignore` (`build/`, `.gradle/`, `node_modules/`, `frontend/dist/`, `*.env`, `.env*`, `.DS_Store`).
+- [x] 5.2 Add `.pre-commit-config.yaml` per `docs/PRECOMMIT.md`: fast backend tests, `npm test -- --run`, format/lint, secret scan.
+- [x] 5.3 Update `README.md`: prerequisites, local run (`bootRun` + `npm run dev`), build, docker, and test/coverage commands.
+- [x] 5.4 Verify: clean-state README bootstrap reaches `/api/health` → 200; `pre-commit run --all-files` passes.

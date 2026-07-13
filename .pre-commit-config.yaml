@@ -1,0 +1,49 @@
+# Lightweight local commit gates — fast checks only. Full coverage (JaCoCo)
+# and the container build run in CI, not here. See docs/PRECOMMIT.md.
+minimum_pre_commit_version: "3.0.0"
+
+repos:
+  # General hygiene + a private-key guard (fast, file-scoped).
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=2048"]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # Secret scan: block accidental commit of an Anthropic API key.
+  - repo: local
+    hooks:
+      - id: block-anthropic-keys
+        name: Block committed Anthropic API keys
+        entry: 'sk-ant-[A-Za-z0-9_-]{20,}'
+        language: pygrep
+        types: [text]
+
+      # Fast backend unit tests (no Node toolchain needed).
+      - id: backend-tests
+        name: Backend tests (gradle, -PskipFrontend)
+        entry: ./gradlew test -PskipFrontend --quiet
+        language: system
+        pass_filenames: false
+        files: '\.(java|gradle)$|^gradle/'
+
+      # Frontend unit tests.
+      - id: frontend-tests
+        name: Frontend tests (vitest)
+        entry: bash -c 'cd frontend && npm run test -- --run'
+        language: system
+        pass_filenames: false
+        files: '^frontend/.*\.(ts|tsx|json|html|css)$'
+
+      # Frontend lint.
+      - id: frontend-lint
+        name: Frontend lint (eslint)
+        entry: bash -c 'cd frontend && npm run lint'
+        language: system
+        pass_filenames: false
+        files: '^frontend/.*\.(ts|tsx)$'
