@@ -98,7 +98,7 @@ Wire the frontend build into Gradle so its output lands in Spring static resourc
 - [x] 3.3 (GREEN) Implement `SpaForwardingController` (or a resource resolver) forwarding non-API, non-asset routes to `index.html`; confirm the test passes.
 - [x] 3.4 Verify: `./gradlew build`, run the jar, `curl` `/`, `/api/health`, and a client route for the 200 proofs; screenshot the UI at `:8080`.
 
-### [ ] 4.0 Multi-stage Docker image
+### [x] 4.0 Multi-stage Docker image
 
 Author a multi-stage Dockerfile (node build → Gradle jar → slim JRE) producing one image serving API + UI.
 
@@ -110,9 +110,9 @@ Author a multi-stage Dockerfile (node build → Gradle jar → slim JRE) produci
 
 #### 4.0 Tasks
 
-- [ ] 4.1 Write the multi-stage `Dockerfile`: stage 1 (`node:20`) builds the frontend; stage 2 (Gradle) builds the jar with the built assets; final stage (`eclipse-temurin:21-jre`) runs the jar. Add `.dockerignore`.
-- [ ] 4.2 Order layers for cache efficiency (copy wrapper/manifests before sources); expose 8080.
-- [ ] 4.3 Verify: `docker build`, `docker run`, `curl /api/health` → 200; screenshot the UI from the container.
+- [x] 4.1 Write the multi-stage `Dockerfile`: stage 1 (`node:20`) builds the frontend; stage 2 (Gradle) builds the jar with the built assets; final stage (`eclipse-temurin:21-jre`) runs the jar. Add `.dockerignore`.
+- [x] 4.2 Order layers for cache efficiency (copy wrapper/manifests before sources); expose 8080.
+- [x] 4.3 Verify: `docker build`, `docker run`, `curl /api/health` → 200; screenshot the UI from the container.
 
 ### [ ] 5.0 Dev tooling & README bootstrap
 

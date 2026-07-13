@@ -1,0 +1,23 @@
+# VCS / IDE
+.git
+.gitignore
+.idea
+.vscode
+
+# Build outputs (regenerated inside the image)
+build/
+.gradle/
+frontend/node_modules/
+frontend/dist/
+# Generated frontend assets — rebuilt in the frontend stage, not copied from host
+src/main/resources/static/
+
+# Docs, specs, and local env
+docs/
+*.env
+.env*
+.DS_Store
+
+# The Docker files themselves
+Dockerfile
+.dockerignore
