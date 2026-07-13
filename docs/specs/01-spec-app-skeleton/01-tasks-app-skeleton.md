@@ -60,7 +60,7 @@ Establish the Gradle Spring Boot project (`com.ensemble`, Java 21, Spring Boot 3
 - [x] 1.5 (REFACTOR) Confirmed `./gradlew test jacocoTestReport` generates the coverage report.
 - [x] 1.6 Verified: `./gradlew bootRun` + `curl` → `200` and `{"status":"ok"}`.
 
-### [ ] 2.0 Frontend scaffold + health call
+### [x] 2.0 Frontend scaffold + health call
 
 Scaffold React 19 + Vite 6 + TypeScript in `frontend/` with a mobile-first shell that calls `GET /api/health` and renders the status; configure the dev proxy and Vitest + RTL.
 
@@ -72,13 +72,13 @@ Scaffold React 19 + Vite 6 + TypeScript in `frontend/` with a mobile-first shell
 
 #### 2.0 Tasks
 
-- [ ] 2.1 Scaffold the Vite React-TS app in `frontend/` (`package.json`, `tsconfig.json`, `index.html`, `src/main.tsx`); add `react` 19 + `vite` 6 + Vitest + `@testing-library/react`.
-- [ ] 2.2 Configure `vite.config.ts`: dev-server proxy `/api` → `http://localhost:8080`; `build.outDir` → `../src/main/resources/static`; Vitest (`jsdom`, `setupTests.ts`).
-- [ ] 2.3 Add mobile-first shell in `App.tsx` (viewport meta in `index.html`, single-column layout).
-- [ ] 2.4 Add `src/api/health.ts` fetching `/api/health` and returning the parsed status.
-- [ ] 2.5 (RED) Write `App.test.tsx` mocking the health fetch, asserting the status renders for success and failure; confirm it fails.
-- [ ] 2.6 (GREEN) Implement `App` to call health on load and render "ok" / "unreachable"; confirm the test passes.
-- [ ] 2.7 Verify: `npm run dev` (with backend running) shows the status in the browser (screenshot); `npm run build` succeeds.
+- [x] 2.1 Scaffold the Vite React-TS app in `frontend/` (`package.json`, `tsconfig.json`, `index.html`, `src/main.tsx`); add `react` 19 + `vite` 6 + Vitest + `@testing-library/react`.
+- [x] 2.2 Configure `vite.config.ts`: dev-server proxy `/api` → `http://localhost:8080`; `build.outDir` → `../src/main/resources/static`; Vitest (`jsdom`, `setupTests.ts`).
+- [x] 2.3 Add mobile-first shell in `App.tsx` (viewport meta in `index.html`, single-column layout).
+- [x] 2.4 Add `src/api/health.ts` fetching `/api/health` and returning the parsed status.
+- [x] 2.5 (RED) Write `App.test.tsx` mocking the health fetch, asserting the status renders for success and failure; confirm it fails.
+- [x] 2.6 (GREEN) Implement `App` to call health on load and render "ok" / "unreachable"; confirm the test passes.
+- [x] 2.7 Verify: `npm run dev` (with backend running) shows the status in the browser (screenshot); `npm run build` succeeds.
 
 ### [ ] 3.0 Single-process serving from Spring
 

@@ -35,3 +35,17 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Frontend ###
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+### Generated frontend build output (populated by the Gradle/Docker build) ###
+src/main/resources/static/
+
+### Local env files ###
+*.env
+.env*
+!.env.example
+.DS_Store
