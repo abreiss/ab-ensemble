@@ -25,3 +25,10 @@ ensemble:
     # Reject uploads whose decoded pixel count exceeds this, so a small but highly
     # compressed "decompression bomb" cannot blow up memory. ~50MP >> any phone camera.
     max-upload-pixels: 50000000
+  anthropic:
+    # Non-secret vision-tagging settings. The API key is NOT here — it comes from
+    # the ANTHROPIC_API_KEY environment variable (AnthropicOkHttpClient.fromEnv()).
+    # Vision tagging is pinned to Haiku 4.5.
+    model: claude-haiku-4-5
+    # Bounded per-request timeout; a hung call degrades to the tagging fallback.
+    timeout: 30s
