@@ -19,9 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.ensemble.wardrobe.Item;
 import com.ensemble.wardrobe.WardrobeService;
-import com.ensemble.wardrobe.dto.ItemMapper;
 import com.ensemble.wardrobe.dto.ItemResponse;
 import com.ensemble.wardrobe.dto.TagRequest;
 
@@ -29,8 +27,9 @@ import jakarta.validation.Valid;
 
 /**
  * REST API for the wardrobe under {@code /api/items}. Exchanges DTOs only; the
- * {@link Item} model and storage internals never cross this boundary. Error
- * mapping (404 / 400) lives in {@link ApiExceptionHandler}.
+ * persistence model and storage internals never cross this boundary — the
+ * service returns {@link ItemResponse}. Error mapping (404 / 400) lives in
+ * {@link ApiExceptionHandler}.
  */
 @RestController
 @RequestMapping("/api/items")
@@ -46,20 +45,20 @@ public class WardrobeController {
 	public ResponseEntity<ItemResponse> create(
 			@RequestPart("photo") MultipartFile photo,
 			@Valid TagRequest tags) throws IOException {
-		Item created = service.create(tags, photo.getBytes());
+		ItemResponse created = service.create(tags, photo.getBytes());
 		return ResponseEntity
-			.created(URI.create("/api/items/" + created.getItemId()))
-			.body(ItemMapper.toResponse(created));
+			.created(URI.create("/api/items/" + created.itemId()))
+			.body(created);
 	}
 
 	@GetMapping
 	public List<ItemResponse> list() {
-		return service.list().stream().map(ItemMapper::toResponse).toList();
+		return service.list();
 	}
 
 	@GetMapping("/{id}")
 	public ItemResponse get(@PathVariable String id) {
-		return ItemMapper.toResponse(service.get(id));
+		return service.get(id);
 	}
 
 	@GetMapping("/{id}/photo")
@@ -71,7 +70,7 @@ public class WardrobeController {
 
 	@PutMapping(value = "/{id}/tags", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ItemResponse updateTags(@PathVariable String id, @Valid @RequestBody TagRequest tags) {
-		return ItemMapper.toResponse(service.updateTags(id, tags));
+		return service.updateTags(id, tags);
 	}
 
 	@DeleteMapping("/{id}")

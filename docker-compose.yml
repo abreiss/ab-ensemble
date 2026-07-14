@@ -5,7 +5,9 @@
 # http://localhost:8000 and auto-creates the table on startup.
 services:
   dynamodb:
-    image: amazon/dynamodb-local:latest
+    # Pinned to match the version used by the integration tests (see *IT classes)
+    # so local dev and CI behave identically.
+    image: amazon/dynamodb-local:2.5.2
     container_name: ensemble-dynamodb
     # root avoids host/volume permission issues writing the shared-db file.
     user: root

@@ -32,6 +32,11 @@ public class ApiExceptionHandler {
 		return new ErrorResponse("not_found", ex.getMessage());
 	}
 
+	/**
+	 * All bad-input paths return the same generic message. The raw exception text
+	 * (field-binding detail, JSON parser internals) is deliberately not echoed to
+	 * the client; the status + {@code bad_request} code carry the contract.
+	 */
 	@ExceptionHandler({
 		MethodArgumentNotValidException.class,
 		BindException.class,
@@ -42,6 +47,6 @@ public class ApiExceptionHandler {
 	})
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	public ErrorResponse handleBadRequest(Exception ex) {
-		return new ErrorResponse("bad_request", ex.getMessage());
+		return new ErrorResponse("bad_request", "invalid request");
 	}
 }

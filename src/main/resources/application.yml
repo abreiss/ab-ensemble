@@ -22,3 +22,6 @@ ensemble:
   photos:
     # Base directory for LocalDiskPhotoStorage (git-ignored).
     dir: ./data/photos
+    # Reject uploads whose decoded pixel count exceeds this, so a small but highly
+    # compressed "decompression bomb" cannot blow up memory. ~50MP >> any phone camera.
+    max-upload-pixels: 50000000

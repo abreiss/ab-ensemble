@@ -5,12 +5,14 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 import javax.imageio.ImageIO;
 
@@ -26,6 +28,8 @@ import com.ensemble.config.PhotoProperties;
  */
 class LocalDiskPhotoStorageTest {
 
+	private static final long DEFAULT_MAX_PIXELS = 50_000_000L;
+
 	@TempDir
 	Path tempDir;
 
@@ -33,15 +37,25 @@ class LocalDiskPhotoStorageTest {
 
 	@BeforeEach
 	void setUp() {
-		storage = new LocalDiskPhotoStorage(new PhotoProperties(tempDir.toString()));
+		storage = new LocalDiskPhotoStorage(new PhotoProperties(tempDir.toString(), DEFAULT_MAX_PIXELS));
 	}
 
 	private static byte[] pngOf(int width, int height) throws IOException {
+		return encode(width, height, "png");
+	}
+
+	private static byte[] jpegOf(int width, int height) throws IOException {
+		return encode(width, height, "jpg");
+	}
+
+	private static byte[] encode(int width, int height, String format) throws IOException {
 		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-		image.getGraphics().setColor(Color.BLUE);
-		image.getGraphics().fillRect(0, 0, width, height);
+		Graphics2D g = image.createGraphics();
+		g.setColor(Color.BLUE);
+		g.fillRect(0, 0, width, height);
+		g.dispose();
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		ImageIO.write(image, "png", out);
+		ImageIO.write(image, format, out);
 		return out.toByteArray();
 	}
 
@@ -87,6 +101,30 @@ class LocalDiskPhotoStorageTest {
 
 		assertThatExceptionOfType(InvalidImageException.class)
 			.isThrownBy(() -> storage.save("bad.jpg", notAnImage));
+	}
+
+	@Test
+	void save_truncatedImage_throwsInvalidImageException() throws IOException {
+		// A valid JPEG header followed by a cut-off body decodes to an IOException
+		// mid-parse; that must surface as a 400-mapped InvalidImageException, not a
+		// 500-mapped UncheckedIOException.
+		byte[] jpeg = jpegOf(1000, 1000);
+		byte[] truncated = Arrays.copyOf(jpeg, 100);
+
+		assertThatExceptionOfType(InvalidImageException.class)
+			.isThrownBy(() -> storage.save("truncated.jpg", truncated));
+	}
+
+	@Test
+	void save_imageExceedingPixelCap_throwsInvalidImageException() throws IOException {
+		// A tiny pixel cap stands in for the decompression-bomb guard: an image whose
+		// pixel count exceeds the cap is rejected from its cheap declared dimensions,
+		// before the full raster is decoded into memory.
+		LocalDiskPhotoStorage capped =
+			new LocalDiskPhotoStorage(new PhotoProperties(tempDir.toString(), 10_000L));
+
+		assertThatExceptionOfType(InvalidImageException.class)
+			.isThrownBy(() -> capped.save("bomb.jpg", pngOf(200, 200)));
 	}
 
 	@Test
