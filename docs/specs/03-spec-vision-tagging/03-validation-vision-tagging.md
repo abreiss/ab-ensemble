@@ -3,6 +3,15 @@
 Validation of `03-spec-vision-tagging` against its implementation, task list, and
 proof artifacts on branch `feat/03-vision-tagging`.
 
+> **Update (2026-07-14):** The one deferred item — the live, key-gated end-to-end
+> run (Success Metric 1 / tasks 5.2–5.4) — has since been **executed and captured**
+> in `03-proofs/03-task-05-proofs.md`: a real garment photo → live Haiku 4.5 tags →
+> item created (`201` + `GET`), key sourced only from a git-ignored `.env`. The
+> MEDIUM issue below is therefore **RESOLVED**; overall result is now an
+> unconditional **PASS**. (Note: the key is now read via `ENSEMBLE_ANTHROPIC_API_KEY`
+> from `.env`, superseding the spec's original env-only-`ANTHROPIC_API_KEY` wording,
+> per user request.)
+
 ## 1) Executive Summary
 
 - **Overall:** **PASS** (conditional) — no gate tripped by a blocker; one
