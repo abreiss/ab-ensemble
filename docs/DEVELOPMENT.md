@@ -26,7 +26,7 @@ Backend + frontend run together in dev; a single container serves both in prod.
 
 - **Backend:** `./gradlew bootRun` → serves `/api/**` on port 8080.
 - **Frontend:** `cd frontend && npm run dev` → Vite dev server on 5173, proxying `/api` → 8080.
-- **DynamoDB Local:** `docker compose up dynamodb` (started from the storage issue onward); the table is auto-created on dev startup.
+- **DynamoDB Local:** `docker compose up -d dynamodb`; the table (`ensemble-items`) is auto-created on dev startup. Photos are written to `ensemble.photos.dir` (default `./data/photos`, git-ignored). See the "Wardrobe Storage" section in `README.md` for the `/api/items` CRUD flow.
 - **Claude key:** `export ANTHROPIC_API_KEY=...` before running anything that tags or styles.
 
 Verify the skeleton: `curl -s localhost:8080/api/health` returns `200` with `{"status":"ok"}`.

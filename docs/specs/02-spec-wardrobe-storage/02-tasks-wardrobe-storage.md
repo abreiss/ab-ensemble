@@ -112,7 +112,7 @@ paths (image compression, id validation, tag-range validation).
 - [x] 4.5 RED→GREEN: add `ApiExceptionHandler` — `404` unknown id, `400` out-of-range tags + missing/invalid photo; MockMvc asserts each.
 - [x] 4.6 REFACTOR: confirm DTO-only boundary (no `Item`/storage type leaks past service); JaCoCo 100% line; validation paths proven.
 
-### [ ] 5.0 End-to-end local run + docs
+### [x] 5.0 End-to-end local run + docs
 
 #### 5.0 Proof Artifact(s)
 
@@ -122,8 +122,8 @@ paths (image compression, id validation, tag-range validation).
 
 #### 5.0 Tasks
 
-- [ ] 5.1 Add a "Wardrobe storage" section to `README.md`: `docker compose up -d dynamodb`, `ensemble.photos.dir`, and sample `curl`s for the CRUD flow.
-- [ ] 5.2 Align `docs/DEVELOPMENT.md` (DynamoDB Local run note already references `docker compose up dynamodb`).
-- [ ] 5.3 Capture the end-to-end `curl` transcript (create→list→get→update→delete) into `02-proofs/`.
-- [ ] 5.4 Capture the get-photo proof (`content_type=image/jpeg`, longest edge ≤800px) into `02-proofs/`.
-- [ ] 5.5 Run `./gradlew test -PskipFrontend jacocoTestReport`; save the coverage summary into `02-proofs/`.
+- [x] 5.1 Add a "Wardrobe storage" section to `README.md`: `docker compose up -d dynamodb`, `ensemble.photos.dir`, and sample `curl`s for the CRUD flow.
+- [x] 5.2 Align `docs/DEVELOPMENT.md` (DynamoDB Local run note references `docker compose up -d dynamodb` + photo dir).
+- [x] 5.3 Capture the end-to-end `curl` transcript (create→list→get→update→delete→404) into `02-proofs/`.
+- [x] 5.4 Capture the get-photo proof (`content_type=image/jpeg`, 800×400 from 1200×600) into `02-proofs/`.
+- [x] 5.5 Run `./gradlew clean test jacocoTestReport -PskipFrontend`; save the coverage summary into `02-proofs/`.
