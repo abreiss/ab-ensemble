@@ -96,7 +96,7 @@ Claude client is mocked in every test; **no live API calls in the suite**.
 - [x] 3.5 RED→GREEN: add a test that `InvalidImageException` raised by the image guard is **not** swallowed (propagates out of `suggest`), while API/parse failures are swallowed — locks the 400-vs-200 split the endpoint depends on.
 - [x] 3.6 REFACTOR: tidy naming/structure; run `jacocoTestReport -PskipFrontend` and confirm ≥90% line on `com.ensemble.tagging` and 100% branch on the mapping + fallback methods.
 
-### [ ] 4.0 Tag-preview endpoint `POST /api/items/tag` + DTO + error handling
+### [x] 4.0 Tag-preview endpoint `POST /api/items/tag` + DTO + error handling
 
 #### 4.0 Proof Artifact(s)
 
@@ -107,12 +107,12 @@ Claude client is mocked in every test; **no live API calls in the suite**.
 
 #### 4.0 Tasks
 
-- [ ] 4.1 RED: write `TaggingControllerTest` (`@WebMvcTest(TaggingController.class)`, mocked `TaggingService`) — a good suggestion → `200` JSON with the expected tag fields; confirm it fails (class absent).
-- [ ] 4.2 GREEN: implement `com.ensemble.tagging.web.TaggingController` — `POST /api/items/tag` consuming `multipart/form-data` (`photo` part), calling `service.suggest(photo.getBytes())`, returning the `TagSuggestion` at `200`; persists nothing.
-- [ ] 4.3 RED→GREEN: add controller tests — (a) a degraded/empty suggestion still returns `200`, (b) a missing `photo` part returns `400`, (c) the service throwing `InvalidImageException` (non-image) returns `400`; implement/adjust until green. *(FR2.4, FR2.5.)*
-- [ ] 4.4 GREEN: extend `ApiExceptionHandler` `assignableTypes` to include `TaggingController`; add a MockMvc assertion that the `400` body is the sanitized `{error:"bad_request", message:"invalid request"}` shape with no internals. *(FR2.6.)*
-- [ ] 4.5 RED→GREEN: add a serialization test — an all-null `TagSuggestion` produces valid JSON — and confirm by inspection the DTO carries no bean-validation annotations (unlike `TagRequest`). *(FR2.2.)*
-- [ ] 4.6 REFACTOR: confirm the tag path touches **no** persistence (no `WardrobeRepository` / `PhotoStorage` / DynamoDB call — mocked-service test + inspection) and the DTO-only boundary holds; `jacocoTestReport -PskipFrontend` ≥90% line on the tagging web layer. *(FR2.3.)*
+- [x] 4.1 RED: write `TaggingControllerTest` (`@WebMvcTest(TaggingController.class)`, mocked `TaggingService`) — a good suggestion → `200` JSON with the expected tag fields; confirm it fails (class absent).
+- [x] 4.2 GREEN: implement `com.ensemble.tagging.web.TaggingController` — `POST /api/items/tag` consuming `multipart/form-data` (`photo` part), calling `service.suggest(photo.getBytes())`, returning the `TagSuggestion` at `200`; persists nothing.
+- [x] 4.3 RED→GREEN: add controller tests — (a) a degraded/empty suggestion still returns `200`, (b) a missing `photo` part returns `400`, (c) the service throwing `InvalidImageException` (non-image) returns `400`; implement/adjust until green. *(FR2.4, FR2.5.)*
+- [x] 4.4 GREEN: extend `ApiExceptionHandler` `assignableTypes` to include `TaggingController`; add a MockMvc assertion that the `400` body is the sanitized `{error:"bad_request", message:"invalid request"}` shape with no internals. *(FR2.6.)*
+- [x] 4.5 RED→GREEN: add a serialization test — an all-null `TagSuggestion` produces valid JSON — and confirm by inspection the DTO carries no bean-validation annotations (unlike `TagRequest`). *(FR2.2.)*
+- [x] 4.6 REFACTOR: confirm the tag path touches **no** persistence (no `WardrobeRepository` / `PhotoStorage` / DynamoDB call — mocked-service test + inspection) and the DTO-only boundary holds; `jacocoTestReport -PskipFrontend` ≥90% line on the tagging web layer. *(FR2.3.)*
 
 ### [ ] 5.0 End-to-end live proof (real photo → tags → item) + docs
 

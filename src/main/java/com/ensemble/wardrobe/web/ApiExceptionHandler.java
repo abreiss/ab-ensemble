@@ -11,16 +11,19 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 
 import com.ensemble.storage.InvalidImageException;
 import com.ensemble.storage.PhotoNotFoundException;
+import com.ensemble.tagging.web.TaggingController;
 import com.ensemble.wardrobe.ItemNotFoundException;
 
 import jakarta.validation.ConstraintViolationException;
 
 /**
- * Maps domain and request errors to HTTP responses for the wardrobe API:
- * unknown ids → 404, invalid input (validation, bad range, missing/invalid
- * photo, malformed JSON) → 400. Returns a small sanitized error body.
+ * Maps domain and request errors to HTTP responses for the wardrobe and tagging
+ * APIs: unknown ids → 404, invalid input (validation, bad range, missing/invalid
+ * photo, malformed JSON) → 400. Returns a small sanitized error body. The tag-preview
+ * controller is covered here too, so its missing-part / non-image failures reuse the
+ * same sanitized 400 shape.
  */
-@RestControllerAdvice(assignableTypes = WardrobeController.class)
+@RestControllerAdvice(assignableTypes = {WardrobeController.class, TaggingController.class})
 public class ApiExceptionHandler {
 
 	/** Small error body — no internals or stack traces leak to the client. */
