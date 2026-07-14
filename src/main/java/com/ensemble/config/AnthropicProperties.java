@@ -16,9 +16,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param timeout bounded per-request timeout; a non-positive/unset value falls back
  *     to {@link #DEFAULT_TIMEOUT} so a hung call degrades to the tagging fallback
  *     rather than blocking indefinitely.
+ * @param apiKey the Claude API key, supplied via the {@code ENSEMBLE_ANTHROPIC_API_KEY}
+ *     variable (read from a git-ignored {@code .env} file or the process environment) and
+ *     bound through {@code application.yml}. A blank/unset value is normalized to
+ *     {@code null} so {@code AnthropicConfig} falls back to the SDK's own environment
+ *     resolution. It is never a committed value — the {@code .env} file is git-ignored.
  */
 @ConfigurationProperties(prefix = "ensemble.anthropic")
-public record AnthropicProperties(String model, Duration timeout) {
+public record AnthropicProperties(String model, Duration timeout, String apiKey) {
 
 	/** Vision tagging is pinned to Haiku 4.5 (see docs/ARCHITECTURE.md). */
 	public static final String DEFAULT_MODEL = "claude-haiku-4-5";
@@ -32,6 +37,9 @@ public record AnthropicProperties(String model, Duration timeout) {
 		}
 		if (timeout == null || timeout.isZero() || timeout.isNegative()) {
 			timeout = DEFAULT_TIMEOUT;
+		}
+		if (apiKey != null && apiKey.isBlank()) {
+			apiKey = null;
 		}
 	}
 }
