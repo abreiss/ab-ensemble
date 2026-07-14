@@ -1,0 +1,22 @@
+# Local development dependencies. Start DynamoDB Local with:
+#   docker compose up -d dynamodb
+#
+# The app (application.yml -> ensemble.dynamodb.endpoint) points at
+# http://localhost:8000 and auto-creates the table on startup.
+services:
+  dynamodb:
+    # Pinned to match the version used by the integration tests (see *IT classes)
+    # so local dev and CI behave identically.
+    image: amazon/dynamodb-local:2.5.2
+    container_name: ensemble-dynamodb
+    # root avoids host/volume permission issues writing the shared-db file.
+    user: root
+    ports:
+      - "8000:8000"
+    working_dir: /home/dynamodblocal
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
+    volumes:
+      - ensemble-dynamodb-data:/home/dynamodblocal/data
+
+volumes:
+  ensemble-dynamodb-data:

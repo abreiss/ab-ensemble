@@ -60,6 +60,43 @@ npm run dev
 Open <http://localhost:5173> — the page shows **"Backend status: ok"** once it
 reaches the backend.
 
+## Wardrobe Storage (DynamoDB Local + photos)
+
+The wardrobe API (`/api/items`) persists item records to **DynamoDB Local** and
+photos to local disk. Start the local database before the backend:
+
+```bash
+docker compose up -d dynamodb      # DynamoDB Local on :8000
+```
+
+The table (`ensemble-items`) is auto-created on startup. Photos are written to
+`./data/photos`, compressed to ≤800px JPEG on save; both `data/` and the DB
+volume are git-ignored. Override via `application.yml` or the environment:
+
+- `ensemble.dynamodb.endpoint` (default `http://localhost:8000`)
+- `ensemble.dynamodb.table-name` (default `ensemble-items`)
+- `ensemble.photos.dir` (default `./data/photos`)
+
+With the backend running and the database up, exercise the CRUD flow:
+
+```bash
+# create (multipart: photo + tag fields) -> 201 with a server-generated itemId
+curl -s -X POST localhost:8080/api/items \
+  -F photo=@your-photo.jpg -F category=top -F primaryColor=navy \
+  -F formality=3 -F warmth=2 -F descriptors=cotton
+
+curl -s localhost:8080/api/items                          # list all
+curl -s localhost:8080/api/items/{id}                     # get one
+curl -s localhost:8080/api/items/{id}/photo -o out.jpg    # photo (image/jpeg, <=800px)
+curl -s -X PUT localhost:8080/api/items/{id}/tags \
+  -H 'Content-Type: application/json' \
+  -d '{"category":"top","primaryColor":"black","formality":5,"warmth":2}'
+curl -s -X DELETE localhost:8080/api/items/{id}           # delete -> 204
+```
+
+`formality` must be 1–5 and `warmth` 1–3 (else `400`); an unknown id returns
+`404`. Stop the database with `docker compose down`.
+
 ## Build
 
 A single command builds the frontend, embeds it into Spring's static resources,

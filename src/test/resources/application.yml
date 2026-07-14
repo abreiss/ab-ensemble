@@ -1,0 +1,20 @@
+# Test configuration. Mirrors the minimal main config but disables the
+# DynamoDB table auto-create runner so a Spring context (e.g. @SpringBootTest
+# contextLoads, @WebMvcTest slices) can start without a live DynamoDB.
+# Integration tests (*IT) build their own client against TestContainers and
+# drive table setup explicitly.
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ensemble
+
+ensemble:
+  dynamodb:
+    endpoint: http://localhost:8000
+    region: us-east-1
+    table-name: ensemble-items
+    auto-create-table: false
+  photos:
+    dir: build/test-photos

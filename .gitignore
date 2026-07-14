@@ -49,3 +49,6 @@ src/main/resources/static/
 .env*
 !.env.example
 .DS_Store
+
+### Local persistence (never commit real photos or local DB data) ###
+data/

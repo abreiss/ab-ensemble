@@ -4,3 +4,24 @@ server:
 spring:
   application:
     name: ensemble
+  servlet:
+    multipart:
+      # Cap upload size so a huge/malicious image cannot exhaust memory on decode.
+      max-file-size: 10MB
+      max-request-size: 12MB
+
+ensemble:
+  dynamodb:
+    # Local dev points at DynamoDB Local (docker compose up -d dynamodb).
+    endpoint: http://localhost:8000
+    region: us-east-1
+    table-name: ensemble-items
+    # Create the table on startup if absent. Disabled in tests (see
+    # src/test/resources/application.yml) so context tests need no live DynamoDB.
+    auto-create-table: true
+  photos:
+    # Base directory for LocalDiskPhotoStorage (git-ignored).
+    dir: ./data/photos
+    # Reject uploads whose decoded pixel count exceeds this, so a small but highly
+    # compressed "decompression bomb" cannot blow up memory. ~50MP >> any phone camera.
+    max-upload-pixels: 50000000

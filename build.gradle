@@ -20,8 +20,24 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	// Bean Validation (Hibernate Validator) for request DTO constraints.
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	// AWS SDK v2 — DynamoDB Enhanced Client for single-table persistence.
+	// No Spring Data / JPA (see AGENTS.md): one item model, itemId partition key.
+	implementation platform('software.amazon.awssdk:bom:2.30.0')
+	implementation 'software.amazon.awssdk:dynamodb-enhanced'
+
+	// Photo compression/resize (≤800px JPEG on save) for LocalDiskPhotoStorage.
+	implementation 'net.coobird:thumbnailator:0.4.20'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// DynamoDB Local integration tests via TestContainers.
+	testImplementation platform('org.testcontainers:testcontainers-bom:1.20.4')
+	testImplementation 'org.testcontainers:junit-jupiter'
 }
 
 tasks.named('test') {
