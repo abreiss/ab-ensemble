@@ -78,7 +78,7 @@ paths (image compression, id validation, tag-range validation).
 - [x] 2.4 RED→GREEN: extend `WardrobeRepositoryIT` with update, delete, list-all, and empty-wardrobe cases; implement to green.
 - [x] 2.5 REFACTOR: tidy naming/structure; confirm `jacocoTestReport` ≥90% line on the package.
 
-### [ ] 3.0 PhotoStorage interface + LocalDiskPhotoStorage (≤800px JPEG)
+### [x] 3.0 PhotoStorage interface + LocalDiskPhotoStorage (≤800px JPEG)
 
 #### 3.0 Proof Artifact(s)
 
@@ -89,11 +89,11 @@ paths (image compression, id validation, tag-range validation).
 
 #### 3.0 Tasks
 
-- [ ] 3.1 RED: write `LocalDiskPhotoStorageTest#save_largeImage_downscaledToMax800JpegOnLoad` using a generated >800px image (temp dir); confirm it fails.
-- [ ] 3.2 GREEN: define the `PhotoStorage` interface (save/load/delete) and `InvalidImageException`.
-- [ ] 3.3 GREEN: implement `LocalDiskPhotoStorage` — write to base dir, resize longest edge ≤800px, re-encode JPEG; make the test pass.
-- [ ] 3.4 RED→GREEN: add tests for no-upscale (small image unchanged) and non-image input → `InvalidImageException`; implement to green.
-- [ ] 3.5 REFACTOR: extract resize helper if needed; confirm JaCoCo 100% branch on resize/validate.
+- [x] 3.1 RED: write `LocalDiskPhotoStorageTest#save_largeImage_downscaledToMax800JpegOnLoad` using a generated >800px image (temp dir); confirm it fails.
+- [x] 3.2 GREEN: define the `PhotoStorage` interface (save/load/delete) and `InvalidImageException`.
+- [x] 3.3 GREEN: implement `LocalDiskPhotoStorage` — write to base dir, resize longest edge ≤800px, re-encode JPEG; make the test pass.
+- [x] 3.4 RED→GREEN: add tests for no-upscale (small image unchanged) and non-image input → `InvalidImageException`; implement to green.
+- [x] 3.5 REFACTOR: funnel checked-IO through one helper; JaCoCo 100% line + 100% branch on the impl.
 
 ### [ ] 4.0 Wardrobe CRUD API (service + controller + DTOs + validation)
 
