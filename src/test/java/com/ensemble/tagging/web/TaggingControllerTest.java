@@ -1,13 +1,17 @@
 package com.ensemble.tagging.web;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -17,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.ensemble.storage.InvalidImageException;
 import com.ensemble.tagging.TaggingService;
@@ -82,5 +87,18 @@ class TaggingControllerTest {
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.error").value("bad_request"))
 			.andExpect(jsonPath("$.message").value("invalid request"));
+	}
+
+	@Test
+	void tag_photoReadFails_throwsInvalidImage_andServiceNeverCalled() throws Exception {
+		// A truncated/aborted upload makes photo.getBytes() throw IOException. The controller
+		// must translate that into a bad-request InvalidImageException (→ sanitized 400 via the
+		// shared advice), not let a raw IOException escape into a 500.
+		MultipartFile photo = mock(MultipartFile.class);
+		when(photo.getBytes()).thenThrow(new IOException("truncated upload"));
+
+		assertThatThrownBy(() -> new TaggingController(service).tag(photo))
+			.isInstanceOf(InvalidImageException.class);
+		verifyNoInteractions(service);
 	}
 }

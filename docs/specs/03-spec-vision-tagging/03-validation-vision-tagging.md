@@ -59,7 +59,7 @@ No `Unknown` entries → **GATE B satisfied**.
 | Coding Standards (layered, DTO boundary, package-by-feature) | Verified | controller → service → seam under `com.ensemble.tagging`; config under `com.ensemble.config`; DTO-only boundary (`TagSuggestion`); no SDK type in controller/service |
 | Testing Patterns (TDD, Mockito, `@WebMvcTest`, mock Claude) | Verified | RED→GREEN per task; seam + `ImageProcessor` mocked; `@WebMvcTest` for the endpoint; **no live call in suite** |
 | Quality Gates (JaCoCo, pre-commit) | Verified | ≥90% line on tagging (96.6%), 100% branch on critical logic; all 3 commits passed pre-commit (backend tests + secret scan) |
-| Secret Hygiene | Verified | `block-anthropic-keys` green; key env-only (`ANTHROPIC_API_KEY`), never a config property |
+| Secret Hygiene | Verified | `block-anthropic-keys` green; key sourced only from the environment / git-ignored `.env` (`ENSEMBLE_ANTHROPIC_API_KEY`), never a committed value; `AnthropicProperties.toString()` masks it |
 | Documentation | Verified | `README.md` "Vision tagging (tag preview)" section added (env var, sample curl, non-blocking 200 note) |
 
 ### Proof Artifacts

@@ -33,7 +33,7 @@ dependencies {
 
 	// Anthropic Java SDK — Claude vision tagging (Haiku 4.5). The client is reached
 	// only through a narrow seam (com.ensemble.tagging.VisionModelClient); the API
-	// key comes from ANTHROPIC_API_KEY in the environment, never from config.
+	// key is sourced only from the environment / a git-ignored .env (never committed).
 	implementation 'com.anthropic:anthropic-java:2.48.0'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'

@@ -5,11 +5,14 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Non-secret Anthropic settings. Bound from {@code ensemble.anthropic.*}.
+ * Anthropic settings bound from {@code ensemble.anthropic.*}.
  *
- * <p>The API key is deliberately <strong>not</strong> a property here — it is read
- * from the {@code ANTHROPIC_API_KEY} environment variable by the SDK
- * ({@code AnthropicOkHttpClient.fromEnv()}), so it is never committed to config.
+ * <p>The API key is bound here (via {@code ${ENSEMBLE_ANTHROPIC_API_KEY:}} in
+ * {@code application.yml}) but sourced only from the environment / a git-ignored
+ * {@code .env} file — never a committed value. A blank/unset key normalizes to
+ * {@code null} so {@code AnthropicConfig} falls back to the SDK's own
+ * {@code ANTHROPIC_API_KEY} resolution ({@code AnthropicOkHttpClient.fromEnv()}).
+ * {@link #toString()} masks the key so it cannot leak into logs.
  *
  * @param model the Claude model id used for vision tagging; defaults to
  *     {@value #DEFAULT_MODEL} when blank/unset so tagging is pinned to Haiku 4.5.
@@ -41,5 +44,16 @@ public record AnthropicProperties(String model, Duration timeout, String apiKey)
 		if (apiKey != null && apiKey.isBlank()) {
 			apiKey = null;
 		}
+	}
+
+	/**
+	 * Masks {@code apiKey} so the secret never lands in a log line or error message.
+	 * The default record {@code toString()} would render the raw key verbatim.
+	 */
+	@Override
+	public String toString() {
+		return "AnthropicProperties[model=" + model
+			+ ", timeout=" + timeout
+			+ ", apiKey=" + (apiKey == null ? "null" : "****") + "]";
 	}
 }

@@ -63,4 +63,21 @@ class AnthropicPropertiesTest {
 	void nullApiKey_isNull() {
 		assertThat(new AnthropicProperties("claude-haiku-4-5", null, null).apiKey()).isNull();
 	}
+
+	@Test
+	void apiKey_isMaskedInToString() {
+		// The record binds the key as a component, so the default toString() would leak it.
+		// A dummy value: never a real sk-ant-* key (keeps the secret scan green).
+		String rendered = new AnthropicProperties("claude-haiku-4-5", null, "dummy-key-123").toString();
+		assertThat(rendered).doesNotContain("dummy-key-123");
+		// Non-secret fields stay visible so the record is still useful in logs.
+		assertThat(rendered).contains("claude-haiku-4-5");
+	}
+
+	@Test
+	void nullApiKey_rendersNullInToString() {
+		// Exercises the null branch of the masked toString().
+		assertThat(new AnthropicProperties("claude-haiku-4-5", null, null).toString())
+			.contains("apiKey=null");
+	}
 }
