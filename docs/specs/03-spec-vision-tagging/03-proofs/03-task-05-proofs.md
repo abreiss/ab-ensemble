@@ -3,22 +3,24 @@
 ## Task Summary
 
 This task closes the slice: it documents the tag-preview flow for a new developer,
-re-verifies the full coverage gate on a clean build, and confirms secret hygiene.
-The one remaining step — a **live** real-photo → tags → item run — requires an
-`ANTHROPIC_API_KEY` and a running server and is recorded below as pending with
-exact reproduction commands.
+re-verifies the full coverage gate on a clean build, confirms secret hygiene, and
+captures the **live** end-to-end run — a real garment photo auto-tagged by Claude
+Haiku 4.5, whose tags create a persisted wardrobe item.
 
 ## What This Task Proves
 
-- `README.md` documents the tag-preview flow: the env var, a sample `curl` to
-  `POST /api/items/tag`, and the note that a failed/degraded call still returns an
-  editable `200` (5.1).
+- `README.md` documents the tag-preview flow: the `.env` key setup, a sample `curl`
+  to `POST /api/items/tag`, and the note that a failed/degraded call still returns
+  an editable `200` (5.1).
 - A clean `./gradlew clean test jacocoTestReport -PskipFrontend` is green with the
   Claude client **mocked** — no key, no network call in the suite (5.5).
 - The tagging package meets the coverage bar: **≥90% line** overall and **100%
   branch** on the critical mapping + fallback logic (5.5).
 - The `block-anthropic-keys` secret scan is green — no key in code, config, tests,
   or proofs (5.5).
+- **Live:** a real photo posted to `POST /api/items/tag` returns valid structured
+  tags, which then create an item via `POST /api/items` (`201` + `GET`) — the
+  headline acceptance criterion, against the real model (5.2–5.4).
 
 ## Evidence Summary
 
@@ -26,6 +28,9 @@ exact reproduction commands.
 - Coverage: tagging package LINE 86/89 = **96.6%**; `TaggingService` (mapping +
   fallback) BRANCH 24/24 = **100%**, LINE 33/33 = 100%.
 - Secret scan: `Block committed Anthropic API keys ... Passed`.
+- Live run: real Megadeth-tee photo → `T-Shirt/Black/Orange, formality 1, warmth 3,
+  Graphic Print` + descriptors → item `cb061347-…` created (`201`), photo stored as
+  640×800 JPEG. Key sourced only from git-ignored `.env`, never in the transcript.
 
 ## Artifact: Clean build + coverage gate (client mocked, no key)
 
@@ -93,38 +98,78 @@ are documented next to the existing wardrobe CRUD flow.
 `curl -F photo=@... /api/items/tag` with an example response, the manual-create
 follow-up, and the note that a degraded call still returns an editable `200`.
 
-## Pending: live end-to-end run (5.2–5.4) — requires the key
+## Artifact: Live end-to-end run — real photo → tags → item (5.2–5.4)
 
-**Status:** NOT YET RUN. The live headline criterion (Success Metric 1) needs a
-real `ANTHROPIC_API_KEY` and a running server + DynamoDB Local, which are not
-available in this environment. Everything else in the slice is built and verified
-without the key (per the spec's own note). To produce the sanitized transcript,
-run:
+**What it proves:** The headline acceptance criterion (Success Metric 1) works
+against the **real** Claude Haiku 4.5 model: a genuine garment photo is auto-tagged
+over HTTP and those tags create a persisted wardrobe item.
+
+**Why it matters:** This is the one step the mocked suite cannot cover — it
+exercises the real vision call, forced-JSON parsing, and the create→persist→read
+round-trip together.
+
+**Setup (key supplied via git-ignored `.env`, never printed):**
 
 ~~~bash
-export ANTHROPIC_API_KEY=...            # real key; redact it in the saved transcript
+# .env holds ENSEMBLE_ANTHROPIC_API_KEY=<redacted>   (git-ignored, loaded on startup)
 docker compose up -d dynamodb
-./gradlew bootRun -PskipFrontend        # serves /api on :8080
-
-# 5.2 — real photo -> suggested tags (200), nothing persisted
-curl -s -X POST localhost:8080/api/items/tag -F photo=@garment.jpg | tee tag.json
-
-# 5.3 — create the item from the (edited) suggested tags -> 201, then GET it
-curl -s -X POST localhost:8080/api/items \
-  -F photo=@garment.jpg -F category=... -F primaryColor=... \
-  -F formality=... -F warmth=... | tee create.json
-curl -s localhost:8080/api/items/<itemId>
-
-# 5.4 — paste the sanitized (key-redacted) request/response transcript below
+./gradlew bootRun -PskipFrontend        # serves /api on :8080; reads .env; table auto-created
 ~~~
 
-When run, append the captured transcript to this file with the key redacted, then
-mark 5.2–5.4 `[x]` and 5.0 `[x]` in the task list.
+Input photo: a Megadeth band tee, `~/Downloads/megadeth.jpg`, JPEG 4061×5076
+(≈5.4 MB) — downsized to ≤800px before the vision call.
+
+**5.2 — tag preview (live Claude Haiku 4.5, nothing persisted):**
+
+~~~bash
+curl -s -X POST localhost:8080/api/items/tag -F photo=@~/Downloads/megadeth.jpg
+~~~
+
+~~~json
+{"category":"T-Shirt","primaryColor":"Black","secondaryColor":"Orange",
+ "formality":1,"pattern":"Graphic Print","warmth":3,
+ "descriptors":["Band Tee","Megadeth","Metal","Vintage","Oversized Fit",
+ "Short Sleeve","Crew Neck"]}
+~~~
+
+The model returned well-formed structured JSON mapping onto all six scalar tags +
+`descriptors`, with `formality` (1) and `warmth` (3) already in range.
+
+**5.3 — create the item from the (lightly-edited) tags → `201`, then `GET`:**
+
+~~~bash
+curl -s -D- -X POST localhost:8080/api/items \
+  -F photo=@~/Downloads/megadeth.jpg \
+  -F category=T-Shirt -F primaryColor=Black -F secondaryColor=Orange \
+  -F formality=1 -F warmth=3 -F pattern="Graphic Print" \
+  -F descriptors=Band-Tee -F descriptors=Megadeth -F descriptors=Metal
+~~~
+
+~~~text
+HTTP/1.1 201
+Location: /api/items/cb061347-40e2-416b-9c99-960c1b3e863d
+~~~
+
+~~~json
+{"itemId":"cb061347-40e2-416b-9c99-960c1b3e863d","category":"T-Shirt",
+ "primaryColor":"Black","secondaryColor":"Orange","formality":1,
+ "pattern":"Graphic Print","warmth":3,"descriptors":["Band-Tee","Megadeth","Metal"],
+ "photoUrl":"/api/items/cb061347-40e2-416b-9c99-960c1b3e863d/photo",
+ "createdAt":"2026-07-14T22:39:58.593960Z","lastWorn":null,"wornCount":0}
+~~~
+
+A follow-up `GET /api/items/cb061347-…` returned the same persisted record, and
+`GET /api/items/cb061347-…/photo` returned `200 image/jpeg`, **640×800** (the
+original 4061×5076 downsized to the ≤800px longest edge), 30,979 bytes.
+
+**Result summary:** Real photo → valid structured tags → persisted item, verified
+end to end. **API key redacted** — the key lives only in the git-ignored `.env`
+and never appears in any request, response, or this transcript.
 
 ## Reviewer Conclusion
 
-The slice is code-complete and fully tested with the Claude client mocked: the
-tag-preview flow is documented, the clean-build coverage gate is met (≥90% line;
-100% branch on the critical mapping + fallback), and the secret scan is green. The
-only outstanding item is the live, key-gated end-to-end run, which is documented
-above with exact reproduction steps.
+The slice is complete and proven both ways: the mocked suite covers every FR with
+100% branch on the critical mapping + fallback, and the live run above demonstrates
+the headline criterion against the real Haiku 4.5 model — a garment photo becomes
+structured tags that create a persisted wardrobe item, with the key sourced only
+from a git-ignored `.env`.
