@@ -85,8 +85,10 @@ public class LocalDiskPhotoStorage implements PhotoStorage {
 		BufferedImage image = decode(input);
 		int longestEdge = Math.max(image.getWidth(), image.getHeight());
 		double scale = longestEdge > MAX_EDGE ? (double) MAX_EDGE / longestEdge : 1.0;
-		int targetW = (int) Math.round(image.getWidth() * scale);
-		int targetH = (int) Math.round(image.getHeight() * scale);
+		// Clamp to at least 1px: an extreme aspect ratio can round the short edge to 0,
+		// which the JPEG encoder rejects.
+		int targetW = Math.max(1, (int) Math.round(image.getWidth() * scale));
+		int targetH = Math.max(1, (int) Math.round(image.getHeight() * scale));
 		return io(() -> {
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			Thumbnails.of(image).size(targetW, targetH).outputFormat("jpg").toOutputStream(out);
@@ -115,14 +117,22 @@ public class LocalDiskPhotoStorage implements PhotoStorage {
 					throw new InvalidImageException(
 						"image of " + pixels + "px exceeds the " + maxUploadPixels + "px limit");
 				}
-				return reader.read(0);
+				return readRaster(reader);
 			} finally {
 				reader.dispose();
 			}
-		} catch (IOException e) {
-			// A truncated/corrupt image fails mid-parse — invalid input, not a server fault.
+		} catch (InvalidImageException e) {
+			throw e; // header / pixel-cap rejections carry their own message
+		} catch (IOException | RuntimeException e) {
+			// A truncated/corrupt image fails mid-parse — some readers throw unchecked on
+			// crafted input. Either way it is invalid input, not a server fault.
 			throw new InvalidImageException("input is not a decodable image");
 		}
+	}
+
+	/** Reads the full raster. Isolated as a seam so decode failures can be exercised in tests. */
+	BufferedImage readRaster(ImageReader reader) throws IOException {
+		return reader.read(0);
 	}
 
 	/** Runs a checked-IO operation, rethrowing failures as unchecked. */

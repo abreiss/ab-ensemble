@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -125,6 +126,33 @@ class LocalDiskPhotoStorageTest {
 
 		assertThatExceptionOfType(InvalidImageException.class)
 			.isThrownBy(() -> capped.save("bomb.jpg", pngOf(200, 200)));
+	}
+
+	@Test
+	void save_whenReaderThrowsUnchecked_throwsInvalidImageException() throws IOException {
+		// ImageIO readers can throw unchecked exceptions on crafted input; those must
+		// surface as a 400-mapped InvalidImageException, not an unhandled 500.
+		LocalDiskPhotoStorage faulty =
+			new LocalDiskPhotoStorage(new PhotoProperties(tempDir.toString(), DEFAULT_MAX_PIXELS)) {
+				@Override
+				BufferedImage readRaster(ImageReader reader) {
+					throw new ArrayIndexOutOfBoundsException("corrupt scan data");
+				}
+			};
+
+		assertThatExceptionOfType(InvalidImageException.class)
+			.isThrownBy(() -> faulty.save("corrupt.jpg", pngOf(100, 100)));
+	}
+
+	@Test
+	void save_extremeAspectRatio_downscalesWithoutZeroDimension() throws IOException {
+		// A 1×1601 image scales the width to round(0.4997)=0; the target must be clamped
+		// to at least 1 so the JPEG encoder is never handed a zero dimension (which 500s).
+		storage.save("sliver.jpg", pngOf(1, 1601));
+
+		BufferedImage out = decode(storage.load("sliver.jpg"));
+		assertThat(out.getWidth()).isEqualTo(1);
+		assertThat(out.getHeight()).isEqualTo(800);
 	}
 
 	@Test

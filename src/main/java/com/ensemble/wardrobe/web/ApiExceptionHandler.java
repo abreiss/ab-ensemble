@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import com.ensemble.storage.InvalidImageException;
+import com.ensemble.storage.PhotoNotFoundException;
 import com.ensemble.wardrobe.ItemNotFoundException;
 
 import jakarta.validation.ConstraintViolationException;
@@ -30,6 +31,16 @@ public class ApiExceptionHandler {
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ErrorResponse handleNotFound(ItemNotFoundException ex) {
 		return new ErrorResponse("not_found", ex.getMessage());
+	}
+
+	/**
+	 * A record exists but its photo file is missing (inconsistent state). Degrade to a
+	 * clean 404 with a generic message rather than a 500 that leaks the internal key.
+	 */
+	@ExceptionHandler(PhotoNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponse handlePhotoNotFound(PhotoNotFoundException ex) {
+		return new ErrorResponse("not_found", "not found");
 	}
 
 	/**

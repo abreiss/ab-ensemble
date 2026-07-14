@@ -29,6 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.ensemble.storage.InvalidImageException;
+import com.ensemble.storage.PhotoNotFoundException;
 import com.ensemble.wardrobe.ItemNotFoundException;
 import com.ensemble.wardrobe.WardrobeService;
 import com.ensemble.wardrobe.dto.ItemResponse;
@@ -176,6 +177,18 @@ class WardrobeControllerTest {
 		mockMvc.perform(get("/api/items/nope/photo"))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.error").value("not_found"));
+	}
+
+	@Test
+	void getPhoto_whenPhotoFileMissing_returns404() throws Exception {
+		// Record exists but its photo file is gone (inconsistent state) — degrade to a
+		// clean 404 rather than an unhandled 500, and don't leak the internal key.
+		when(service.loadPhoto("a")).thenThrow(new PhotoNotFoundException("a.jpg"));
+
+		mockMvc.perform(get("/api/items/a/photo"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("not_found"))
+			.andExpect(jsonPath("$.message").value("not found"));
 	}
 
 	@Test
