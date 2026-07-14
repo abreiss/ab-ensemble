@@ -77,7 +77,7 @@ Claude client is mocked in every test; **no live API calls in the suite**.
 - [x] 2.3 GREEN: refactor `LocalDiskPhotoStorage` to inject `ImageProcessor` and delegate the resize on `save`; delete the now-moved private methods.
 - [x] 2.4 REFACTOR: update `LocalDiskPhotoStorageTest` construction to pass an `ImageProcessor` and confirm it stays green; run `jacocoTestReport -PskipFrontend` and confirm 100% branch on the decode/pixel-cap/resize logic is retained in `ImageProcessor`.
 
-### [ ] 3.0 TaggingService: vision JSON → tags + graceful fallback (mocked)
+### [x] 3.0 TaggingService: vision JSON → tags + graceful fallback (mocked)
 
 #### 3.0 Proof Artifact(s)
 
@@ -89,12 +89,12 @@ Claude client is mocked in every test; **no live API calls in the suite**.
 
 #### 3.0 Tasks
 
-- [ ] 3.1 RED: write `TaggingServiceTest#validResponse_mapsSixScalarsPlusDescriptors` with a mocked `VisionModelClient` returning a valid tag JSON string and a stubbed `ImageProcessor`; confirm it fails (class absent).
-- [ ] 3.2 GREEN: create `com.ensemble.tagging.dto.TagSuggestion` (record, all-nullable, no constraints) and `TaggingService` — downsize bytes via `ImageProcessor`, call the seam, parse the JSON (Jackson `ObjectMapper`), map to `TagSuggestion`; make the mapping test pass.
-- [ ] 3.3 RED→GREEN: add clamp/validate tests — `formality` outside 1–5, `warmth` outside 1–3, and a non-numeric value each leave that field empty (not thrown, not passed through); implement the clamp. *(FR1.5, critical branch.)*
-- [ ] 3.4 RED→GREEN: add fallback tests — malformed JSON, incomplete JSON (missing fields), seam throws (API error), and seam throws a timeout — each returns a partial/empty `TagSuggestion` with no exception; implement the catch-all plus per-field absence handling. *(FR1.6, critical branch.)*
-- [ ] 3.5 RED→GREEN: add a test that `InvalidImageException` raised by the image guard is **not** swallowed (propagates out of `suggest`), while API/parse failures are swallowed — locks the 400-vs-200 split the endpoint depends on.
-- [ ] 3.6 REFACTOR: tidy naming/structure; run `jacocoTestReport -PskipFrontend` and confirm ≥90% line on `com.ensemble.tagging` and 100% branch on the mapping + fallback methods.
+- [x] 3.1 RED: write `TaggingServiceTest#validResponse_mapsSixScalarsPlusDescriptors` with a mocked `VisionModelClient` returning a valid tag JSON string and a stubbed `ImageProcessor`; confirm it fails (class absent).
+- [x] 3.2 GREEN: create `com.ensemble.tagging.dto.TagSuggestion` (record, all-nullable, no constraints) and `TaggingService` — downsize bytes via `ImageProcessor`, call the seam, parse the JSON (Jackson `ObjectMapper`), map to `TagSuggestion`; make the mapping test pass.
+- [x] 3.3 RED→GREEN: add clamp/validate tests — `formality` outside 1–5, `warmth` outside 1–3, and a non-numeric value each leave that field empty (not thrown, not passed through); implement the clamp. *(FR1.5, critical branch.)*
+- [x] 3.4 RED→GREEN: add fallback tests — malformed JSON, incomplete JSON (missing fields), seam throws (API error), and seam throws a timeout — each returns a partial/empty `TagSuggestion` with no exception; implement the catch-all plus per-field absence handling. *(FR1.6, critical branch.)*
+- [x] 3.5 RED→GREEN: add a test that `InvalidImageException` raised by the image guard is **not** swallowed (propagates out of `suggest`), while API/parse failures are swallowed — locks the 400-vs-200 split the endpoint depends on.
+- [x] 3.6 REFACTOR: tidy naming/structure; run `jacocoTestReport -PskipFrontend` and confirm ≥90% line on `com.ensemble.tagging` and 100% branch on the mapping + fallback methods.
 
 ### [ ] 4.0 Tag-preview endpoint `POST /api/items/tag` + DTO + error handling
 
