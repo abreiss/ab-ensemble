@@ -114,7 +114,7 @@ Claude client is mocked in every test; **no live API calls in the suite**.
 - [x] 4.5 RED→GREEN: add a serialization test — an all-null `TagSuggestion` produces valid JSON — and confirm by inspection the DTO carries no bean-validation annotations (unlike `TagRequest`). *(FR2.2.)*
 - [x] 4.6 REFACTOR: confirm the tag path touches **no** persistence (no `WardrobeRepository` / `PhotoStorage` / DynamoDB call — mocked-service test + inspection) and the DTO-only boundary holds; `jacocoTestReport -PskipFrontend` ≥90% line on the tagging web layer. *(FR2.3.)*
 
-### [ ] 5.0 End-to-end live proof (real photo → tags → item) + docs
+### [~] 5.0 End-to-end live proof (real photo → tags → item) + docs
 
 #### 5.0 Proof Artifact(s)
 
@@ -125,8 +125,8 @@ Claude client is mocked in every test; **no live API calls in the suite**.
 
 #### 5.0 Tasks
 
-- [ ] 5.1 Add a "Vision tagging (tag preview)" section to `README.md`: `export ANTHROPIC_API_KEY=...`, a sample `curl -F photo=@... /api/items/tag`, and a note that a failed/degraded call still returns an editable `200`.
-- [ ] 5.2 With the key set and the app running, `curl` a real garment photo to `POST /api/items/tag`; capture the returned tag JSON.
-- [ ] 5.3 Feed the returned (optionally edited) tags into `POST /api/items`; confirm the item is created (`201` + a follow-up `GET`); capture the transcript.
-- [ ] 5.4 Save the sanitized transcript (**API key redacted**) to `03-proofs/03-task-05-proofs.md`.
-- [ ] 5.5 Run `./gradlew clean test jacocoTestReport -PskipFrontend`; save the coverage summary (tagging ≥90% line, 100% branch on mapping + fallback) to `03-proofs/`; confirm the `block-anthropic-keys` scan is green.
+- [x] 5.1 Add a "Vision tagging (tag preview)" section to `README.md`: `export ANTHROPIC_API_KEY=...`, a sample `curl -F photo=@... /api/items/tag`, and a note that a failed/degraded call still returns an editable `200`.
+- [ ] 5.2 With the key set and the app running, `curl` a real garment photo to `POST /api/items/tag`; capture the returned tag JSON. *(BLOCKED: needs `ANTHROPIC_API_KEY` + a running server; see `03-task-05-proofs.md` for the exact reproduction commands.)*
+- [ ] 5.3 Feed the returned (optionally edited) tags into `POST /api/items`; confirm the item is created (`201` + a follow-up `GET`); capture the transcript. *(BLOCKED: depends on 5.2.)*
+- [ ] 5.4 Save the sanitized transcript (**API key redacted**) to `03-proofs/03-task-05-proofs.md`. *(BLOCKED: depends on 5.2/5.3.)*
+- [x] 5.5 Run `./gradlew clean test jacocoTestReport -PskipFrontend`; save the coverage summary (tagging ≥90% line, 100% branch on mapping + fallback) to `03-proofs/`; confirm the `block-anthropic-keys` scan is green.
