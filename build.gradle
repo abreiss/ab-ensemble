@@ -31,6 +31,11 @@ dependencies {
 	// Photo compression/resize (≤800px JPEG on save) for LocalDiskPhotoStorage.
 	implementation 'net.coobird:thumbnailator:0.4.20'
 
+	// Anthropic Java SDK — Claude vision tagging (Haiku 4.5). The client is reached
+	// only through a narrow seam (com.ensemble.tagging.VisionModelClient); the API
+	// key is sourced only from the environment / a git-ignored .env (never committed).
+	implementation 'com.anthropic:anthropic-java:2.48.0'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

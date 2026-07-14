@@ -18,7 +18,8 @@ that serves a JSON API under `/api` and the built React/Vite UI as static assets
 - **Docker** (container build; optional for local dev)
 - **pre-commit** (optional but recommended local commit gates): `brew install pre-commit` or `pip install pre-commit`
 
-No Claude API key is needed for this slice.
+No Claude API key is needed to build or test. Live vision tagging needs a key in a
+git-ignored `.env` — see [Vision tagging](#vision-tagging-tag-preview).
 
 ## Project Layout
 
@@ -96,6 +97,44 @@ curl -s -X DELETE localhost:8080/api/items/{id}           # delete -> 204
 
 `formality` must be 1–5 and `warmth` 1–3 (else `400`); an unknown id returns
 `404`. Stop the database with `docker compose down`.
+
+## Vision tagging (tag preview)
+
+`POST /api/items/tag` auto-tags a garment photo with one Claude **Haiku 4.5**
+vision call and returns the suggested tags **without persisting anything** — the
+client reviews/edits them, then saves through `POST /api/items` above.
+
+The API key is read at startup from a git-ignored **`.env`** file (or the process
+environment) — no need to re-`export` it each session. Copy the template and fill
+in your key:
+
+```bash
+cp .env.example .env
+# edit .env:  ENSEMBLE_ANTHROPIC_API_KEY=sk-ant-...
+```
+
+`.env` is git-ignored and never committed; tests never need a key. If
+`ENSEMBLE_ANTHROPIC_API_KEY` is unset, the client falls back to the SDK's standard
+`ANTHROPIC_API_KEY` environment variable. Then:
+
+```bash
+# preview: multipart photo -> suggested tags (200), nothing is saved
+curl -s -X POST localhost:8080/api/items/tag -F photo=@your-photo.jpg
+# -> {"category":"top","primaryColor":"navy","secondaryColor":null,
+#     "formality":3,"pattern":"striped","warmth":2,"descriptors":["cotton"]}
+
+# then create the item from the (optionally edited) suggested tags
+curl -s -X POST localhost:8080/api/items \
+  -F photo=@your-photo.jpg -F category=top -F primaryColor=navy \
+  -F formality=3 -F warmth=2 -F descriptors=cotton
+```
+
+Tagging is **non-blocking**: if the vision call fails, times out, or returns
+junk, the endpoint still returns `200` with a partial/empty suggestion (any field
+may be `null`) so you can fill in the rest by hand — it never blocks item
+creation. A missing or non-decodable photo (or one over the pixel cap) returns
+`400`. The uploaded photo is downsized to ≤800px JPEG before the call, reusing the
+same image guard as storage.
 
 ## Build
 
