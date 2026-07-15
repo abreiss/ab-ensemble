@@ -24,12 +24,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     bound through {@code application.yml}. A blank/unset value is normalized to
  *     {@code null} so {@code AnthropicConfig} falls back to the SDK's own environment
  *     resolution. It is never a committed value — the {@code .env} file is git-ignored.
+ * @param stylistModel the Claude model id used for stylist reasoning; defaults to
+ *     {@value #DEFAULT_STYLIST_MODEL} when blank/unset so styling is pinned to Sonnet 5.
+ *     Kept separate from {@link #model} so tagging (Haiku) and styling (Sonnet) are
+ *     configured independently.
  */
 @ConfigurationProperties(prefix = "ensemble.anthropic")
-public record AnthropicProperties(String model, Duration timeout, String apiKey) {
+public record AnthropicProperties(String model, Duration timeout, String apiKey, String stylistModel) {
 
 	/** Vision tagging is pinned to Haiku 4.5 (see docs/ARCHITECTURE.md). */
 	public static final String DEFAULT_MODEL = "claude-haiku-4-5";
+
+	/** Stylist reasoning is pinned to Sonnet 5 (see docs/ARCHITECTURE.md). */
+	public static final String DEFAULT_STYLIST_MODEL = "claude-sonnet-5";
 
 	/** Bounded default so a slow/hung call falls back instead of blocking. */
 	public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
@@ -44,6 +51,9 @@ public record AnthropicProperties(String model, Duration timeout, String apiKey)
 		if (apiKey != null && apiKey.isBlank()) {
 			apiKey = null;
 		}
+		if (stylistModel == null || stylistModel.isBlank()) {
+			stylistModel = DEFAULT_STYLIST_MODEL;
+		}
 	}
 
 	/**
@@ -54,6 +64,7 @@ public record AnthropicProperties(String model, Duration timeout, String apiKey)
 	public String toString() {
 		return "AnthropicProperties[model=" + model
 			+ ", timeout=" + timeout
-			+ ", apiKey=" + (apiKey == null ? "null" : "****") + "]";
+			+ ", apiKey=" + (apiKey == null ? "null" : "****")
+			+ ", stylistModel=" + stylistModel + "]";
 	}
 }

@@ -37,5 +37,7 @@ ensemble:
     api-key: ${ENSEMBLE_ANTHROPIC_API_KEY:}
     # Vision tagging is pinned to Haiku 4.5.
     model: claude-haiku-4-5
+    # Stylist reasoning is pinned to Sonnet 5 (separate from the Haiku tagging model).
+    stylist-model: claude-sonnet-5
     # Bounded per-request timeout; a hung call degrades to the tagging fallback.
     timeout: 30s

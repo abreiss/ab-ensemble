@@ -37,7 +37,7 @@ class AnthropicVisionModelClientTest {
 	private AnthropicVisionModelClient seam() {
 		when(client.messages()).thenReturn(messages);
 		return new AnthropicVisionModelClient(
-			client, new AnthropicProperties("claude-haiku-4-5", Duration.ofSeconds(30), null));
+			client, new AnthropicProperties("claude-haiku-4-5", Duration.ofSeconds(30), null, null));
 	}
 
 	private ContentBlock toolUseContent(Map<String, Object> input) {
