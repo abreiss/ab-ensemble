@@ -247,6 +247,166 @@ a {
   transform: scale(0.98);
 }
 
+/* ---- Screen title + banners --------------------------------------------- */
+
+.screen-title {
+  font-size: var(--text-xl);
+}
+
+.banner {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+.banner-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+}
+
+/* ---- Photo picker + preview --------------------------------------------- */
+
+.photo-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4);
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  text-align: center;
+  cursor: pointer;
+}
+
+.photo-picker input[type='file'] {
+  font-size: var(--text-sm);
+}
+
+.photo-preview {
+  width: 100%;
+  max-height: 46dvh;
+  object-fit: contain;
+  border-radius: var(--radius);
+  border: 1px solid var(--hairline);
+  background: var(--paper-raised);
+}
+
+/* ---- Tag form ----------------------------------------------------------- */
+
+.tag-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.field-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.field-error {
+  font-size: var(--text-xs);
+  color: var(--danger);
+}
+
+.input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  appearance: none;
+}
+
+.input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+select.input {
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: var(--space-6);
+}
+
+/* ---- Descriptor chips --------------------------------------------------- */
+
+.chips-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-pill);
+}
+
+.chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: var(--text-base);
+  line-height: 1;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.chip-remove:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.chip-add {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.chip-add .input {
+  flex: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

@@ -96,7 +96,7 @@ error states. Depends on 1.0.
 - [x] 2.3 RED→GREEN: add an empty-wardrobe test (empty list → empty state + link to `/add`) and a list-failure test (error state + retry control); implement both states.
 - [x] 2.4 REFACTOR: style the grid mobile-first via the **frontend-design skill**; `npm run lint` clean; capture the populated-grid mobile screenshot to `04-proofs/`.
 
-### [ ] 3.0 Add item: camera/upload → auto-tag → edit → save (headline flow)
+### [x] 3.0 Add item: camera/upload → auto-tag → edit → save (headline flow)
 
 The headline slice (spec Unit 3): photo → automatic tag preview → editable form
 (chips for descriptors) → validated save → back to grid. Depends on 1.0.
@@ -110,12 +110,12 @@ The headline slice (spec Unit 3): photo → automatic tag preview → editable f
 
 #### 3.0 Tasks
 
-- [ ] 3.1 RED→GREEN: write `src/lib/tagValidation.test.ts` covering `category` non-blank, `formality` in/out of 1–5, `warmth` in/out of 1–3 (valid + each invalid case); implement the pure `tagValidation.ts` validator to pass. *(Critical guardrail — mirrors backend `TagRequest` constraints.)*
-- [ ] 3.2 RED: write `src/components/DescriptorChips.test.tsx` (add a chip, remove a chip, emits the updated list) and `src/components/TagForm.test.tsx` (renders every field from a suggestion; a null field renders empty + editable; edits emit; submit disabled until `tagValidation` passes); confirm both fail.
-- [ ] 3.3 GREEN: implement `DescriptorChips.tsx` and the shared `TagForm.tsx` (using `tagValidation`) to pass 3.2.
-- [ ] 3.4 RED: write `src/routes/AddItem.test.tsx` — photo select → auto-fired mocked `tagPreview` → pre-filled `TagForm` → edit → save calls `createItem` with the correct multipart payload → routes to `/`; plus a degraded (all-null) suggestion still saving, and a `createItem` failure that preserves photo + entered tags; confirm it fails.
-- [ ] 3.5 GREEN: implement `AddItem.tsx` — file input with `accept="image/*" capture`, photo preview, auto-call `tagPreview` with a loading state, render `TagForm`, save via `createItem`, navigate to the grid, and handle errors without data loss; pass 3.4.
-- [ ] 3.6 REFACTOR: style the add flow mobile-first via the **frontend-design skill** (photo preview, loading, form, chips); `npm run lint` clean; capture the add-flow mobile screenshots to `04-proofs/`.
+- [x] 3.1 RED→GREEN: write `src/lib/tagValidation.test.ts` covering `category` non-blank, `formality` in/out of 1–5, `warmth` in/out of 1–3 (valid + each invalid case); implement the pure `tagValidation.ts` validator to pass. *(Critical guardrail — mirrors backend `TagRequest` constraints.)*
+- [x] 3.2 RED: write `src/components/DescriptorChips.test.tsx` (add a chip, remove a chip, emits the updated list) and `src/components/TagForm.test.tsx` (renders every field from a suggestion; a null field renders empty + editable; edits emit; submit disabled until `tagValidation` passes); confirm both fail.
+- [x] 3.3 GREEN: implement `DescriptorChips.tsx` and the shared `TagForm.tsx` (using `tagValidation`) to pass 3.2.
+- [x] 3.4 RED: write `src/routes/AddItem.test.tsx` — photo select → auto-fired mocked `tagPreview` → pre-filled `TagForm` → edit → save calls `createItem` with the correct multipart payload → routes to `/`; plus a degraded (all-null) suggestion still saving, and a `createItem` failure that preserves photo + entered tags; confirm it fails.
+- [x] 3.5 GREEN: implement `AddItem.tsx` — file input with `accept="image/*" capture`, photo preview, auto-call `tagPreview` with a loading state, render `TagForm`, save via `createItem`, navigate to the grid, and handle errors without data loss; pass 3.4.
+- [x] 3.6 REFACTOR: style the add flow mobile-first via the **frontend-design skill** (photo preview, loading, form, chips); `npm run lint` clean; capture the add-flow mobile screenshots to `04-proofs/`.
 
 ### [ ] 4.0 Item detail: edit tags + guarded delete
 
