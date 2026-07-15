@@ -136,6 +136,33 @@ creation. A missing or non-decodable photo (or one over the pixel cap) returns
 `400`. The uploaded photo is downsized to ≤800px JPEG before the call, reusing the
 same image guard as storage.
 
+## Wardrobe UI
+
+A mobile-first React (Vite) front end that drives the wardrobe CRUD + tag-preview
+flow above. Three client-side routes:
+
+- **`/`** — the wardrobe grid: every owned item as a lazy-loaded photo thumbnail
+  (empty and retryable-error states included).
+- **`/add`** — add an item: take/choose a photo → tags are **auto-suggested** →
+  edit the tag form (descriptors are add/remove chips) → save → back to the grid.
+- **`/item/:id`** — item detail: edit tags or delete the item behind an explicit
+  confirmation.
+
+Run it in dev alongside the backend:
+
+```bash
+docker compose up -d dynamodb        # DynamoDB Local on :8000
+./gradlew bootRun                    # backend/API on :8080
+cd frontend && npm run dev           # UI on :5173, proxies /api -> :8080
+# open http://localhost:5173  (use a ~390px viewport / device toolbar)
+```
+
+**Browsing and editing need no Claude key** — the grid, item detail, tag editing,
+and delete all work against DynamoDB alone. Only **live auto-tagging** on `/add`
+calls Claude; without a key the tag-preview degrades to an empty-but-editable form
+(you fill the tags in by hand) and everything else is unaffected. In the packaged
+build the same screens are served by Spring at `http://localhost:8080/`.
+
 ## Build
 
 A single command builds the frontend, embeds it into Spring's static resources,

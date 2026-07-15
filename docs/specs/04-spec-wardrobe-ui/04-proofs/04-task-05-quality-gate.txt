@@ -1,0 +1,25 @@
+# Frontend quality gate — 2026-07-15T03:07:41Z
+
+## npm run test -- --run
+ ✓ src/lib/tagValidation.test.ts (14 tests) 3ms
+ ✓ src/api/items.test.ts (15 tests) 7ms
+ ✓ src/App.test.tsx (4 tests) 77ms
+ ✓ src/routes/WardrobeGrid.test.tsx (4 tests) 118ms
+ ✓ src/components/DescriptorChips.test.tsx (4 tests) 156ms
+ ✓ src/components/TagForm.test.tsx (5 tests) 228ms
+ ✓ src/routes/ItemDetail.test.tsx (6 tests) 255ms
+ ✓ src/routes/AddItem.test.tsx (4 tests) 388ms
+ Test Files  8 passed (8)
+      Tests  56 passed (56)
+
+## npm run lint
+> eslint .
+
+eslint: exit 0 (clean)
+
+## npm run build
+✓ 48 modules transformed.
+../src/main/resources/static/index.html                   0.81 kB │ gzip:  0.44 kB
+../src/main/resources/static/assets/index-COcpLaHD.css    6.71 kB │ gzip:  1.96 kB
+../src/main/resources/static/assets/index-ZaorfPcR.js   242.71 kB │ gzip: 76.98 kB
+✓ built in 540ms

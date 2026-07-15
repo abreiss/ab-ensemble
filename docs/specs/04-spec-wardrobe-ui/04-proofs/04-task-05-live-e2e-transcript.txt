@@ -1,0 +1,37 @@
+Live end-to-end run — Wardrobe UI against the real stack
+=========================================================
+
+Stack under test (all local):
+  - DynamoDB Local ............ docker compose up -d dynamodb   (:8000)
+  - Spring Boot backend ....... ./gradlew bootRun               (:8080, serves API + built UI)
+  - Claude Haiku 4.5 .......... live vision tag-preview (key from git-ignored .env)
+  - Browser ................... Google Chrome @ 390x390 (mobile viewport), no request mocking
+
+Pre-run state:
+  GET /api/health  -> {"status":"ok"}
+  GET /api/items   -> 1 item (cb061347… "T-Shirt")
+
+Driver console output (secrets never printed; the API key is never surfaced to the client):
+
+  photo uploaded; waiting for live tag suggestion…
+  live-suggested category: "T-shirt"            <- REAL Haiku vision result
+  wrote 04-task-05-live-add-autotag.png
+  grid item count after add: 2                  <- new item appears in the grid (criterion 1)
+  wrote 04-task-05-live-grid.png
+  grid item links: /item/95c8e639-…, /item/cb061347-…
+  wrote 04-task-05-live-detail.png
+  edit saved                                    <- updateTags round-trip (criterion 3: edit)
+  wrote 04-task-05-live-edit-saved.png
+  grid item count after delete: 1               <- deleteItem round-trip (criterion 3: delete)
+  LIVE E2E DONE
+
+Acceptance criteria exercised:
+  1. Add on a phone-width browser: photo -> LIVE auto-tags (category "T-shirt",
+     primaryColor "black", pattern "graphic print", descriptors "band tee",
+     "vintage style", "metal band", "crew neck", "short sleeve", "oversized fit")
+     -> edit -> save -> the item is visible in the grid.
+  2. Grid shows all owned items with photos (count went 1 -> 2 after add).
+  3. Item edit (secondaryColor -> "slate", "Changes saved") and delete
+     (confirm -> item removed, count 2 -> 1) both work end to end.
+
+Post-run state: wardrobe returned to its original 1 item (the run cleaned up after itself).
