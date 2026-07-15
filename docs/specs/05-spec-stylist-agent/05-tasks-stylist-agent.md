@@ -76,7 +76,7 @@ render only the validated subset → error only when zero valid ids remain).
 - [x] 1.8 GREEN: implement `AnthropicStylistModelClient` — Sonnet 5 tool-loop using the `@Lazy AnthropicClient` bean + `stylistModel`; reuse `firstToolUseJson(...)`; bounded continuation cap (≤4); adaptive thinking default, **no** `budget_tokens`/sampling params. Refactor to green.
 - [x] 1.9 REFACTOR + coverage gate: run `./gradlew test --tests 'com.ensemble.stylist.*' -PskipFrontend` (green) and `./gradlew jacocoTestReport`; confirm ≥90% line and **100% branch** on `StylistService` + `OutfitParser`; note the report path as the proof artifact.
 
-### [ ] 2.0 Style API endpoint + DTOs + edge-case handling
+### [x] 2.0 Style API endpoint + DTOs + edge-case handling
 
 Expose the stylist over HTTP. `POST /api/style` accepting `{ prompt }` and
 returning `{ itemIds, reason }` plus a per-item `photoUrl` for rendering, via
@@ -94,11 +94,11 @@ result) → graceful error through the existing exception-handling pattern.
 
 #### 2.0 Tasks
 
-- [ ] 2.1 Define the boundary DTOs: `StyleRequest { prompt }` and `StyleResponse { itemIds, reason, items:[{ itemId, photoUrl }] }` (DTO-only; no `StylistService` internals, Claude, or DynamoDB types leaked).
-- [ ] 2.2 RED: write `StyleControllerTest` with `@WebMvcTest(StyleController.class)` + `@MockitoBean StylistService` — `postStyle_valid_returns200WithOutfit` (contract + `photoUrl` per id), `postStyle_emptyWardrobe_returnsFriendlyResponse` (200, empty `itemIds`, non-blank `reason`), `postStyle_upstreamFailure_returnsGracefulError` (mapped error status/body).
-- [ ] 2.3 GREEN: implement `StyleController` (`@RestController @RequestMapping("/api/style")`, `POST`) delegating to `StylistService`, mapping the domain `Outfit` → `StyleResponse` with `photoUrl(itemId)` per id. Modeled on `WardrobeController`. Refactor to green.
-- [ ] 2.4 Add `StyleController.class` to `ApiExceptionHandler` `assignableTypes` (import it) and confirm the upstream/ungroundable-failure → graceful-response mapping is covered by the `postStyle_upstreamFailure_returnsGracefulError` test.
-- [ ] 2.5 Verify + capture proof: `./gradlew test -PskipFrontend` green; run the live `curl` against a locally running backend with a key set, and save the response to `docs/specs/05-spec-stylist-agent/proof/style-curl.txt` (verify no key string is present in the file).
+- [x] 2.1 Define the boundary DTOs: `StyleRequest { prompt }` and `StyleResponse { itemIds, reason, items:[{ itemId, photoUrl }] }` (DTO-only; no `StylistService` internals, Claude, or DynamoDB types leaked).
+- [x] 2.2 RED: write `StyleControllerTest` with `@WebMvcTest(StyleController.class)` + `@MockitoBean StylistService` — `postStyle_valid_returns200WithOutfit` (contract + `photoUrl` per id), `postStyle_emptyWardrobe_returnsFriendlyResponse` (200, empty `itemIds`, non-blank `reason`), `postStyle_upstreamFailure_returnsGracefulError` (mapped error status/body).
+- [x] 2.3 GREEN: implement `StyleController` (`@RestController @RequestMapping("/api/style")`, `POST`) delegating to `StylistService`, mapping the domain `Outfit` → `StyleResponse` with `photoUrl(itemId)` per id. Modeled on `WardrobeController`. Refactor to green.
+- [x] 2.4 Add `StyleController.class` to `ApiExceptionHandler` `assignableTypes` (import it) and confirm the upstream/ungroundable-failure → graceful-response mapping is covered by the `postStyle_upstreamFailure_returnsGracefulError` test.
+- [x] 2.5 Verify + capture proof: `./gradlew test -PskipFrontend` green (140/0/0); MockMvc suite is the automated proof. Live `curl` documented as reviewer-runnable in `05-proofs/05-task-02-proofs.md` — not run here (no `ENSEMBLE_ANTHROPIC_API_KEY` in this environment; repo standard is keyless tests), and deliberately not fabricated.
 
 ### [ ] 3.0 Chat UI — vibe input → outfit card with real photos + reason
 

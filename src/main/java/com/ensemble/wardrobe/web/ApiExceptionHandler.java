@@ -11,19 +11,26 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 
 import com.ensemble.storage.InvalidImageException;
 import com.ensemble.storage.PhotoNotFoundException;
+import com.ensemble.stylist.StylistUnavailableException;
+import com.ensemble.stylist.web.StyleController;
 import com.ensemble.tagging.web.TaggingController;
 import com.ensemble.wardrobe.ItemNotFoundException;
 
 import jakarta.validation.ConstraintViolationException;
 
 /**
- * Maps domain and request errors to HTTP responses for the wardrobe and tagging
- * APIs: unknown ids → 404, invalid input (validation, bad range, missing/invalid
- * photo, malformed JSON) → 400. Returns a small sanitized error body. The tag-preview
- * controller is covered here too, so its missing-part / non-image failures reuse the
- * same sanitized 400 shape.
+ * Maps domain and request errors to HTTP responses for the wardrobe, tagging, and
+ * stylist APIs: unknown ids → 404, invalid input (validation, bad range,
+ * missing/invalid photo, malformed JSON) → 400, an unavailable/ungroundable
+ * stylist → 503. Returns a small sanitized error body. The tag-preview and style
+ * controllers are covered here too, so their failures reuse the same sanitized
+ * error shape.
  */
-@RestControllerAdvice(assignableTypes = {WardrobeController.class, TaggingController.class})
+@RestControllerAdvice(assignableTypes = {
+	WardrobeController.class,
+	TaggingController.class,
+	StyleController.class
+})
 public class ApiExceptionHandler {
 
 	/** Small error body — no internals or stack traces leak to the client. */
@@ -62,5 +69,17 @@ public class ApiExceptionHandler {
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	public ErrorResponse handleBadRequest(Exception ex) {
 		return new ErrorResponse("bad_request", "invalid request");
+	}
+
+	/**
+	 * The stylist could not return a grounded outfit — an upstream Claude
+	 * error/timeout or an ungroundable pick (zero valid ids after the one retry).
+	 * The exception message is already user-safe (no internals), so it is echoed to
+	 * drive a friendly client message; a hallucinated id is never rendered.
+	 */
+	@ExceptionHandler(StylistUnavailableException.class)
+	@ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+	public ErrorResponse handleStylistUnavailable(StylistUnavailableException ex) {
+		return new ErrorResponse("stylist_unavailable", ex.getMessage());
 	}
 }
