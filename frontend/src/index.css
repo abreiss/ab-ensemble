@@ -173,6 +173,80 @@ a {
   width: 100%;
 }
 
+/* ---- Screen scaffold + shared states ------------------------------------ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Loading / empty / error notes and the block that centers them vertically. */
+.state-note {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.empty-state {
+  margin-top: 15dvh;
+}
+
+.empty-title {
+  font-size: var(--text-xl);
+}
+
+/* ---- Wardrobe grid ------------------------------------------------------- */
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+@media (min-width: 26rem) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.grid-cell {
+  margin: 0;
+}
+
+.thumb {
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--hairline);
+  background: var(--paper-raised);
+}
+
+.thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.thumb:active .thumb-img {
+  transform: scale(0.98);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

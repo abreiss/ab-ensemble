@@ -78,7 +78,7 @@ Tasks 2–4 depend on it.
 - [x] 1.5 Design foundation: add branded mobile-first tokens + base styles to `index.css` (type scale, color, spacing) and style the shell/nav; use the **frontend-design skill**. Light render test that the shell exposes an "add" navigation control.
 - [x] 1.6 REFACTOR: run `npm run lint` (clean) and `npm run build` (succeeds → `src/main/resources/static/`); capture the app-shell mobile screenshot to `04-proofs/`.
 
-### [ ] 2.0 Wardrobe grid (browse owned items)
+### [x] 2.0 Wardrobe grid (browse owned items)
 
 Home screen (spec Unit 2): a mobile photo grid of owned items with empty and
 error states. Depends on 1.0.
@@ -91,10 +91,10 @@ error states. Depends on 1.0.
 
 #### 2.0 Tasks
 
-- [ ] 2.1 RED: write `src/routes/WardrobeGrid.test.tsx` mocking the `items` API — N items → N thumbnails using `photoUrl`, and a tap on a thumbnail navigates to `/item/:id`; confirm it fails (component absent).
-- [ ] 2.2 GREEN: implement `WardrobeGrid.tsx` — fetch `listItems` on mount, render thumbnails (native lazy-loading) linking to `/item/:id`; pass the test.
-- [ ] 2.3 RED→GREEN: add an empty-wardrobe test (empty list → empty state + link to `/add`) and a list-failure test (error state + retry control); implement both states.
-- [ ] 2.4 REFACTOR: style the grid mobile-first via the **frontend-design skill**; `npm run lint` clean; capture the populated-grid mobile screenshot to `04-proofs/`.
+- [x] 2.1 RED: write `src/routes/WardrobeGrid.test.tsx` mocking the `items` API — N items → N thumbnails using `photoUrl`, and a tap on a thumbnail navigates to `/item/:id`; confirm it fails (component absent).
+- [x] 2.2 GREEN: implement `WardrobeGrid.tsx` — fetch `listItems` on mount, render thumbnails (native lazy-loading) linking to `/item/:id`; pass the test.
+- [x] 2.3 RED→GREEN: add an empty-wardrobe test (empty list → empty state + link to `/add`) and a list-failure test (error state + retry control); implement both states.
+- [x] 2.4 REFACTOR: style the grid mobile-first via the **frontend-design skill**; `npm run lint` clean; capture the populated-grid mobile screenshot to `04-proofs/`.
 
 ### [ ] 3.0 Add item: camera/upload → auto-tag → edit → save (headline flow)
 
