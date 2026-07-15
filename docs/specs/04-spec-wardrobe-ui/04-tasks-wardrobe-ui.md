@@ -56,7 +56,7 @@ conflicts across sources.
 
 ## Tasks
 
-### [ ] 1.0 App shell: routing, typed API client & branded mobile-first design foundation
+### [x] 1.0 App shell: routing, typed API client & branded mobile-first design foundation
 
 Foundation slice (spec Unit 1). Adds `react-router-dom`, the `/api/items` client
 layer, and a small branded design system every screen reuses. Depends on nothing;
@@ -71,12 +71,12 @@ Tasks 2–4 depend on it.
 
 #### 1.0 Tasks
 
-- [ ] 1.1 Install `react-router-dom` (current v7 stable) in `frontend/`; wire the router in `main.tsx` with routes `/` → `WardrobeGrid`, `/add` → `AddItem`, `/item/:id` → `ItemDetail` (temporary stub screens are fine here).
-- [ ] 1.2 RED: write `src/types/item.ts` types (mirroring `ItemResponse` / `TagRequest` / `TagSuggestion`) and `src/api/items.test.ts` mocking `fetch` — assert `listItems`/`getItem`/`photoUrl`/`tagPreview`/`createItem`/`updateTags`/`deleteItem` build the right method+path+body (multipart for tagPreview/create, JSON for updateTags) and map 2xx→parsed / non-2xx→throw / network→throw; confirm it fails (module absent).
-- [ ] 1.3 GREEN: implement `src/api/items.ts` to satisfy the client tests, following the `src/api/health.ts` pattern (typed return, throw on non-2xx/network).
-- [ ] 1.4 RED→GREEN: write `src/App.test.tsx` rendering the app under a router (MemoryRouter) at `/`, `/add`, `/item/:id` and asserting each screen stub mounts; implement `App.tsx` as the shell/layout (persistent add + back nav, `<Outlet>`) to pass.
-- [ ] 1.5 Design foundation: add branded mobile-first tokens + base styles to `index.css` (type scale, color, spacing) and style the shell/nav; use the **frontend-design skill**. Light render test that the shell exposes an "add" navigation control.
-- [ ] 1.6 REFACTOR: run `npm run lint` (clean) and `npm run build` (succeeds → `src/main/resources/static/`); capture the app-shell mobile screenshot to `04-proofs/`.
+- [x] 1.1 Install `react-router-dom` (current v7 stable) in `frontend/`; wire the router in `main.tsx` with routes `/` → `WardrobeGrid`, `/add` → `AddItem`, `/item/:id` → `ItemDetail` (temporary stub screens are fine here).
+- [x] 1.2 RED: write `src/types/item.ts` types (mirroring `ItemResponse` / `TagRequest` / `TagSuggestion`) and `src/api/items.test.ts` mocking `fetch` — assert `listItems`/`getItem`/`photoUrl`/`tagPreview`/`createItem`/`updateTags`/`deleteItem` build the right method+path+body (multipart for tagPreview/create, JSON for updateTags) and map 2xx→parsed / non-2xx→throw / network→throw; confirm it fails (module absent).
+- [x] 1.3 GREEN: implement `src/api/items.ts` to satisfy the client tests, following the `src/api/health.ts` pattern (typed return, throw on non-2xx/network).
+- [x] 1.4 RED→GREEN: write `src/App.test.tsx` rendering the app under a router (MemoryRouter) at `/`, `/add`, `/item/:id` and asserting each screen stub mounts; implement `App.tsx` as the shell/layout (persistent add + back nav, `<Outlet>`) to pass.
+- [x] 1.5 Design foundation: add branded mobile-first tokens + base styles to `index.css` (type scale, color, spacing) and style the shell/nav; use the **frontend-design skill**. Light render test that the shell exposes an "add" navigation control.
+- [x] 1.6 REFACTOR: run `npm run lint` (clean) and `npm run build` (succeeds → `src/main/resources/static/`); capture the app-shell mobile screenshot to `04-proofs/`.
 
 ### [ ] 2.0 Wardrobe grid (browse owned items)
 

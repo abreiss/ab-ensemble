@@ -1,7 +1,52 @@
+/* ============================================================================
+   Ensemble — "Care Label" design system
+   The app tags garments, so its visual identity borrows from garment care
+   labels and hang-tags: monospace attribute rows, filled rating pips, real
+   color swatches. Cobalt "thread" is the one accent, used with restraint.
+   ============================================================================ */
+
 :root {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Color */
+  --paper: #f7f5f0;
+  --paper-raised: #fffefb;
+  --ink: #1c1b19;
+  --muted: #8a857b;
+  --hairline: #e0dcd2;
+  --accent: #2540ff;
+  --accent-soft: #e7ebff;
+  --danger: #b00020;
+  --danger-soft: #fbe7ea;
+
+  /* Type */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Type scale (mobile-first) */
+  --text-xs: 0.6875rem; /* 11px — care-label captions */
+  --text-sm: 0.8125rem; /* 13px */
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.5rem;
+
+  /* Spacing / shape */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-pill: 999px;
+
+  font-family: var(--font-body);
   line-height: 1.5;
-  color-scheme: light dark;
+  color: var(--ink);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 * {
@@ -16,11 +61,121 @@ body {
 
 body {
   min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
 }
 
 #root {
-  /* Mobile-first: single column, constrained to a phone-width column, centered. */
-  max-width: 28rem;
+  /* Mobile-first: a single phone-width column, centered on larger screens. */
+  max-width: 30rem;
   margin: 0 auto;
-  padding: env(safe-area-inset-top) 1rem env(safe-area-inset-bottom);
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Visible keyboard focus everywhere. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---- App shell ---------------------------------------------------------- */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: calc(env(safe-area-inset-top) + var(--space-3)) var(--space-4) var(--space-3);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.app-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-lg);
+  letter-spacing: -0.03em;
+}
+
+.app-main {
+  flex: 1;
+  padding: var(--space-4) var(--space-4) calc(env(safe-area-inset-bottom) + var(--space-6));
+}
+
+/* ---- Buttons ------------------------------------------------------------ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px; /* touch target */
+  padding: 0 var(--space-4);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--paper-raised);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-add,
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-danger {
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  color: var(--danger);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
