@@ -117,7 +117,7 @@ The headline slice (spec Unit 3): photo → automatic tag preview → editable f
 - [x] 3.5 GREEN: implement `AddItem.tsx` — file input with `accept="image/*" capture`, photo preview, auto-call `tagPreview` with a loading state, render `TagForm`, save via `createItem`, navigate to the grid, and handle errors without data loss; pass 3.4.
 - [x] 3.6 REFACTOR: style the add flow mobile-first via the **frontend-design skill** (photo preview, loading, form, chips); `npm run lint` clean; capture the add-flow mobile screenshots to `04-proofs/`.
 
-### [ ] 4.0 Item detail: edit tags + guarded delete
+### [x] 4.0 Item detail: edit tags + guarded delete
 
 Maintenance screen (spec Unit 4): view one item, edit its tags, or delete with
 confirmation. No wear-history shown (deferred to #7). Depends on 1.0 (and reuses
@@ -132,11 +132,11 @@ confirmation. No wear-history shown (deferred to #7). Depends on 1.0 (and reuses
 
 #### 4.0 Tasks
 
-- [ ] 4.1 RED: write `src/routes/ItemDetail.test.tsx` — mock `getItem`, render the item photo + `TagForm` pre-filled, edit a field, save, and assert the `updateTags` JSON payload; assert **no** wear-history (`lastWorn`/`wornCount`) is rendered; confirm it fails (component absent).
-- [ ] 4.2 GREEN: implement `ItemDetail.tsx` — fetch `getItem` on mount, show the photo + reused `TagForm`, save edits via `updateTags`; pass 4.1.
-- [ ] 4.3 RED→GREEN: add a delete test (explicit confirm step → `deleteItem` called → navigate back to `/` ) and implement the guarded delete.
-- [ ] 4.4 RED→GREEN: add a not-found test (unknown id → non-crashing "not found") and a failed save/delete test (error shown, context preserved); implement both states.
-- [ ] 4.5 REFACTOR: style the detail screen mobile-first via the **frontend-design skill**; `npm run lint` clean; capture the detail mobile screenshot to `04-proofs/`.
+- [x] 4.1 RED: write `src/routes/ItemDetail.test.tsx` — mock `getItem`, render the item photo + `TagForm` pre-filled, edit a field, save, and assert the `updateTags` JSON payload; assert **no** wear-history (`lastWorn`/`wornCount`) is rendered; confirm it fails (component absent).
+- [x] 4.2 GREEN: implement `ItemDetail.tsx` — fetch `getItem` on mount, show the photo + reused `TagForm`, save edits via `updateTags`; pass 4.1.
+- [x] 4.3 RED→GREEN: add a delete test (explicit confirm step → `deleteItem` called → navigate back to `/` ) and implement the guarded delete.
+- [x] 4.4 RED→GREEN: add a not-found test (unknown id → non-crashing "not found") and a failed save/delete test (error shown, context preserved); implement both states.
+- [x] 4.5 REFACTOR: style the detail screen mobile-first via the **frontend-design skill**; `npm run lint` clean; capture the detail mobile screenshot to `04-proofs/`.
 
 ### [ ] 5.0 End-to-end proof against the live backend + docs
 
