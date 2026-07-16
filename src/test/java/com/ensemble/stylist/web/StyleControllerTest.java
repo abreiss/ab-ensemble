@@ -1,6 +1,8 @@
 package com.ensemble.stylist.web;
 
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -19,6 +21,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.ensemble.stylist.Outfit;
 import com.ensemble.stylist.StylistService;
 import com.ensemble.stylist.StylistUnavailableException;
+import com.ensemble.usage.CallCapService;
+import com.ensemble.usage.DailyCapExceededException;
 
 /**
  * MockMvc contract + error-path tests for {@code POST /api/style}. The
@@ -34,6 +38,9 @@ class StyleControllerTest {
 
 	@MockitoBean
 	StylistService service;
+
+	@MockitoBean
+	CallCapService callCapService;
 
 	@Test
 	void postStyle_valid_returns200WithOutfit() throws Exception {
@@ -75,5 +82,19 @@ class StyleControllerTest {
 				.content("{\"prompt\":\"streetwear today\"}"))
 			.andExpect(status().isServiceUnavailable())
 			.andExpect(jsonPath("$.error").value("stylist_unavailable"));
+	}
+
+	@Test
+	void postStyle_overDailyCap_returns429() throws Exception {
+		doThrow(new DailyCapExceededException("daily call limit reached, try again tomorrow"))
+			.when(callCapService).reserve();
+
+		mockMvc.perform(post("/api/style")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"prompt\":\"streetwear today\"}"))
+			.andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.error").value("daily_cap_exceeded"));
+
+		verifyNoInteractions(service);
 	}
 }

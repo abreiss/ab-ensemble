@@ -16,6 +16,7 @@ import com.ensemble.storage.PhotoNotFoundException;
 import com.ensemble.stylist.StylistUnavailableException;
 import com.ensemble.stylist.web.StyleController;
 import com.ensemble.tagging.web.TaggingController;
+import com.ensemble.usage.DailyCapExceededException;
 import com.ensemble.wardrobe.ItemNotFoundException;
 
 import jakarta.validation.ConstraintViolationException;
@@ -91,5 +92,12 @@ public class ApiExceptionHandler {
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)
 	public ErrorResponse handleInvalidPasscode(InvalidPasscodeException ex) {
 		return new ErrorResponse("unauthorized", "invalid passcode");
+	}
+
+	/** The global daily call cap has been exceeded; Claude was not called for this request. */
+	@ExceptionHandler(DailyCapExceededException.class)
+	@ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+	public ErrorResponse handleDailyCapExceeded(DailyCapExceededException ex) {
+		return new ErrorResponse("daily_cap_exceeded", ex.getMessage());
 	}
 }

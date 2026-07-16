@@ -143,7 +143,7 @@ stored in `sessionStorage`. (Spec Unit 2 — frontend.)
 - [x] 3.5 Style the passcode entry screen in `index.css` using the Care Label tokens (single centered card, `type="password"` input with an appropriate mobile keyboard, ≥44px submit target, inline error, honoring `:focus-visible` + `prefers-reduced-motion`). Do not introduce a second visual language.
 - [x] 3.6 Run `cd frontend && npm test -- --run` (all green) and `npm run lint`; capture the RTL-test + passcode-screen screenshot proofs.
 
-### [ ] 4.0 Daily call cap — atomic counter, 429 & wardrobe scan filter
+### [x] 4.0 Daily call cap — atomic counter, 429 & wardrobe scan filter
 
 Backend domain core (strict TDD): a `UsageProperties` limit, a `UsageRepository` atomic `ADD`
 counter keyed `usage#<UTC-date>` on the low-level `DynamoDbClient`, a `CallCapService.reserve()`
@@ -162,12 +162,12 @@ rows from the wardrobe/stylist. (Spec Unit 3.)
 
 #### 4.0 Tasks
 
-- [ ] 4.1 **(RED→GREEN)** Write `UsagePropertiesTest` (`daily-limit` default `100`). Then implement `UsageProperties` `@ConfigurationProperties(prefix="ensemble.usage")` with `dailyLimit` (default 100).
-- [ ] 4.2 **(RED→GREEN→REFACTOR)** Write the scan-filter test `findAll_excludesUsageRows` (write a `usage#<date>` row + a real item, assert only the item returns). Then add the `usage#`-prefix exclusion to `WardrobeRepository.findAll()` (in-stream `filter` at demo scale, or a `ScanRequest` `FilterExpression`). Ensure 100% branch coverage on the filter.
-- [ ] 4.3 **(RED→GREEN)** Write `UsageRepositoryIT` (TestContainers, mirroring `WardrobeRepositoryIT`): `incrementIsAtomicAndPersists` (two increments → count 2, stored under `usage#<date>`). Then implement `UsageRepository.increment(dateKey)` using the low-level `DynamoDbClient` `UpdateItem` with `UpdateExpression "ADD #c :one"`, `ReturnValues=UPDATED_NEW`, returning the new count.
-- [ ] 4.4 **(RED→GREEN→REFACTOR)** Write `CallCapServiceTest` (`underLimit_allowsAndIncrements`, `atLimit_blocksWith429Signal`, `usesUtcDateKey`, `newUtcDay_resetsCount`) with a fixed `Clock` + mocked `UsageRepository`. Then implement `CallCapService.reserve()` (compute the UTC date from an injected `Clock`, increment via `UsageRepository`, throw `DailyCapExceededException` when the new count exceeds `dailyLimit`) and add a `ClockConfig` `Clock.systemUTC()` bean. 100% branch on the limit check.
-- [ ] 4.5 **(RED→GREEN)** Add MockMvc tests `postStyle_overDailyCap_returns429` (`StyleControllerTest`) and `postTag_overDailyCap_returns429` (`TaggingControllerTest`) with the cap service mocked to throw. Then call `callCapService.reserve()` at the **start** of both flows (before the Claude call) and map `DailyCapExceededException` → `429` with the shared `ErrorResponse` in `ApiExceptionHandler`.
-- [ ] 4.6 Add `ensemble.usage.daily-limit: 100` to `src/main/resources/application.yml` (+ a value in the test yml); confirm context tests load. Boot with `ensemble.usage.daily-limit=2` and capture the CallCapService/IT/scan-filter/controller test outputs + the three-call `429` curl proof.
+- [x] 4.1 **(RED→GREEN)** Write `UsagePropertiesTest` (`daily-limit` default `100`). Then implement `UsageProperties` `@ConfigurationProperties(prefix="ensemble.usage")` with `dailyLimit` (default 100).
+- [x] 4.2 **(RED→GREEN→REFACTOR)** Write the scan-filter test `findAll_excludesUsageRows` (write a `usage#<date>` row + a real item, assert only the item returns). Then add the `usage#`-prefix exclusion to `WardrobeRepository.findAll()` (in-stream `filter` at demo scale, or a `ScanRequest` `FilterExpression`). Ensure 100% branch coverage on the filter.
+- [x] 4.3 **(RED→GREEN)** Write `UsageRepositoryIT` (TestContainers, mirroring `WardrobeRepositoryIT`): `incrementIsAtomicAndPersists` (two increments → count 2, stored under `usage#<date>`). Then implement `UsageRepository.increment(dateKey)` using the low-level `DynamoDbClient` `UpdateItem` with `UpdateExpression "ADD #c :one"`, `ReturnValues=UPDATED_NEW`, returning the new count.
+- [x] 4.4 **(RED→GREEN→REFACTOR)** Write `CallCapServiceTest` (`underLimit_allowsAndIncrements`, `atLimit_blocksWith429Signal`, `usesUtcDateKey`, `newUtcDay_resetsCount`) with a fixed `Clock` + mocked `UsageRepository`. Then implement `CallCapService.reserve()` (compute the UTC date from an injected `Clock`, increment via `UsageRepository`, throw `DailyCapExceededException` when the new count exceeds `dailyLimit`) and add a `ClockConfig` `Clock.systemUTC()` bean. 100% branch on the limit check.
+- [x] 4.5 **(RED→GREEN)** Add MockMvc tests `postStyle_overDailyCap_returns429` (`StyleControllerTest`) and `postTag_overDailyCap_returns429` (`TaggingControllerTest`) with the cap service mocked to throw. Then call `callCapService.reserve()` at the **start** of both flows (before the Claude call) and map `DailyCapExceededException` → `429` with the shared `ErrorResponse` in `ApiExceptionHandler`.
+- [x] 4.6 Add `ensemble.usage.daily-limit: 100` to `src/main/resources/application.yml` (+ a value in the test yml); confirm context tests load. Boot with `ensemble.usage.daily-limit=2` and capture the CallCapService/IT/scan-filter/controller test outputs + the three-call `429` curl proof.
 
 ### [ ] 5.0 Integration, secret-safety & regression verification
 

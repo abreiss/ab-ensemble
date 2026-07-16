@@ -24,3 +24,5 @@ ensemble:
     passcode: test-passcode
     session-secret: test-session-secret
     session-ttl: PT12H
+  usage:
+    daily-limit: 100

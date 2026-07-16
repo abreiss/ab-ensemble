@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.ensemble.storage.InvalidImageException;
 import com.ensemble.tagging.TaggingService;
 import com.ensemble.tagging.dto.TagSuggestion;
+import com.ensemble.usage.CallCapService;
 
 /**
  * Tag-preview endpoint. {@code POST /api/items/tag} accepts a garment photo as
@@ -30,13 +31,16 @@ import com.ensemble.tagging.dto.TagSuggestion;
 public class TaggingController {
 
 	private final TaggingService service;
+	private final CallCapService callCapService;
 
-	public TaggingController(TaggingService service) {
+	public TaggingController(TaggingService service, CallCapService callCapService) {
 		this.service = service;
+		this.callCapService = callCapService;
 	}
 
 	@PostMapping(value = "/tag", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public TagSuggestion tag(@RequestPart("photo") MultipartFile photo) {
+		callCapService.reserve();
 		return service.suggest(readBytes(photo));
 	}
 

@@ -50,3 +50,8 @@ ensemble:
     # single env var is enough to run locally.
     session-secret: ${ENSEMBLE_SESSION_SECRET:}
     session-ttl: PT12H
+  usage:
+    # Global daily cap on Claude-backed calls (POST /api/style, POST /api/items/tag).
+    # Counted before the call so a failed/timed-out upstream call still consumes
+    # budget; resets implicitly at the UTC calendar-day boundary.
+    daily-limit: 100

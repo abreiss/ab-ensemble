@@ -13,6 +13,7 @@ import com.ensemble.stylist.StylistService;
 import com.ensemble.stylist.dto.StyleRequest;
 import com.ensemble.stylist.dto.StyleResponse;
 import com.ensemble.stylist.dto.StyleResponse.OutfitItem;
+import com.ensemble.usage.CallCapService;
 
 /**
  * REST API for the stylist under {@code /api/style}. Accepts a free-text vibe and
@@ -31,13 +32,16 @@ import com.ensemble.stylist.dto.StyleResponse.OutfitItem;
 public class StyleController {
 
 	private final StylistService service;
+	private final CallCapService callCapService;
 
-	public StyleController(StylistService service) {
+	public StyleController(StylistService service, CallCapService callCapService) {
 		this.service = service;
+		this.callCapService = callCapService;
 	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public StyleResponse style(@RequestBody StyleRequest request) {
+		callCapService.reserve();
 		Outfit outfit = service.style(request.prompt());
 		List<OutfitItem> items = outfit.itemIds().stream()
 			.map(id -> new OutfitItem(id, "/api/items/" + id + "/photo"))

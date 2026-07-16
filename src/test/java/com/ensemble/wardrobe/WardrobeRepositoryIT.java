@@ -141,4 +141,16 @@ class WardrobeRepositoryIT {
 
 		assertThat(repository.findById("gone")).isEmpty();
 	}
+
+	@Test
+	void findAll_excludesUsageRows() {
+		Item usageRow = new Item();
+		usageRow.setItemId("usage#2026-07-16");
+		repository.save(usageRow);
+		repository.save(sampleItem("real-item"));
+
+		List<Item> all = repository.findAll();
+
+		assertThat(all).extracting(Item::getItemId).containsExactly("real-item");
+	}
 }
