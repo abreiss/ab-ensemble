@@ -53,8 +53,24 @@ public class AnthropicVisionModelClient implements VisionModelClient {
 
 	@Override
 	public String extractTagsJson(byte[] jpegImage) {
+		Message message = client.messages().create(tagRequestBuilder(model, jpegImage).build());
+		return firstToolUseJson(message);
+	}
+
+	/**
+	 * Builds the exact forced-structured-output vision request the tagging pipeline uses: the
+	 * garment image plus the forced {@value #TAG_TOOL} tool at {@value #MAX_TOKENS} max tokens.
+	 * Exposed as a shared builder so an offline evaluation harness can issue the
+	 * <strong>identical</strong> request for a different model (adding, e.g., a {@code thinking}
+	 * config) without duplicating — and drifting from — the production request shape.
+	 *
+	 * @param model the Claude model id to target
+	 * @param jpegImage the (already downsized) JPEG bytes to tag
+	 * @return a request builder the caller may further customize before {@code build()}
+	 */
+	public static MessageCreateParams.Builder tagRequestBuilder(String model, byte[] jpegImage) {
 		String base64 = Base64.getEncoder().encodeToString(jpegImage);
-		MessageCreateParams params = MessageCreateParams.builder()
+		return MessageCreateParams.builder()
 			.model(model)
 			.maxTokens(MAX_TOKENS)
 			.addTool(tagTool())
@@ -69,15 +85,11 @@ public class AnthropicVisionModelClient implements VisionModelClient {
 				ContentBlockParam.ofText(TextBlockParam.builder()
 					.text("Tag this single garment using the " + TAG_TOOL + " tool. "
 						+ "Leave any field you cannot determine from the image as null.")
-					.build())))
-			.build();
-
-		Message message = client.messages().create(params);
-		return firstToolUseJson(message);
+					.build())));
 	}
 
 	/** Tool whose input schema is the tag shape; forcing it yields structured JSON. */
-	private Tool tagTool() {
+	private static Tool tagTool() {
 		Tool.InputSchema schema = Tool.InputSchema.builder()
 			.type(JsonValue.from("object"))
 			.putAdditionalProperty("properties", JsonValue.from(Map.of(
@@ -97,7 +109,7 @@ public class AnthropicVisionModelClient implements VisionModelClient {
 	}
 
 	/** Returns the first tool-use block's input as JSON text, or {@code null} if none. */
-	private String firstToolUseJson(Message message) {
+	public static String firstToolUseJson(Message message) {
 		for (ContentBlock block : message.content()) {
 			Optional<ToolUseBlock> toolUse = block.toolUse();
 			if (toolUse.isPresent()) {
@@ -107,7 +119,7 @@ public class AnthropicVisionModelClient implements VisionModelClient {
 		return null;
 	}
 
-	private String serialize(JsonValue input) {
+	private static String serialize(JsonValue input) {
 		try {
 			return MAPPER.writeValueAsString(input.convert(Object.class));
 		} catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {

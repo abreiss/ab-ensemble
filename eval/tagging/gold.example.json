@@ -1,0 +1,22 @@
+[
+  {
+    "image": "black-band-tee.jpg",
+    "category": "top",
+    "primaryColor": "black",
+    "secondaryColor": "white",
+    "formality": 2,
+    "pattern": "graphic",
+    "warmth": 1,
+    "descriptors": ["band-tee", "short-sleeve", "cotton"]
+  },
+  {
+    "image": "blue-jeans.jpg",
+    "category": "bottom",
+    "primaryColor": "blue",
+    "secondaryColor": null,
+    "formality": 2,
+    "pattern": "solid",
+    "warmth": 2,
+    "descriptors": ["denim", "straight-leg"]
+  }
+]

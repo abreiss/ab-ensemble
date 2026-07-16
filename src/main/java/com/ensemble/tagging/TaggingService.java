@@ -71,8 +71,13 @@ public class TaggingService {
 		}
 	}
 
-	/** Maps the model's raw tag JSON onto the tag shape; blank/absent input yields empty. */
-	private TagSuggestion map(String json) throws JsonProcessingException {
+	/**
+	 * Maps the model's raw tag JSON onto the tag shape; blank/absent input yields empty.
+	 *
+	 * <p>Exposed {@code public static} so the offline model-eval harness parses and clamps
+	 * tag JSON through this <strong>same</strong> logic rather than re-implementing it.
+	 */
+	public static TagSuggestion map(String json) throws JsonProcessingException {
 		if (json == null || json.isBlank()) {
 			return TagSuggestion.empty();
 		}
