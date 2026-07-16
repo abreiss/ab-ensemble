@@ -18,3 +18,9 @@ ensemble:
     auto-create-table: false
   photos:
     dir: build/test-photos
+  security:
+    # Dummy value, never a real secret — used only so context/slice tests can mint
+    # and verify tokens without needing ENSEMBLE_PASSCODE in the environment.
+    passcode: test-passcode
+    session-secret: test-session-secret
+    session-ttl: PT12H

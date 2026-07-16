@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+import com.ensemble.security.InvalidPasscodeException;
+import com.ensemble.security.web.AuthController;
 import com.ensemble.storage.InvalidImageException;
 import com.ensemble.storage.PhotoNotFoundException;
 import com.ensemble.stylist.StylistUnavailableException;
@@ -19,17 +21,18 @@ import com.ensemble.wardrobe.ItemNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 
 /**
- * Maps domain and request errors to HTTP responses for the wardrobe, tagging, and
- * stylist APIs: unknown ids → 404, invalid input (validation, bad range,
+ * Maps domain and request errors to HTTP responses for the wardrobe, tagging,
+ * stylist, and auth APIs: unknown ids → 404, invalid input (validation, bad range,
  * missing/invalid photo, malformed JSON) → 400, an unavailable/ungroundable
- * stylist → 503. Returns a small sanitized error body. The tag-preview and style
- * controllers are covered here too, so their failures reuse the same sanitized
- * error shape.
+ * stylist → 503, a wrong/blank passcode → 401. Returns a small sanitized error body.
+ * The tag-preview, style, and auth controllers are covered here too, so their
+ * failures reuse the same sanitized error shape.
  */
 @RestControllerAdvice(assignableTypes = {
 	WardrobeController.class,
 	TaggingController.class,
-	StyleController.class
+	StyleController.class,
+	AuthController.class
 })
 public class ApiExceptionHandler {
 
@@ -81,5 +84,12 @@ public class ApiExceptionHandler {
 	@ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
 	public ErrorResponse handleStylistUnavailable(StylistUnavailableException ex) {
 		return new ErrorResponse("stylist_unavailable", ex.getMessage());
+	}
+
+	/** A wrong, blank, or missing passcode. The message never confirms/denies why. */
+	@ExceptionHandler(InvalidPasscodeException.class)
+	@ResponseStatus(HttpStatus.UNAUTHORIZED)
+	public ErrorResponse handleInvalidPasscode(InvalidPasscodeException ex) {
+		return new ErrorResponse("unauthorized", "invalid passcode");
 	}
 }
