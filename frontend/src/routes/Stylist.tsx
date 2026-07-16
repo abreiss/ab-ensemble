@@ -1,10 +1,11 @@
 import { type FormEvent, useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { photoUrl, requestStyle } from '../api/style'
+import { markWorn, photoUrl, requestStyle } from '../api/style'
 import type { Outfit } from '../api/style'
 
 type Status = 'idle' | 'loading' | 'ready' | 'error'
+type LogStatus = 'idle' | 'logging' | 'logged' | 'error'
 
 /**
  * Stylist screen (`/style`): the app's second AI job. A free-text vibe submits to
@@ -19,12 +20,15 @@ export default function Stylist() {
   const [submitted, setSubmitted] = useState('')
   const [outfit, setOutfit] = useState<Outfit | null>(null)
   const [status, setStatus] = useState<Status>('idle')
+  const [logStatus, setLogStatus] = useState<LogStatus>('idle')
 
   // Settle a style request into state via promise callbacks (the pattern the
   // react-hooks effect rule endorses for syncing with an external system).
   const run = useCallback((prompt: string) => {
     setSubmitted(prompt)
     setStatus('loading')
+    // A fresh look resets the wear-log lock so it can be logged on its own.
+    setLogStatus('idle')
     requestStyle(prompt)
       .then((result) => {
         setOutfit(result)
@@ -32,6 +36,20 @@ export default function Stylist() {
       })
       .catch(() => setStatus('error'))
   }, [])
+
+  // Log the whole look worn: mark every rendered piece via the deterministic
+  // wear-history write. One log per look — on success the control locks to
+  // "Logged ✓"; a partial failure keeps the look and offers a retry.
+  const logLook = useCallback(() => {
+    if (outfit === null) {
+      return
+    }
+    setLogStatus('logging')
+    Promise.allSettled(outfit.items.map((piece) => markWorn(piece.itemId))).then((results) => {
+      const anyFailed = results.some((result) => result.status === 'rejected')
+      setLogStatus(anyFailed ? 'error' : 'logged')
+    })
+  }, [outfit])
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault()
@@ -119,6 +137,28 @@ export default function Stylist() {
           <div className="outfit-note">
             <span className="eyebrow">Stylist’s note</span>
             <p className="outfit-reason">{outfit.reason}</p>
+          </div>
+
+          <div className="outfit-log">
+            {logStatus === 'logged' ? (
+              <button type="button" className="btn btn-logged btn-block" disabled>
+                Logged ✓
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                onClick={logLook}
+                disabled={logStatus === 'logging'}
+              >
+                I wore this look
+              </button>
+            )}
+            {logStatus === 'error' && (
+              <p className="banner banner-error" role="alert">
+                We couldn’t log that look. Please try again.
+              </p>
+            )}
           </div>
         </article>
       )}

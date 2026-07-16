@@ -9,12 +9,14 @@ import type { Outfit } from '../api/style'
 // The route must never touch the network in tests; mock the API module.
 vi.mock('../api/style', () => ({
   requestStyle: vi.fn(),
+  markWorn: vi.fn(),
   photoUrl: (id: string) => `/api/items/${id}/photo`,
 }))
 
-import { requestStyle } from '../api/style'
+import { markWorn, requestStyle } from '../api/style'
 
 const requestStyleMock = vi.mocked(requestStyle)
+const markWornMock = vi.mocked(markWorn)
 
 const outfit: Outfit = {
   itemIds: ['a', 'b'],
@@ -41,7 +43,16 @@ async function submitVibe(user: ReturnType<typeof userEvent.setup>, vibe = 'stre
 
 beforeEach(() => {
   requestStyleMock.mockReset()
+  markWornMock.mockReset()
 })
+
+/** Submits a vibe and waits for the outfit card to render. */
+async function renderLook(user: ReturnType<typeof userEvent.setup>) {
+  requestStyleMock.mockResolvedValueOnce(outfit)
+  renderStylist()
+  await submitVibe(user)
+  await screen.findByText(outfit.reason)
+}
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -106,5 +117,39 @@ describe('Stylist route', () => {
       await screen.findByText(/add a few more pieces and i can build you a look\./i),
     ).toBeInTheDocument()
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it('logs a worn look: marks every rendered piece worn and locks to "Logged ✓"', async () => {
+    const user = userEvent.setup()
+    await renderLook(user)
+    markWornMock.mockResolvedValue({} as never)
+
+    await user.click(screen.getByRole('button', { name: /i wore this look/i }))
+
+    // One write per rendered piece, exactly once each.
+    await waitFor(() => expect(markWornMock).toHaveBeenCalledTimes(2))
+    expect(markWornMock).toHaveBeenCalledWith('a')
+    expect(markWornMock).toHaveBeenCalledWith('b')
+
+    // The control locks to a one-shot "Logged ✓" state.
+    const logged = await screen.findByRole('button', { name: /logged/i })
+    expect(logged).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /i wore this look/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps the look and shows a retryable message when a wear write fails', async () => {
+    const user = userEvent.setup()
+    await renderLook(user)
+    // First piece succeeds, second rejects → a partial failure.
+    markWornMock.mockResolvedValueOnce({} as never).mockRejectedValueOnce(new Error('offline'))
+
+    await user.click(screen.getByRole('button', { name: /i wore this look/i }))
+
+    // A soft, retryable message appears and the look is not lost.
+    expect(await screen.findByText(/couldn.t log|try again/i)).toBeInTheDocument()
+    expect(screen.getByText(outfit.reason)).toBeInTheDocument()
+    // Not locked — the user can retry the log.
+    expect(screen.getByRole('button', { name: /i wore this look/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /logged/i })).not.toBeInTheDocument()
   })
 })

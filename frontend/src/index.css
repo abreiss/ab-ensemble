@@ -179,6 +179,19 @@ a {
   width: 100%;
 }
 
+/* "Logged ✓" — the one-shot locked confirmation after a look is worn. Kept fully
+   legible (not faded like a normal disabled button) since it is a done-state. */
+.btn-logged {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent);
+}
+
+.btn-logged:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 /* ---- Screen scaffold + shared states ------------------------------------ */
 
 .screen {
@@ -430,6 +443,20 @@ select.input {
   background: var(--paper-raised);
 }
 
+/* Wear-history: a quiet care-label caption (eyebrow above, value below). */
+.wear-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.wear-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
 .danger-zone {
   margin-top: var(--space-4);
   padding-top: var(--space-4);
@@ -530,6 +557,13 @@ select.input {
   font-size: var(--text-lg);
   line-height: 1.35;
   letter-spacing: -0.01em;
+}
+
+/* The "I wore this look" control + its retryable error, below the note. */
+.outfit-log {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 @media (prefers-reduced-motion: reduce) {

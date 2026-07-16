@@ -174,7 +174,7 @@ guardrail branch coverage preserved. (Spec Unit 2.)
   `./gradlew test -PskipFrontend` and `jacocoTestReport`; confirm 100% branch on the
   guardrail. Capture the two-`curl` re-pick CLI proof (live key, sanitized). Commit.
 
-### [ ] 3.0 Wear-history display + "I wore this look" on the card (frontend)
+### [x] 3.0 Wear-history display + "I wore this look" on the card (frontend)
 
 Shows wear-history on item detail (`wornCount` with a never-worn state; `lastWorn` as a
 short **relative** label via a new helper, with a not-yet-worn state — display only), adds
@@ -199,34 +199,34 @@ Depends on 1.0. (Spec Unit 3 — wear side.)
 
 #### 3.0 Tasks
 
-- [ ] 3.1 RED: Create `frontend/src/lib/relativeTime.test.ts` for a
+- [x] 3.1 RED: Create `frontend/src/lib/relativeTime.test.ts` for a
   `relativeTime(iso: string, now?: Date): string` helper — assert "today" (same day),
   "1 day ago"/"2 days ago" (pass a fixed `now` for determinism), and a longer span.
   Confirm fails (no file).
-- [ ] 3.2 GREEN: Create `frontend/src/lib/relativeTime.ts` with the minimal implementation.
-- [ ] 3.3 RED: In `api/items.test.ts`, add a `markWorn` case using the existing
+- [x] 3.2 GREEN: Create `frontend/src/lib/relativeTime.ts` with the minimal implementation.
+- [x] 3.3 RED: In `api/items.test.ts`, add a `markWorn` case using the existing
   `vi.stubGlobal('fetch', …)` pattern — asserts `POST /api/items/abc/worn` and returns the
   parsed `Item`; throws on a non-2xx. Confirm fails.
-- [ ] 3.4 GREEN: Add `markWorn(id)` to `api/items.ts`
+- [x] 3.4 GREEN: Add `markWorn(id)` to `api/items.ts`
   (`ensureOk(await fetch(\`${BASE}/${id}/worn\`, { method: 'POST' }), 'Mark worn')` →
   parsed `Item`). Re-export it from `api/style.ts` (mirroring `photoUrl`) so the card imports
   one stylist-facing module. Make the test pass.
-- [ ] 3.5 RED: In `ItemDetail.test.tsx`, **replace** the existing
+- [x] 3.5 RED: In `ItemDetail.test.tsx`, **replace** the existing
   `does not render wear-history fields (deferred to #7)` test with cases asserting the
   display: a worn item shows "Worn 7×" and a relative last-worn label; `wornCount` 0/null →
   a "Never worn" state; `lastWorn` null → a "not yet worn" state. Confirm fails.
-- [ ] 3.6 GREEN: In `ItemDetail.tsx`, render a quiet wear-history metadata line (eyebrow +
+- [x] 3.6 GREEN: In `ItemDetail.tsx`, render a quiet wear-history metadata line (eyebrow +
   value) using `relativeTime`, with the never-worn / not-yet-worn fallbacks; update the
   component doc-comment (no longer "deferred to #7"). Make the tests pass.
-- [ ] 3.7 RED: In `Stylist.test.tsx`, extend the `../api/style` mock with
+- [x] 3.7 RED: In `Stylist.test.tsx`, extend the `../api/style` mock with
   `markWorn: vi.fn()`; add a case where clicking "I wore this look" calls `markWorn` once
   per rendered piece and the control locks to "Logged ✓"; add a case where one `markWorn`
   rejects → a retryable soft message shows and the look stays rendered. Confirm fails.
-- [ ] 3.8 GREEN: In `Stylist.tsx`, add an "I wore this look" button on the outfit card;
+- [x] 3.8 GREEN: In `Stylist.tsx`, add an "I wore this look" button on the outfit card;
   on click run `Promise.allSettled(outfit.items.map((p) => markWorn(p.itemId)))`; on all
   success lock to a "Logged ✓" state (local state, one-shot, disabled); on any failure show
   a soft retryable message and keep the look. Make the tests pass.
-- [ ] 3.9 REFACTOR: Add Care-Label styles in `index.css` for the wear-history line, the
+- [x] 3.9 REFACTOR: Add Care-Label styles in `index.css` for the wear-history line, the
   "Logged ✓" state, and a 44px "I wore this look" target. Run `npm test -- --run` and
   `npm run lint`; capture the item-detail + logged-card screenshot (390px, sanitized).
   Commit.

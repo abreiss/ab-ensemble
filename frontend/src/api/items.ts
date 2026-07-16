@@ -92,3 +92,15 @@ export async function updateTags(id: string, tags: TagInput): Promise<Item> {
 export async function deleteItem(id: string): Promise<void> {
   ensureOk(await fetch(`${BASE}/${id}`, { method: 'DELETE' }), 'Delete item')
 }
+
+/**
+ * Log a wear: `POST /api/items/:id/worn`. The server increments `wornCount` and
+ * sets `lastWorn` (deterministic, never the model), returning the updated item.
+ */
+export async function markWorn(id: string): Promise<Item> {
+  const response = ensureOk(
+    await fetch(`${BASE}/${id}/worn`, { method: 'POST' }),
+    'Mark worn',
+  )
+  return (await response.json()) as Item
+}
