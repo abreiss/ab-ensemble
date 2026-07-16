@@ -2,18 +2,19 @@
    Ensemble — "Care Label" design system
    The app tags garments, so its visual identity borrows from garment care
    labels and hang-tags: monospace attribute rows, filled rating pips, real
-   color swatches. Cobalt "thread" is the one accent, used with restraint.
+   color swatches. Maroon "thread" is the one accent, used with restraint.
    ============================================================================ */
 
 :root {
   /* Color */
-  --paper: #f7f5f0;
-  --paper-raised: #fffefb;
-  --ink: #1c1b19;
-  --muted: #8a857b;
-  --hairline: #e0dcd2;
-  --accent: #2540ff;
-  --accent-soft: #e7ebff;
+  --paper: #f3ecdd;
+  --paper-raised: #fcf8ef;
+  --ink: #33271f;
+  --muted: #8f8272;
+  --hairline: #e3d8c4;
+  --accent: #7c2833;
+  --accent-soft: #ecd9d3;
+  --on-accent: #f6ecd9; /* cream text/icons on maroon fill */
   --danger: #b00020;
   --danger-soft: #fbe7ea;
 
@@ -166,7 +167,7 @@ a {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .btn-danger {
@@ -515,7 +516,7 @@ select.input {
   background: var(--paper);
 }
 
-/* Signature: the reason set as a garment care note, hung on one cobalt "thread". */
+/* Signature: the reason set as a garment care note, hung on one maroon "thread". */
 .outfit-note {
   display: flex;
   flex-direction: column;
