@@ -28,9 +28,13 @@ flight and the prior look stays on screen. Frontend meaningful-logic tests only.
 - The full frontend suite passes — **93 tests / 11 files**; `npm run lint` clean.
 - New/updated specs: `api/style.test.ts` (history in the POST body + backward compat, 7),
   `Stylist.test.tsx` (call-shape update + 7 new re-pick cases, 12).
-- Live screenshots (390px mobile viewport, Vite dev server proxying `/api` → the running
-  backend, live Sonnet 5 stylist) show a rendered look with the pushback field +
+- Live screenshots (390px mobile viewport, Vite dev server proxying `/api` → the issue-#7
+  backend on `:8081`, live Sonnet 5 stylist) show a rendered look with the pushback field +
   "Show me another", and a **second, different look** after clicking regenerate.
+- The re-pick loop was also cross-checked directly against the #7 backend: two chained
+  `POST /api/style` calls (a vibe, then the same vibe with the prior pick + "too plain" in
+  `history`) returned **three completely different, all-owned item ids** — confirming the
+  stateless different-look nudge end-to-end, not just in the UI.
 
 ## Artifact: Frontend unit + component tests
 
@@ -79,14 +83,15 @@ cd frontend && npm run lint
 right?" pushback field (placeholder "too plain — add a jacket"), a **Re-pick** button, and a
 **Show me another** button — below the "I wore this look" action.
 
-**Why it matters:** confirms the loop UI renders in the real app against the live stylist,
-not just under RTL. The vibe "smart casual for a dinner out" produced a light-blue
-button-up + black wide-leg denim + black/yellow oxford shoes.
+**Why it matters:** confirms the loop UI renders in the real app against the live #7
+stylist, not just under RTL. The vibe "smart casual for a dinner out" produced a light-blue
+button-up + light-wash wide-leg jeans + burgundy/cream retro low-top sneakers.
 
 **Artifact path:** `docs/specs/07-spec-repick-wear-history/07-proofs/assets/stylist-repick-look1.png`
 
-**Result summary:** the outfit card shows the first look (3 pieces) with the stylist's note
-and the pushback field + "Show me another" regenerate control at ~390px mobile width.
+**Result summary:** the outfit card shows the first look (3 pieces, real stored photos) with
+the stylist's note and the pushback field + "Show me another" regenerate control at ~390px
+mobile width.
 
 ![Stylist first look with a pushback field and a "Show me another" button](assets/stylist-repick-look1.png)
 
@@ -96,14 +101,14 @@ and the pushback field + "Show me another" regenerate control at ~390px mobile w
 thread and renders a **different** grounded look — the core re-pick behavior.
 
 **Why it matters:** confirms the stateless resend + different-look nudge works end-to-end:
-the second pick shares no pieces with the first and the stylist's note explains the new
-pairing.
+the second pick shares no pieces with the first and the stylist's note explicitly calls out
+the swap ("A completely different smart-casual combo… a fresh, unrepeated outfit").
 
 **Artifact path:** `docs/specs/07-spec-repick-wear-history/07-proofs/assets/stylist-repick-look2.png`
 
-**Result summary:** the same vibe re-picked to a cream Toyota Supra graphic tee + light-blue
-wide-leg jeans + burgundy/cream low-top sneakers — a distinct look from look 1, with the
-re-pick controls still present for further iteration.
+**Result summary:** the same vibe re-picked to a black denim button-up + light-blue wide-leg
+jeans + black/yellow lace-up oxfords — a distinct look from look 1 (no shared pieces), with
+the re-pick controls still present for further iteration.
 
 ![Stylist second, different look after clicking "Show me another"](assets/stylist-repick-look2.png)
 
