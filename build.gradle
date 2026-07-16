@@ -49,6 +49,20 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+// --- Offline model-eval harness -------------------------------------------
+// Runs com.ensemble.eval.TaggingEvalRunner (under src/test, never in the jar and
+// never in the `test` task). Makes LIVE Claude calls, so it only ever runs when a
+// human invokes it explicitly:
+//   ./gradlew taggingEval -PskipFrontend --args="--judge"
+// Needs ENSEMBLE_ANTHROPIC_API_KEY (or ANTHROPIC_API_KEY) in the environment.
+tasks.register('taggingEval', JavaExec) {
+	group = 'verification'
+	description = 'Eval: tag a labeled photo set with Haiku 4.5 vs Sonnet 5, score + judge, write a report. LIVE API calls.'
+	dependsOn 'testClasses'
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.ensemble.eval.TaggingEvalRunner'
+}
+
 // Stable jar name, decoupled from the project version, so the Dockerfile (and
 // any run script) does not break on a version bump.
 tasks.named('bootJar') {

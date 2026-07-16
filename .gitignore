@@ -52,3 +52,14 @@ src/main/resources/static/
 
 ### Local persistence (never commit real photos or local DB data) ###
 data/
+
+### Model-eval harness — personal photos, gold labels, and generated reports stay local ###
+eval/tagging/images/
+eval/tagging/gold.json
+eval/tagging/out/
+
+### Git worktrees (isolated per-issue checkouts) ###
+.worktrees/
+
+### Lavish review artifacts (generated HTML review surfaces) ###
+.lavish/
