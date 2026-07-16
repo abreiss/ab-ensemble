@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import TagForm from '../components/TagForm'
@@ -34,21 +34,56 @@ export default function AddItem() {
   const [suggestion, setSuggestion] = useState<TagSuggestion | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Identifies the in-flight tag-preview so an out-of-order (stale) response
+  // can't seed the form with the wrong photo's tags.
+  const requestId = useRef(0)
+  // The live object URL, so it can be revoked on re-select and on unmount.
+  const previewUrlRef = useRef<string | null>(null)
+
+  // Release the last preview's object URL when leaving the screen.
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
+      }
+    }
+  }, [])
 
   const onSelectPhoto = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) {
       return
     }
+    // Revoke the previously selected photo's URL before replacing it (no leak).
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current)
+    }
+    const url = URL.createObjectURL(file)
+    previewUrlRef.current = url
+    const request = (requestId.current += 1)
     setPhoto(file)
-    setPreviewUrl(URL.createObjectURL(file))
+    setPreviewUrl(url)
+    setSuggestion(null)
     setError(null)
     setPhase('tagging')
     // Fall back to an editable blank form whether the call degrades or fails.
+    // Ignore any response that is no longer the latest selection.
     tagPreview(file)
-      .then((result) => setSuggestion(result))
-      .catch(() => setSuggestion(EMPTY_SUGGESTION))
-      .finally(() => setPhase('ready'))
+      .then((result) => {
+        if (request === requestId.current) {
+          setSuggestion(result)
+        }
+      })
+      .catch(() => {
+        if (request === requestId.current) {
+          setSuggestion(EMPTY_SUGGESTION)
+        }
+      })
+      .finally(() => {
+        if (request === requestId.current) {
+          setPhase('ready')
+        }
+      })
   }
 
   const onSave = (tags: TagInput) => {
@@ -76,7 +111,6 @@ export default function AddItem() {
         <input
           type="file"
           accept="image/*"
-          capture="environment"
           aria-label="Choose a garment photo"
           onChange={onSelectPhoto}
         />

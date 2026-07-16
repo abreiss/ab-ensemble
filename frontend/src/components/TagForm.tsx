@@ -36,7 +36,10 @@ function toDraft(initial?: TagSuggestion | null): Draft {
     formality: initial?.formality ?? null,
     pattern: initial?.pattern ?? '',
     warmth: initial?.warmth ?? null,
-    descriptors: initial?.descriptors ?? [],
+    // De-dup seeded descriptors: the add path already blocks duplicates, but a
+    // suggestion can repeat one, which would collide chip keys and let a single
+    // remove drop every copy.
+    descriptors: initial?.descriptors ? [...new Set(initial.descriptors)] : [],
   }
 }
 

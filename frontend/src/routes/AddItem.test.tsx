@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -51,8 +51,8 @@ const createdItem: Item = {
   wornCount: 0,
 }
 
-function photoFile() {
-  return new File([new Uint8Array([1, 2, 3])], 'jacket.jpg', { type: 'image/jpeg' })
+function photoFile(name = 'jacket.jpg') {
+  return new File([new Uint8Array([1, 2, 3])], name, { type: 'image/jpeg' })
 }
 
 function renderAddItem() {
@@ -66,18 +66,27 @@ function renderAddItem() {
   )
 }
 
+let revokeSpy: ReturnType<typeof vi.fn>
+
 beforeEach(() => {
   tagPreviewMock.mockReset()
   createItemMock.mockReset()
-  // jsdom has no object-URL support; stub it for the photo preview.
+  // jsdom has no object-URL support; stub it. Distinct URLs per call so the
+  // preview key changes on re-select (mirrors real browser behavior).
+  revokeSpy = vi.fn()
+  let n = 0
   vi.stubGlobal('URL', {
     ...URL,
-    createObjectURL: vi.fn(() => 'blob:preview'),
-    revokeObjectURL: vi.fn(),
+    createObjectURL: vi.fn(() => `blob:preview-${n++}`),
+    revokeObjectURL: revokeSpy,
   })
 })
 
 afterEach(() => {
+  // Unmount (which revokes the object URL) while URL is still stubbed, then
+  // restore globals — otherwise the unmount cleanup hits a real URL that jsdom
+  // doesn't fully implement.
+  cleanup()
   vi.unstubAllGlobals()
 })
 
@@ -164,5 +173,76 @@ describe('AddItem', () => {
     expect(screen.getByLabelText(/^category/i)).toHaveValue('trucker jacket')
     expect(screen.getByAltText(/selected garment/i)).toBeInTheDocument()
     expect(screen.queryByText('wardrobe grid')).not.toBeInTheDocument()
+  })
+
+  it('falls back to an editable blank form when tag-preview fails', async () => {
+    // Required edge case: a failed vision call is a normal, editable state.
+    tagPreviewMock.mockRejectedValue(new Error('vision unavailable'))
+    createItemMock.mockResolvedValue(createdItem)
+    const user = userEvent.setup()
+
+    renderAddItem()
+    await user.upload(screen.getByLabelText(/choose a garment photo/i), photoFile())
+
+    const category = await screen.findByLabelText(/^category/i)
+    expect(category).toHaveValue('')
+
+    // The blank fallback is still saveable — never a dead end.
+    await user.type(category, 'scarf')
+    await user.selectOptions(screen.getByLabelText(/formality/i), '2')
+    await user.selectOptions(screen.getByLabelText(/warmth/i), '3')
+    await user.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(createItemMock).toHaveBeenCalledTimes(1))
+    expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'scarf' })
+  })
+
+  it('shows the latest photo’s tags when a second photo is chosen before the first tags return', async () => {
+    // Guards against an out-of-order tag-preview race seeding the wrong photo.
+    const first: TagSuggestion = { ...allNull, category: 'first jacket', formality: 2, warmth: 2 }
+    const second: TagSuggestion = { ...allNull, category: 'second jacket', formality: 2, warmth: 2 }
+    let resolveFirst!: (s: TagSuggestion) => void
+    let resolveSecond!: (s: TagSuggestion) => void
+    tagPreviewMock
+      .mockImplementationOnce(() => new Promise((r) => { resolveFirst = r }))
+      .mockImplementationOnce(() => new Promise((r) => { resolveSecond = r }))
+    const user = userEvent.setup()
+
+    renderAddItem()
+    const input = screen.getByLabelText(/choose a garment photo/i)
+    await user.upload(input, photoFile('a.jpg'))
+    await user.upload(input, photoFile('b.jpg'))
+
+    // The stale (first) call resolves and renders BEFORE the latest one — the
+    // separate render is what exposes the race (a single batch would mask it).
+    await act(async () => {
+      resolveFirst(first)
+    })
+    await act(async () => {
+      resolveSecond(second)
+    })
+
+    const category = await screen.findByLabelText(/^category/i)
+    expect(category).toHaveValue('second jacket')
+  })
+
+  it('revokes the previous photo’s object URL when a new photo is chosen', async () => {
+    tagPreviewMock.mockResolvedValue(allNull)
+    const user = userEvent.setup()
+
+    renderAddItem()
+    const input = screen.getByLabelText(/choose a garment photo/i)
+    await user.upload(input, photoFile('a.jpg'))
+    await user.upload(input, photoFile('b.jpg'))
+
+    expect(revokeSpy).toHaveBeenCalledWith('blob:preview-0')
+  })
+
+  it('does not force the camera, so an existing photo can be chosen', () => {
+    tagPreviewMock.mockResolvedValue(allNull)
+
+    renderAddItem()
+
+    expect(screen.getByLabelText(/choose a garment photo/i)).not.toHaveAttribute('capture')
   })
 })

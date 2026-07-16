@@ -91,4 +91,19 @@ describe('TagForm', () => {
     )
     expect(screen.getByRole('button', { name: /sav/i })).toBeDisabled()
   })
+
+  it('de-duplicates repeated descriptors from a suggestion so a chip is not rendered twice', () => {
+    // Vision (and the backend) can return the same descriptor more than once;
+    // seeding duplicates would collide React keys and let one remove wipe both.
+    render(
+      <TagForm
+        initial={{ ...allNull, descriptors: ['blue', 'blue', 'soft'] }}
+        submitLabel="Save"
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getAllByText('blue')).toHaveLength(1)
+    expect(screen.getByText('soft')).toBeInTheDocument()
+  })
 })

@@ -105,6 +105,23 @@ describe('ItemDetail', () => {
     expect(await screen.findByText('wardrobe grid')).toBeInTheDocument()
   })
 
+  it('backs out of delete when Cancel is pressed, without deleting the item', async () => {
+    getItemMock.mockResolvedValue(sampleItem)
+    const user = userEvent.setup()
+
+    renderDetail()
+    await screen.findByLabelText(/primary color/i)
+
+    // Arm the confirmation, then back out — the guard must NOT delete.
+    await user.click(screen.getByRole('button', { name: /^delete item$/i }))
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }))
+
+    expect(deleteItemMock).not.toHaveBeenCalled()
+    // The confirm step is dismissed and the primary delete control is back.
+    expect(screen.queryByRole('button', { name: /confirm delete/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^delete item$/i })).toBeInTheDocument()
+  })
+
   it('shows a non-crashing not-found state when the item cannot be loaded', async () => {
     getItemMock.mockRejectedValue(new Error('404'))
 
