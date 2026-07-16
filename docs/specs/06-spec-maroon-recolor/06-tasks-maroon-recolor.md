@@ -88,7 +88,7 @@ theme-color meta, no markup change), Success Metrics 1, 2 (partial), 5.
   palette on app chrome, buttons, and banners. Save them as the Unit 1 proof
   artifacts.
 
-### [ ] 2.0 Tokenize the on-accent color and keep the suite green
+### [x] 2.0 Tokenize the on-accent color and keep the suite green
 
 Add `--on-accent: #f6ecd9;` to `:root` (with a short purpose comment) and replace
 the single hard-coded `color: #fff` on the `.btn-add, .btn-primary` rule
@@ -118,20 +118,20 @@ tokens absent), 4 (behavior unchanged).
 
 #### 2.0 Tasks
 
-- [ ] 2.1 In `frontend/src/index.css` `:root`, add `--on-accent: #f6ecd9;` (place
+- [x] 2.1 In `frontend/src/index.css` `:root`, add `--on-accent: #f6ecd9;` (place
   it with the other color tokens, e.g. after `--accent-soft`) with a short purpose
   comment such as `/* cream text/icons on maroon fill */`. Do not add
   `--paper-sunk`, `--border`, `--ink-2`, `--placeholder`, `--pip-empty`, or
   `--accent-line` (those belong to issue #7).
-- [ ] 2.2 In `frontend/src/index.css`, change the `.btn-add, .btn-primary` rule
+- [x] 2.2 In `frontend/src/index.css`, change the `.btn-add, .btn-primary` rule
   (line ~169) from `color: #fff;` to `color: var(--on-accent);`.
-- [ ] 2.3 Verify tokenization: `grep -n "#fff" frontend/src/index.css` (expect no
+- [x] 2.3 Verify tokenization: `grep -n "#fff" frontend/src/index.css` (expect no
   bare-white match); `grep -n -- "--on-accent" frontend/src/index.css` (expect the
   definition + the button usage); and
   `grep -nE -- "--paper-sunk|--border|--ink-2|--placeholder|--pip-empty|--accent-line" frontend/src/index.css`
   (expect no matches — the six stylist tokens stay deferred).
-- [ ] 2.4 Run `cd frontend && npm test -- --run`; confirm all 10 existing suites
+- [x] 2.4 Run `cd frontend && npm test -- --run`; confirm all 10 existing suites
   pass and that `git status` shows **no `*.test.*` files modified** (behavior
   unchanged, no test edits).
-- [ ] 2.5 Run `cd frontend && npm run lint`; confirm no new lint errors from the
+- [x] 2.5 Run `cd frontend && npm run lint`; confirm no new lint errors from the
   CSS change.
