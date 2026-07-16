@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -237,6 +238,29 @@ class WardrobeControllerTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"category\":\"top\",\"formality\":3,\"warmth\":2}"))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void postWorn_valid_returns200WithUpdatedItem() throws Exception {
+		ItemResponse worn = new ItemResponse("a", "top", "navy", null, 3, null, 2, List.of("cotton"),
+			"/api/items/a/photo", Instant.parse("2026-07-13T00:00:00Z"),
+			Instant.parse("2026-07-16T00:00:00Z"), 8);
+		when(service.markWorn("a")).thenReturn(worn);
+
+		mockMvc.perform(post("/api/items/a/worn"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.itemId").value("a"))
+			.andExpect(jsonPath("$.wornCount").value(8))
+			.andExpect(jsonPath("$.lastWorn").value("2026-07-16T00:00:00Z"));
+	}
+
+	@Test
+	void postWorn_unknownId_returns404() throws Exception {
+		when(service.markWorn("nope")).thenThrow(new ItemNotFoundException("nope"));
+
+		mockMvc.perform(post("/api/items/nope/worn"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("not_found"));
 	}
 
 	@Test

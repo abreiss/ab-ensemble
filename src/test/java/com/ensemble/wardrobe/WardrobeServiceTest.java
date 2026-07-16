@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -166,5 +167,60 @@ class WardrobeServiceTest {
 		assertThatExceptionOfType(ItemNotFoundException.class)
 			.isThrownBy(() -> service.loadPhoto("nope"));
 		verify(photoStorage, never()).load(any());
+	}
+
+	@Test
+	void markWorn_firstTime_setsCountToOneAndLastWorn() {
+		Item item = existing("x");
+		item.setWornCount(0);
+		item.setLastWorn(null);
+		when(repository.findById("x")).thenReturn(Optional.of(item));
+		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+		ItemResponse worn = service.markWorn("x");
+
+		assertThat(worn.wornCount()).isEqualTo(1);
+		assertThat(worn.lastWorn()).isNotNull();
+		// The mutation is persisted, not just returned.
+		ArgumentCaptor<Item> saved = ArgumentCaptor.forClass(Item.class);
+		verify(repository).save(saved.capture());
+		assertThat(saved.getValue().getWornCount()).isEqualTo(1);
+		assertThat(saved.getValue().getLastWorn()).isNotNull();
+	}
+
+	@Test
+	void markWorn_existingCount_incrementsAndUpdatesLastWorn() {
+		Item item = existing("x");
+		item.setWornCount(7);
+		Instant old = Instant.parse("2020-01-01T00:00:00Z");
+		item.setLastWorn(old);
+		when(repository.findById("x")).thenReturn(Optional.of(item));
+		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+		ItemResponse worn = service.markWorn("x");
+
+		assertThat(worn.wornCount()).isEqualTo(8);
+		assertThat(worn.lastWorn()).isNotNull().isAfter(old);
+	}
+
+	@Test
+	void markWorn_nullCount_treatedAsZero() {
+		Item item = existing("x");
+		item.setWornCount(null);
+		when(repository.findById("x")).thenReturn(Optional.of(item));
+		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+		ItemResponse worn = service.markWorn("x");
+
+		assertThat(worn.wornCount()).isEqualTo(1);
+	}
+
+	@Test
+	void markWorn_unknownId_throwsNotFound() {
+		when(repository.findById("nope")).thenReturn(Optional.empty());
+
+		assertThatExceptionOfType(ItemNotFoundException.class)
+			.isThrownBy(() -> service.markWorn("nope"));
+		verify(repository, never()).save(any());
 	}
 }

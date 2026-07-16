@@ -73,6 +73,11 @@ public class WardrobeController {
 		return service.updateTags(id, tags);
 	}
 
+	@PostMapping("/{id}/worn")
+	public ItemResponse markWorn(@PathVariable String id) {
+		return service.markWorn(id);
+	}
+
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void delete(@PathVariable String id) {

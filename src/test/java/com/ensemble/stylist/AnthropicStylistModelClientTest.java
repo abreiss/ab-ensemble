@@ -145,6 +145,61 @@ class AnthropicStylistModelClientTest {
 	}
 
 	@Test
+	void repickConversation_carriesDifferentLookInstruction() {
+		Message reply = message(List.of(
+			toolUse("record_outfit", "r1", Map.of("itemIds", List.of("b"), "reason", "bolder"))));
+		when(messages.create(any(MessageCreateParams.class))).thenReturn(reply);
+
+		// A conversation with a prior assistant turn == a pushback re-pick.
+		seam().proposeOutfit("wardrobe tags", List.of(
+			StylistMessage.user("streetwear today"),
+			StylistMessage.assistant("chose a and b"),
+			StylistMessage.user("too plain")));
+
+		ArgumentCaptor<MessageCreateParams> captor = ArgumentCaptor.forClass(MessageCreateParams.class);
+		verify(messages).create(captor.capture());
+		String system = captor.getValue().system().orElseThrow().asString();
+		// The model is nudged to produce a different look than the previous one.
+		assertThat(system).containsIgnoringCase("different");
+	}
+
+	@Test
+	void firstTurnConversation_hasNoDifferentLookInstruction() {
+		Message reply = message(List.of(
+			toolUse("record_outfit", "r1", Map.of("itemIds", List.of("a"), "reason", "clean"))));
+		when(messages.create(any(MessageCreateParams.class))).thenReturn(reply);
+
+		// No assistant turn yet == the first pick; the re-pick nudge must not fire.
+		seam().proposeOutfit("wardrobe tags", List.of(StylistMessage.user("streetwear today")));
+
+		ArgumentCaptor<MessageCreateParams> captor = ArgumentCaptor.forClass(MessageCreateParams.class);
+		verify(messages).create(captor.capture());
+		String system = captor.getValue().system().orElseThrow().asString();
+		assertThat(system).doesNotContainIgnoringCase("different outfit");
+	}
+
+	@Test
+	void repickConversation_forwardsTextOnly_noImageBytes() {
+		Message reply = message(List.of(
+			toolUse("record_outfit", "r1", Map.of("itemIds", List.of("b"), "reason", "bolder"))));
+		when(messages.create(any(MessageCreateParams.class))).thenReturn(reply);
+
+		seam().proposeOutfit("wardrobe tags", List.of(
+			StylistMessage.user("streetwear today"),
+			StylistMessage.assistant("chose a and b"),
+			StylistMessage.user("too plain")));
+
+		ArgumentCaptor<MessageCreateParams> captor = ArgumentCaptor.forClass(MessageCreateParams.class);
+		verify(messages).create(captor.capture());
+		MessageCreateParams params = captor.getValue();
+		assertNoImageBlocks(params);
+		// Every forwarded turn is plain text content — structurally byte-free.
+		for (MessageParam mp : params.messages()) {
+			assertThat(mp.content().string()).isPresent();
+		}
+	}
+
+	@Test
 	void whenModelStopsWithoutRecording_finalCallForcesRecordOutfit() {
 		Message chatter = message(List.of(textOnly()));
 		Message record = message(List.of(

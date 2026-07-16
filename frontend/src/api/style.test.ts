@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { photoUrl, requestStyle } from './style'
-import type { Outfit } from './style'
+import type { Outfit, StyleTurn } from './style'
 
 /** Builds a fetch-like Response stub (mirrors items.test.ts). */
 function jsonResponse(body: unknown, status = 200): Response {
@@ -51,6 +51,32 @@ describe('style API client', () => {
       expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
       expect(JSON.parse(init.body as string)).toEqual({ prompt: 'streetwear today' })
       expect(outfit).toEqual(sampleOutfit)
+    })
+
+    it('POSTs the accumulated history alongside the prompt when re-picking', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(sampleOutfit))
+      const history: StyleTurn[] = [
+        { role: 'user', text: 'streetwear today' },
+        { role: 'assistant', text: 'Previously chose: a, b — clean and modern.' },
+      ]
+
+      await requestStyle('too plain', history)
+
+      const [url, init] = lastCall()
+      expect(url).toBe('/api/style')
+      expect(init.method).toBe('POST')
+      expect(JSON.parse(init.body as string)).toEqual({ prompt: 'too plain', history })
+    })
+
+    it('omits history from the body when none is given (backward compatible)', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(sampleOutfit))
+
+      await requestStyle('streetwear today', [])
+
+      const [, init] = lastCall()
+      const body = JSON.parse(init.body as string)
+      expect(body).toEqual({ prompt: 'streetwear today' })
+      expect('history' in body).toBe(false)
     })
 
     it('returns an empty-wardrobe outfit (empty itemIds + explanatory reason) unchanged', async () => {

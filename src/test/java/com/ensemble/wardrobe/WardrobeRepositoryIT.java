@@ -17,6 +17,8 @@ import org.testcontainers.utility.DockerImageName;
 
 import com.ensemble.config.DynamoDbProperties;
 import com.ensemble.config.DynamoDbTableInitializer;
+import com.ensemble.storage.PhotoStorage;
+import com.ensemble.wardrobe.dto.ItemResponse;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -140,5 +142,40 @@ class WardrobeRepositoryIT {
 		repository.deleteById("gone");
 
 		assertThat(repository.findById("gone")).isEmpty();
+	}
+
+	@Test
+	void markWorn_roundTrip_persistsIncrementAndLastWornLeavingTagsUntouched() {
+		// A no-op storage: markWorn never touches photos, so this exercises only the
+		// wear-history read-modify-write through the real repository/table.
+		PhotoStorage noPhotos = new PhotoStorage() {
+			@Override
+			public void save(String key, byte[] imageBytes) {
+			}
+
+			@Override
+			public byte[] load(String key) {
+				return new byte[0];
+			}
+
+			@Override
+			public void delete(String key) {
+			}
+		};
+		WardrobeService service = new WardrobeService(repository, noPhotos);
+		Item seed = sampleItem("worn-1");
+		Instant createdAt = seed.getCreatedAt();
+		repository.save(seed);
+
+		ItemResponse worn = service.markWorn("worn-1");
+
+		assertThat(worn.wornCount()).isEqualTo(1);
+		assertThat(worn.lastWorn()).isNotNull();
+		// Reload from the table: the change is persisted and tags/createdAt are untouched.
+		Item reloaded = repository.findById("worn-1").orElseThrow();
+		assertThat(reloaded.getWornCount()).isEqualTo(1);
+		assertThat(reloaded.getLastWorn()).isNotNull();
+		assertThat(reloaded.getCategory()).isEqualTo("top");
+		assertThat(reloaded.getCreatedAt()).isEqualTo(createdAt);
 	}
 }

@@ -48,7 +48,9 @@ public class StylistService {
 	}
 
 	/**
-	 * Builds a grounded outfit for the given vibe.
+	 * Builds a grounded outfit for the given vibe — a single-turn request with no
+	 * prior conversation. Delegates to {@link #style(String, List)} with an empty
+	 * history.
 	 *
 	 * @param vibe the free-text style request
 	 * @return an outfit of owned item ids + a reason; an empty outfit (with a friendly
@@ -56,6 +58,29 @@ public class StylistService {
 	 * @throws StylistUnavailableException on an upstream failure or an ungroundable pick
 	 */
 	public Outfit style(String vibe) {
+		return style(vibe, List.of());
+	}
+
+	/**
+	 * Builds a grounded outfit for the given vibe within an ongoing conversation.
+	 *
+	 * <p>The server is <strong>stateless</strong>: the client resends the whole
+	 * {@code history} (prior vibe/pick turns, text only) on every re-pick, and the
+	 * current {@code vibe} is appended as the newest user turn. The
+	 * <strong>grounding guardrail</strong> (id-validation + one retry) runs
+	 * unchanged on each pick, so a pushback re-pick is held to the same standard as
+	 * the first look. When the history contains a prior assistant turn the model
+	 * seam is nudged to produce a <em>different</em> look (see
+	 * {@code AnthropicStylistModelClient}).
+	 *
+	 * @param vibe the newest free-text style request (pushback / "show me another")
+	 * @param history prior conversation turns to replay before the current vibe;
+	 *     text only, never image bytes
+	 * @return an outfit of owned item ids + a reason; an empty outfit (with a friendly
+	 *     reason) when the wardrobe is empty
+	 * @throws StylistUnavailableException on an upstream failure or an ungroundable pick
+	 */
+	public Outfit style(String vibe, List<StylistMessage> history) {
 		List<ItemResponse> items = wardrobe.list();
 		if (items.isEmpty()) {
 			return new Outfit(List.of(), EMPTY_WARDROBE_REASON);
@@ -69,7 +94,7 @@ public class StylistService {
 
 		Outfit pick;
 		try {
-			pick = pickWithOneRetry(vibe, wardrobeText, validIds);
+			pick = pickWithOneRetry(vibe, history, wardrobeText, validIds);
 		} catch (RuntimeException e) {
 			// Claude error/timeout (or any unexpected client failure) — degrade gracefully.
 			throw new StylistUnavailableException("The stylist is unavailable right now.", e);
@@ -85,19 +110,26 @@ public class StylistService {
 
 	/**
 	 * One pick, plus a single retry when the first pick names any id outside the
-	 * wardrobe. The retry feeds the specific invalid id(s) back to the model.
+	 * wardrobe. The retry feeds the specific invalid id(s) back to the model. The
+	 * conversation is seeded with the prior {@code history} turns, then the current
+	 * vibe, so a re-pick reasons over the full accumulated thread.
 	 */
-	private Outfit pickWithOneRetry(String vibe, String wardrobeText, Set<String> validIds) {
-		List<StylistMessage> conversation = new ArrayList<>();
+	private Outfit pickWithOneRetry(
+			String vibe, List<StylistMessage> history, String wardrobeText, Set<String> validIds) {
+		List<StylistMessage> conversation = new ArrayList<>(history);
 		conversation.add(StylistMessage.user(vibe));
 
 		Outfit pick = OutfitParser.parse(model.proposeOutfit(wardrobeText, conversation));
 
 		List<String> invalid = invalidIds(pick, validIds);
 		if (!invalid.isEmpty()) {
-			conversation.add(StylistMessage.assistant("I suggested item ids: " + String.join(", ", pick.itemIds())));
+			// Correct the grounding with a single USER turn — never an assistant turn.
+			// The model client reads a prior assistant turn as a pushback re-pick and
+			// would inject the "produce a different outfit" nudge; a grounding retry of a
+			// first pick is not a re-pick, so it must not add one.
 			conversation.add(StylistMessage.user(
-				"These item ids are not in the wardrobe: " + String.join(", ", invalid)
+				"Your previous suggestion included item ids that are not in the wardrobe: "
+					+ String.join(", ", invalid)
 					+ ". Choose only from the itemIds returned by searchWardrobe."));
 			pick = OutfitParser.parse(model.proposeOutfit(wardrobeText, conversation));
 		}

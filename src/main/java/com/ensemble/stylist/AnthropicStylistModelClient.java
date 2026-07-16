@@ -36,6 +36,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * API key is only required when a real style request runs — never at context
  * startup or in mocked tests. The guardrail (id-validation, one retry) lives in
  * {@link StylistService}; this class only speaks to the model.
+ *
+ * <p>On a stateless re-pick — the resent conversation already carries a prior
+ * assistant turn — the {@link #REPICK_INSTRUCTION} is appended to the system
+ * prompt so the model produces a <em>different</em> look. The nudge is derived
+ * from the text-only conversation, so the byte-free guarantee is unchanged.
  */
 @Component
 public class AnthropicStylistModelClient implements StylistModelClient {
@@ -62,6 +67,16 @@ public class AnthropicStylistModelClient implements StylistModelClient {
 		appear in the wardrobe and a short reason explaining why the pieces work \
 		together. Never invent an itemId that is not in the wardrobe.""";
 
+	/**
+	 * Appended to the system prompt on a re-pick (the conversation already carries a
+	 * prior assistant turn) so the model varies the look instead of repeating it.
+	 */
+	private static final String REPICK_INSTRUCTION = """
+		The user has pushed back on your previous outfit. Produce a DIFFERENT outfit \
+		from the previous look — change the combination of pieces — while addressing \
+		the user's latest feedback. Do not repeat the same set of itemIds you just \
+		suggested.""";
+
 	private final AnthropicClient client;
 	private final String model;
 
@@ -72,6 +87,7 @@ public class AnthropicStylistModelClient implements StylistModelClient {
 
 	@Override
 	public String proposeOutfit(String wardrobeToolText, List<StylistMessage> conversation) {
+		String system = systemPromptFor(conversation);
 		List<MessageParam> messages = new ArrayList<>();
 		for (StylistMessage turn : conversation) {
 			messages.add(MessageParam.builder()
@@ -84,7 +100,7 @@ public class AnthropicStylistModelClient implements StylistModelClient {
 		// Let the model read the wardrobe and reason, answering each searchWardrobe call,
 		// until it records an outfit or we hit the continuation cap.
 		for (int turn = 0; turn < CONTINUATION_CAP; turn++) {
-			Message response = client.messages().create(autoParams(messages));
+			Message response = client.messages().create(autoParams(messages, system));
 
 			String recorded = firstToolUseJson(response, RECORD_TOOL);
 			if (recorded != null) {
@@ -104,23 +120,40 @@ public class AnthropicStylistModelClient implements StylistModelClient {
 		}
 
 		// Force the structured pick so a grounded (or ungroundable) result always comes back.
-		Message forced = client.messages().create(forcedParams(messages));
+		Message forced = client.messages().create(forcedParams(messages, system));
 		return firstToolUseJson(forced, RECORD_TOOL);
 	}
 
-	private MessageCreateParams autoParams(List<MessageParam> messages) {
-		return baseParams(messages).toolChoice(ToolChoiceAuto.builder().build()).build();
+	/**
+	 * The system prompt for this conversation. On a re-pick — signalled by a prior
+	 * assistant turn in the (text-only) conversation — the {@link #REPICK_INSTRUCTION}
+	 * is appended so the model varies the look; a first turn uses the base prompt.
+	 *
+	 * <p>This relies on an invariant held by {@code StylistService}: assistant turns
+	 * enter the conversation <em>only</em> from the client-resent re-pick history. The
+	 * grounding retry corrects with a user turn (never an assistant turn), so a
+	 * first-pick retry is not misread as a pushback re-pick.
+	 */
+	private static String systemPromptFor(List<StylistMessage> conversation) {
+		boolean isRepick = conversation.stream()
+			.anyMatch(turn -> turn.role() == StylistMessage.Role.ASSISTANT);
+		return isRepick ? SYSTEM_PROMPT + "\n\n" + REPICK_INSTRUCTION : SYSTEM_PROMPT;
 	}
 
-	private MessageCreateParams forcedParams(List<MessageParam> messages) {
-		return baseParams(messages).toolChoice(ToolChoiceTool.builder().name(RECORD_TOOL).build()).build();
+	private MessageCreateParams autoParams(List<MessageParam> messages, String system) {
+		return baseParams(messages, system).toolChoice(ToolChoiceAuto.builder().build()).build();
 	}
 
-	private MessageCreateParams.Builder baseParams(List<MessageParam> messages) {
+	private MessageCreateParams forcedParams(List<MessageParam> messages, String system) {
+		return baseParams(messages, system)
+			.toolChoice(ToolChoiceTool.builder().name(RECORD_TOOL).build()).build();
+	}
+
+	private MessageCreateParams.Builder baseParams(List<MessageParam> messages, String system) {
 		return MessageCreateParams.builder()
 			.model(model)
 			.maxTokens(MAX_TOKENS)
-			.system(SYSTEM_PROMPT)
+			.system(system)
 			.addTool(searchWardrobeTool())
 			.addTool(recordOutfitTool())
 			.messages(messages);

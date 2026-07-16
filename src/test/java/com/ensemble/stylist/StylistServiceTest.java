@@ -160,4 +160,149 @@ class StylistServiceTest {
 		List<StylistMessage> retryTurns = convo.getAllValues().get(1);
 		assertThat(retryTurns).anySatisfy(m -> assertThat(m.text()).contains("ghost-id"));
 	}
+
+	@Test
+	void styleRequest_firstPickRetry_injectsNoAssistantTurn() {
+		when(wardrobe.list()).thenReturn(List.of(item("a")));
+		when(model.proposeOutfit(anyString(), anyList()))
+			.thenReturn(pick("first", "ghost-id"))
+			.thenReturn(pick("second", "a"));
+
+		// A first-turn request (no history) that hallucinates an id and retries.
+		service.style("something");
+
+		ArgumentCaptor<List<StylistMessage>> convo = ArgumentCaptor.captor();
+		verify(model, times(2)).proposeOutfit(anyString(), convo.capture());
+		List<StylistMessage> retryTurns = convo.getAllValues().get(1);
+		// The grounding retry must NOT introduce an assistant turn: the model client
+		// reads "a prior assistant turn" as a pushback re-pick and would then inject the
+		// "produce a DIFFERENT outfit" nudge — wrong for a first-pick correction.
+		assertThat(retryTurns).noneMatch(m -> m.role() == StylistMessage.Role.ASSISTANT);
+		// The specific invalid id is still fed back so grounding is corrected.
+		assertThat(retryTurns).anySatisfy(m -> assertThat(m.text()).contains("ghost-id"));
+	}
+
+	// --- Stateless multi-turn re-pick (Unit 2): style(vibe, history) overload ---
+
+	@Test
+	void style_withHistory_forwardsPriorTurnsToModel() {
+		when(wardrobe.list()).thenReturn(List.of(item("a"), item("b")));
+		when(model.proposeOutfit(anyString(), anyList())).thenReturn(pick("ok", "a"));
+
+		service.style("too plain",
+			List.of(StylistMessage.user("streetwear"), StylistMessage.assistant("chose a,b")));
+
+		ArgumentCaptor<List<StylistMessage>> convo = ArgumentCaptor.captor();
+		verify(model).proposeOutfit(anyString(), convo.capture());
+		// Prior turns are replayed in order, then the current vibe is appended last.
+		assertThat(convo.getValue()).extracting(StylistMessage::text)
+			.containsExactly("streetwear", "chose a,b", "too plain");
+		assertThat(convo.getValue()).extracting(StylistMessage::role)
+			.containsExactly(StylistMessage.Role.USER, StylistMessage.Role.ASSISTANT, StylistMessage.Role.USER);
+	}
+
+	@Test
+	void style_emptyHistory_matchesSingleTurn() {
+		when(wardrobe.list()).thenReturn(List.of(item("a"), item("b")));
+		when(model.proposeOutfit(anyString(), anyList())).thenReturn(pick("ok", "a", "b"));
+
+		Outfit single = service.style("minimal");
+		Outfit empty = service.style("minimal", List.of());
+
+		assertThat(single.itemIds()).isEqualTo(empty.itemIds());
+		assertThat(single.reason()).isEqualTo(empty.reason());
+		// Both entry points seed the identical single-turn conversation.
+		ArgumentCaptor<List<StylistMessage>> convo = ArgumentCaptor.captor();
+		verify(model, times(2)).proposeOutfit(anyString(), convo.capture());
+		assertThat(convo.getAllValues().get(0)).extracting(StylistMessage::text).containsExactly("minimal");
+		assertThat(convo.getAllValues().get(1)).extracting(StylistMessage::text).containsExactly("minimal");
+	}
+
+	@Test
+	void style_repick_staysGroundedWithHallucinatedIdRetriedOnce() {
+		when(wardrobe.list()).thenReturn(List.of(item("a"), item("b")));
+		when(model.proposeOutfit(anyString(), anyList()))
+			.thenReturn(pick("first", "a", "ghost-id"))
+			.thenReturn(pick("second", "a", "b"));
+
+		Outfit outfit = service.style("too plain",
+			List.of(StylistMessage.user("streetwear"), StylistMessage.assistant("chose a,b")));
+
+		assertThat(outfit.itemIds()).containsExactly("a", "b");
+		assertThat(outfit.reason()).isEqualTo("second");
+		verify(model, times(2)).proposeOutfit(anyString(), anyList());
+	}
+
+	@Test
+	void style_repick_rendersValidSubsetAfterRetry() {
+		when(wardrobe.list()).thenReturn(List.of(item("a"), item("b")));
+		when(model.proposeOutfit(anyString(), anyList()))
+			.thenReturn(pick("first", "ghost1"))
+			.thenReturn(pick("second", "a", "ghost2"));
+
+		Outfit outfit = service.style("casual",
+			List.of(StylistMessage.user("streetwear"), StylistMessage.assistant("chose a")));
+
+		assertThat(outfit.itemIds()).containsExactly("a");
+		assertThat(outfit.reason()).isEqualTo("second");
+		verify(model, times(2)).proposeOutfit(anyString(), anyList());
+	}
+
+	@Test
+	void style_repick_sendsNoImageBytes() {
+		when(wardrobe.list()).thenReturn(List.of(item("a")));
+		when(model.proposeOutfit(anyString(), anyList())).thenReturn(pick("ok", "a"));
+
+		service.style("too plain",
+			List.of(StylistMessage.user("streetwear"), StylistMessage.assistant("chose a")));
+
+		ArgumentCaptor<String> toolText = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<List<StylistMessage>> convo = ArgumentCaptor.captor();
+		verify(model).proposeOutfit(toolText.capture(), convo.capture());
+		assertThat(toolText.getValue()).doesNotContain("/api/items/a/photo").doesNotContain("photoUrl");
+		// Every forwarded turn — history and current — is plain text, never a photo path.
+		assertThat(convo.getValue()).allSatisfy(m -> assertThat(m.text()).isNotNull());
+		assertThat(convo.getValue()).noneSatisfy(m -> assertThat(m.text()).contains("/api/items"));
+	}
+
+	@Test
+	void style_repick_emptyWardrobe_returnsFriendly() {
+		when(wardrobe.list()).thenReturn(List.of());
+
+		Outfit outfit = service.style("too plain",
+			List.of(StylistMessage.user("streetwear"), StylistMessage.assistant("chose a")));
+
+		assertThat(outfit.itemIds()).isEmpty();
+		assertThat(outfit.reason()).isNotBlank();
+		// An empty wardrobe short-circuits even when re-pick history is present.
+		verifyNoInteractions(model);
+	}
+
+	@Test
+	void style_repeatedPushback_eachPickGrounded() {
+		when(wardrobe.list()).thenReturn(List.of(item("a"), item("b")));
+		when(model.proposeOutfit(anyString(), anyList()))
+			.thenReturn(pick("round one", "a"))
+			.thenReturn(pick("round two", "b"));
+
+		// First pushback round.
+		Outfit firstRepick = service.style("bolder",
+			List.of(StylistMessage.user("streetwear"), StylistMessage.assistant("chose a")));
+		assertThat(firstRepick.itemIds()).containsExactly("a");
+
+		// Second pushback round carries the whole accumulated thread.
+		List<StylistMessage> fullThread = List.of(
+			StylistMessage.user("streetwear"),
+			StylistMessage.assistant("chose a"),
+			StylistMessage.user("bolder"),
+			StylistMessage.assistant("chose a again"));
+		Outfit secondRepick = service.style("even bolder", fullThread);
+		assertThat(secondRepick.itemIds()).containsExactly("b");
+
+		ArgumentCaptor<List<StylistMessage>> convo = ArgumentCaptor.captor();
+		verify(model, times(2)).proposeOutfit(anyString(), convo.capture());
+		// The later pick forwards the full accumulated thread plus the newest vibe.
+		assertThat(convo.getAllValues().get(1)).extracting(StylistMessage::text)
+			.containsExactly("streetwear", "chose a", "bolder", "chose a again", "even bolder");
+	}
 }
