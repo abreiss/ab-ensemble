@@ -281,6 +281,32 @@ describe('Stylist route', () => {
     ])
   })
 
+  it('blocks a re-pick while a wear-log is in flight (no state race onto the next look)', async () => {
+    const user = userEvent.setup()
+    await renderLook(user)
+    // A wear-log that never settles keeps logStatus in "logging".
+    markWornMock.mockReturnValue(new Promise<never>(() => {}))
+
+    await user.click(screen.getByRole('button', { name: /i wore this look/i }))
+
+    // While logging, the re-pick controls are disabled so a log completion can never
+    // land on a newly re-picked look.
+    expect(screen.getByRole('button', { name: /show me another/i })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: /not quite right/i })).toBeDisabled()
+  })
+
+  it('blocks logging while a re-pick is in flight', async () => {
+    const user = userEvent.setup()
+    await renderLook(user)
+    // A re-pick that never settles keeps status in "loading".
+    requestStyleMock.mockReturnValueOnce(new Promise<Outfit>(() => {}))
+
+    await user.click(screen.getByRole('button', { name: /show me another/i }))
+
+    // The prior look stays visible, but "I wore this look" is disabled while loading.
+    expect(screen.getByRole('button', { name: /i wore this look/i })).toBeDisabled()
+  })
+
   it('shows the empty state if a re-pick returns nothing to style', async () => {
     const user = userEvent.setup()
     await renderLook(user)

@@ -110,6 +110,10 @@ export default function Stylist() {
 
   const hasLook = outfit !== null && outfit.itemIds.length > 0
   const loading = status === 'loading'
+  // A style/re-pick request or a wear-log fan-out is in flight. All action controls
+  // gate on this so the two never overlap — otherwise a wear-log settling mid-re-pick
+  // would land its "Logged ✓" (or error) on the freshly re-picked look.
+  const busy = loading || logStatus === 'logging'
   // Keep the current look on screen while a re-pick is in flight, controls disabled.
   const showCard = hasLook && outfit !== null && (status === 'ready' || loading)
 
@@ -136,7 +140,7 @@ export default function Stylist() {
         <button
           type="submit"
           className="btn btn-primary btn-block"
-          disabled={loading || vibe.trim() === ''}
+          disabled={busy || vibe.trim() === ''}
         >
           Style me
         </button>
@@ -198,7 +202,7 @@ export default function Stylist() {
                 type="button"
                 className="btn btn-primary btn-block"
                 onClick={logLook}
-                disabled={logStatus === 'logging'}
+                disabled={busy}
               >
                 I wore this look
               </button>
@@ -223,9 +227,9 @@ export default function Stylist() {
                 onChange={(event) => setPushback(event.target.value)}
                 placeholder="too plain — add a jacket"
                 autoComplete="off"
-                disabled={loading}
+                disabled={busy}
               />
-              <button type="submit" className="btn" disabled={loading || pushback.trim() === ''}>
+              <button type="submit" className="btn" disabled={busy || pushback.trim() === ''}>
                 Re-pick
               </button>
             </div>
@@ -233,7 +237,7 @@ export default function Stylist() {
               type="button"
               className="btn btn-ghost btn-block"
               onClick={regenerate}
-              disabled={loading}
+              disabled={busy}
             >
               Show me another
             </button>

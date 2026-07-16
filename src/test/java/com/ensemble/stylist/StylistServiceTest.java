@@ -161,6 +161,27 @@ class StylistServiceTest {
 		assertThat(retryTurns).anySatisfy(m -> assertThat(m.text()).contains("ghost-id"));
 	}
 
+	@Test
+	void styleRequest_firstPickRetry_injectsNoAssistantTurn() {
+		when(wardrobe.list()).thenReturn(List.of(item("a")));
+		when(model.proposeOutfit(anyString(), anyList()))
+			.thenReturn(pick("first", "ghost-id"))
+			.thenReturn(pick("second", "a"));
+
+		// A first-turn request (no history) that hallucinates an id and retries.
+		service.style("something");
+
+		ArgumentCaptor<List<StylistMessage>> convo = ArgumentCaptor.captor();
+		verify(model, times(2)).proposeOutfit(anyString(), convo.capture());
+		List<StylistMessage> retryTurns = convo.getAllValues().get(1);
+		// The grounding retry must NOT introduce an assistant turn: the model client
+		// reads "a prior assistant turn" as a pushback re-pick and would then inject the
+		// "produce a DIFFERENT outfit" nudge — wrong for a first-pick correction.
+		assertThat(retryTurns).noneMatch(m -> m.role() == StylistMessage.Role.ASSISTANT);
+		// The specific invalid id is still fed back so grounding is corrected.
+		assertThat(retryTurns).anySatisfy(m -> assertThat(m.text()).contains("ghost-id"));
+	}
+
 	// --- Stateless multi-turn re-pick (Unit 2): style(vibe, history) overload ---
 
 	@Test

@@ -123,9 +123,13 @@ public class StylistService {
 
 		List<String> invalid = invalidIds(pick, validIds);
 		if (!invalid.isEmpty()) {
-			conversation.add(StylistMessage.assistant("I suggested item ids: " + String.join(", ", pick.itemIds())));
+			// Correct the grounding with a single USER turn — never an assistant turn.
+			// The model client reads a prior assistant turn as a pushback re-pick and
+			// would inject the "produce a different outfit" nudge; a grounding retry of a
+			// first pick is not a re-pick, so it must not add one.
 			conversation.add(StylistMessage.user(
-				"These item ids are not in the wardrobe: " + String.join(", ", invalid)
+				"Your previous suggestion included item ids that are not in the wardrobe: "
+					+ String.join(", ", invalid)
 					+ ". Choose only from the itemIds returned by searchWardrobe."));
 			pick = OutfitParser.parse(model.proposeOutfit(wardrobeText, conversation));
 		}

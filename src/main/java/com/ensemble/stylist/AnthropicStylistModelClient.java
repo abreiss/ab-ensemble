@@ -128,6 +128,11 @@ public class AnthropicStylistModelClient implements StylistModelClient {
 	 * The system prompt for this conversation. On a re-pick — signalled by a prior
 	 * assistant turn in the (text-only) conversation — the {@link #REPICK_INSTRUCTION}
 	 * is appended so the model varies the look; a first turn uses the base prompt.
+	 *
+	 * <p>This relies on an invariant held by {@code StylistService}: assistant turns
+	 * enter the conversation <em>only</em> from the client-resent re-pick history. The
+	 * grounding retry corrects with a user turn (never an assistant turn), so a
+	 * first-pick retry is not misread as a pushback re-pick.
 	 */
 	private static String systemPromptFor(List<StylistMessage> conversation) {
 		boolean isRepick = conversation.stream()
