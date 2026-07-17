@@ -41,3 +41,17 @@ ensemble:
     stylist-model: claude-sonnet-5
     # Bounded per-request timeout; a hung call degrades to the tagging fallback.
     timeout: 30s
+  security:
+    # Shared demo passcode, supplied via ENSEMBLE_PASSCODE (from the git-ignored .env
+    # file above, or the process environment). Blank/unset -> the gate is effectively
+    # closed (every /api/auth attempt is rejected). Never committed.
+    passcode: ${ENSEMBLE_PASSCODE:}
+    # HMAC key for session tokens. Blank/unset -> derived from the passcode, so a
+    # single env var is enough to run locally.
+    session-secret: ${ENSEMBLE_SESSION_SECRET:}
+    session-ttl: PT12H
+  usage:
+    # Global daily cap on Claude-backed calls (POST /api/style, POST /api/items/tag).
+    # Counted before the call so a failed/timed-out upstream call still consumes
+    # budget; resets implicitly at the UTC calendar-day boundary.
+    daily-limit: 100

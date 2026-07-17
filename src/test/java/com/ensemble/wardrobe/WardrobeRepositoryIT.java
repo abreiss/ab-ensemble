@@ -145,6 +145,18 @@ class WardrobeRepositoryIT {
 	}
 
 	@Test
+	void findAll_excludesUsageRows() {
+		Item usageRow = new Item();
+		usageRow.setItemId("usage#2026-07-16");
+		repository.save(usageRow);
+		repository.save(sampleItem("real-item"));
+
+		List<Item> all = repository.findAll();
+
+		assertThat(all).extracting(Item::getItemId).containsExactly("real-item");
+	}
+
+	@Test
 	void markWorn_roundTrip_persistsIncrementAndLastWornLeavingTagsUntouched() {
 		// A no-op storage: markWorn never touches photos, so this exercises only the
 		// wear-history read-modify-write through the real repository/table.

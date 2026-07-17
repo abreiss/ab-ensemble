@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { login } from './auth'
 import {
   createItem,
   deleteItem,
@@ -54,9 +55,16 @@ function lastCall(): [string, RequestInit] {
   return [call![0] as string, (call![1] ?? {}) as RequestInit]
 }
 
+/** Seeds a session token via the real `login` flow rather than poking storage directly. */
+async function seedToken(token: string): Promise<void> {
+  fetchMock.mockResolvedValueOnce(jsonResponse({ token }))
+  await login('any-passcode')
+}
+
 beforeEach(() => {
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
+  sessionStorage.clear()
 })
 
 afterEach(() => {
@@ -83,6 +91,16 @@ describe('items API client', () => {
       fetchMock.mockRejectedValue(new TypeError('offline'))
       await expect(listItems()).rejects.toThrow()
     })
+
+    it('sends the stored session token as X-Ensemble-Session', async () => {
+      await seedToken('tok-123')
+      fetchMock.mockResolvedValue(jsonResponse([sampleItem]))
+
+      await listItems()
+
+      const [, init] = lastCall()
+      expect((init.headers as Headers).get('X-Ensemble-Session')).toBe('tok-123')
+    })
   })
 
   describe('getItem', () => {
@@ -102,8 +120,14 @@ describe('items API client', () => {
   })
 
   describe('photoUrl', () => {
-    it('builds the photo path for an id', () => {
+    it('builds the photo path for an id with no token stored', () => {
       expect(photoUrl('abc')).toBe('/api/items/abc/photo')
+    })
+
+    it('appends ?token=<token> when a session token is stored', async () => {
+      await seedToken('tok-123')
+
+      expect(photoUrl('abc')).toBe('/api/items/abc/photo?token=tok-123')
     })
   })
 
@@ -186,7 +210,7 @@ describe('items API client', () => {
       const [url, init] = lastCall()
       expect(url).toBe('/api/items/abc/tags')
       expect(init.method).toBe('PUT')
-      expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
+      expect((init.headers as Headers).get('Content-Type')).toBe('application/json')
       expect(JSON.parse(init.body as string)).toEqual(sampleTags)
       expect(updated).toEqual(sampleItem)
     })

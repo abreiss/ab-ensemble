@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { login } from './auth'
 import { photoUrl, requestStyle } from './style'
 import type { Outfit, StyleTurn } from './style'
 
@@ -47,9 +48,16 @@ function lastCall(): [string, RequestInit] {
   return [call![0] as string, (call![1] ?? {}) as RequestInit]
 }
 
+/** Seeds a session token via the real `login` flow rather than poking storage directly. */
+async function seedToken(token: string): Promise<void> {
+  fetchMock.mockResolvedValueOnce(jsonResponse({ token }))
+  await login('any-passcode')
+}
+
 beforeEach(() => {
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
+  sessionStorage.clear()
 })
 
 afterEach(() => {
@@ -66,9 +74,19 @@ describe('style API client', () => {
       const [url, init] = lastCall()
       expect(url).toBe('/api/style')
       expect(init.method).toBe('POST')
-      expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
+      expect((init.headers as Headers).get('Content-Type')).toBe('application/json')
       expect(JSON.parse(init.body as string)).toEqual({ prompt: 'streetwear today' })
       expect(outfit).toEqual(sampleOutfit)
+    })
+
+    it('sends the stored session token as X-Ensemble-Session', async () => {
+      await seedToken('tok-123')
+      fetchMock.mockResolvedValue(jsonResponse(sampleOutfit))
+
+      await requestStyle('streetwear today')
+
+      const [, init] = lastCall()
+      expect((init.headers as Headers).get('X-Ensemble-Session')).toBe('tok-123')
     })
 
     it('POSTs the accumulated history alongside the prompt when re-picking', async () => {

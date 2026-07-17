@@ -1,3 +1,4 @@
+import { authedFetch } from './http'
 import { markWorn, photoUrl } from './items'
 
 // Typed client for the stylist API (`POST /api/style`). Follows the `api/items.ts`
@@ -5,7 +6,8 @@ import { markWorn, photoUrl } from './items'
 // network/transport failure so callers can render an error state. The card renders
 // stored photos via the shared `photoUrl(id)` builder, and logs a worn look via
 // `markWorn(id)` — both re-exported here so the route imports a single
-// stylist-facing module.
+// stylist-facing module. Requests go through `authedFetch` so the session token is
+// injected and a `401` returns the client to the passcode gate.
 
 const BASE = '/api/style'
 
@@ -64,7 +66,7 @@ function ensureOk(response: Response, action: string): Response {
  */
 export async function requestStyle(prompt: string, history: StyleTurn[] = []): Promise<Outfit> {
   const response = ensureOk(
-    await fetch(BASE, {
+    await authedFetch(BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, ...(history.length ? { history } : {}) }),

@@ -1,9 +1,13 @@
+import { getToken } from './auth'
+import { authedFetch } from './http'
 import type { Item, TagInput, TagSuggestion } from '../types/item'
 
 // Typed client for the backend wardrobe API (`/api/items`). Follows the
 // `api/health.ts` pattern: resolve with the parsed body on a 2xx response, throw
 // on any non-2xx or network/transport failure so callers can render an error
-// state. Same-origin `/api/**` (Vite proxies to the backend in dev).
+// state. Same-origin `/api/**` (Vite proxies to the backend in dev). Requests go
+// through `authedFetch` so the session token is injected and a `401` returns the
+// client to the passcode gate.
 
 const BASE = '/api/items'
 
@@ -42,25 +46,30 @@ function tagFormData(photo: File, tags?: TagInput): FormData {
 
 /** All owned items (tags + wear-history + photoUrl). */
 export async function listItems(): Promise<Item[]> {
-  const response = ensureOk(await fetch(BASE), 'List items')
+  const response = ensureOk(await authedFetch(BASE), 'List items')
   return (await response.json()) as Item[]
 }
 
 /** A single item by id. */
 export async function getItem(id: string): Promise<Item> {
-  const response = ensureOk(await fetch(`${BASE}/${id}`), 'Get item')
+  const response = ensureOk(await authedFetch(`${BASE}/${id}`), 'Get item')
   return (await response.json()) as Item
 }
 
-/** The URL that serves an item's photo bytes (image/jpeg). */
+/**
+ * The URL that serves an item's photo bytes (image/jpeg). `<img>` tags can't set a
+ * header, so a stored session token is appended as `?token=` for the gate filter to
+ * accept instead of `X-Ensemble-Session`.
+ */
 export function photoUrl(id: string): string {
-  return `${BASE}/${id}/photo`
+  const token = getToken()
+  return token ? `${BASE}/${id}/photo?token=${token}` : `${BASE}/${id}/photo`
 }
 
 /** Auto-tag a photo without persisting anything; returns an editable suggestion. */
 export async function tagPreview(photo: File): Promise<TagSuggestion> {
   const response = ensureOk(
-    await fetch(`${BASE}/tag`, { method: 'POST', body: tagFormData(photo) }),
+    await authedFetch(`${BASE}/tag`, { method: 'POST', body: tagFormData(photo) }),
     'Tag preview',
   )
   return (await response.json()) as TagSuggestion
@@ -69,7 +78,7 @@ export async function tagPreview(photo: File): Promise<TagSuggestion> {
 /** Create an item from a photo + edited tags (multipart). */
 export async function createItem(photo: File, tags: TagInput): Promise<Item> {
   const response = ensureOk(
-    await fetch(BASE, { method: 'POST', body: tagFormData(photo, tags) }),
+    await authedFetch(BASE, { method: 'POST', body: tagFormData(photo, tags) }),
     'Create item',
   )
   return (await response.json()) as Item
@@ -78,7 +87,7 @@ export async function createItem(photo: File, tags: TagInput): Promise<Item> {
 /** Replace an item's tags (JSON). */
 export async function updateTags(id: string, tags: TagInput): Promise<Item> {
   const response = ensureOk(
-    await fetch(`${BASE}/${id}/tags`, {
+    await authedFetch(`${BASE}/${id}/tags`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(tags),
@@ -90,7 +99,7 @@ export async function updateTags(id: string, tags: TagInput): Promise<Item> {
 
 /** Delete an item. */
 export async function deleteItem(id: string): Promise<void> {
-  ensureOk(await fetch(`${BASE}/${id}`, { method: 'DELETE' }), 'Delete item')
+  ensureOk(await authedFetch(`${BASE}/${id}`, { method: 'DELETE' }), 'Delete item')
 }
 
 /**

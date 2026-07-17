@@ -18,6 +18,7 @@ import com.ensemble.stylist.dto.StyleRequest;
 import com.ensemble.stylist.dto.StyleRequest.StyleTurn;
 import com.ensemble.stylist.dto.StyleResponse;
 import com.ensemble.stylist.dto.StyleResponse.OutfitItem;
+import com.ensemble.usage.CallCapService;
 import com.ensemble.wardrobe.WardrobeService;
 import com.ensemble.wardrobe.dto.ItemResponse;
 
@@ -43,15 +44,18 @@ import com.ensemble.wardrobe.dto.ItemResponse;
 public class StyleController {
 
 	private final StylistService service;
+	private final CallCapService callCapService;
 	private final WardrobeService wardrobe;
 
-	public StyleController(StylistService service, WardrobeService wardrobe) {
+	public StyleController(StylistService service, CallCapService callCapService, WardrobeService wardrobe) {
 		this.service = service;
+		this.callCapService = callCapService;
 		this.wardrobe = wardrobe;
 	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public StyleResponse style(@RequestBody StyleRequest request) {
+		callCapService.reserve();
 		Outfit outfit = service.style(request.prompt(), toHistory(request.history()));
 		List<OutfitItem> items = enrich(outfit);
 		return new StyleResponse(outfit.itemIds(), outfit.reason(), items);

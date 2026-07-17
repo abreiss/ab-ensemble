@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
+import { SESSION_TOKEN_STORAGE_KEY } from './api/auth'
 
 // Keep the routed screens off the network; this suite only proves routing + shell.
 // The stub item is inlined in the factory because `vi.mock` is hoisted above the
@@ -35,6 +36,17 @@ function renderAt(path: string) {
 }
 
 describe('App shell + routing', () => {
+  // This suite only proves routing + shell, so a token is pre-seeded to keep
+  // AuthGate (spec 07) out of the way; auth-gate behavior itself is covered by
+  // AuthGate.test.tsx.
+  beforeEach(() => {
+    sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, 'test-token')
+  })
+
+  afterEach(() => {
+    sessionStorage.clear()
+  })
+
   it('mounts the stylist screen at / (the landing route)', async () => {
     renderAt('/')
     expect(await screen.findByTestId('stylist')).toBeInTheDocument()

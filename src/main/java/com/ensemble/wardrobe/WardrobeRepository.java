@@ -37,9 +37,16 @@ public class WardrobeRepository {
 		return Optional.ofNullable(table.getItem(r -> r.key(k -> k.partitionValue(itemId))));
 	}
 
-	/** Returns every item in the wardrobe (demo scale — a full scan). */
+	private static final String USAGE_ROW_PREFIX = "usage#";
+
+	/**
+	 * Returns every item in the wardrobe (demo scale — a full scan), excluding the
+	 * reserved {@code usage#<UTC-date>} daily-cap counter rows that share this table.
+	 */
 	public List<Item> findAll() {
-		return table.scan().items().stream().toList();
+		return table.scan().items().stream()
+			.filter(item -> !item.getItemId().startsWith(USAGE_ROW_PREFIX))
+			.toList();
 	}
 
 	/** Removes the item with the given id; a no-op if it does not exist. */

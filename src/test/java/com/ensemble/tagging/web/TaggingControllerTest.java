@@ -3,6 +3,7 @@ package com.ensemble.tagging.web;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -26,6 +27,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.ensemble.storage.InvalidImageException;
 import com.ensemble.tagging.TaggingService;
 import com.ensemble.tagging.dto.TagSuggestion;
+import com.ensemble.usage.CallCapService;
+import com.ensemble.usage.DailyCapExceededException;
 
 /**
  * Web-layer contract for {@code POST /api/items/tag} with a <strong>mocked</strong>
@@ -41,6 +44,9 @@ class TaggingControllerTest {
 
 	@MockitoBean
 	TaggingService service;
+
+	@MockitoBean
+	CallCapService callCapService;
 
 	private MockMultipartFile photoPart() {
 		return new MockMultipartFile("photo", "p.jpg", "image/jpeg", new byte[]{1, 2, 3});
@@ -77,6 +83,10 @@ class TaggingControllerTest {
 	void tag_missingPhotoPart_returns400() throws Exception {
 		mockMvc.perform(multipart("/api/items/tag"))
 			.andExpect(status().isBadRequest());
+
+		// A request rejected before reaching the controller body must not consume
+		// the shared daily-cap counter (the counter only reflects accepted requests).
+		verifyNoInteractions(callCapService);
 	}
 
 	@Test
@@ -97,8 +107,20 @@ class TaggingControllerTest {
 		MultipartFile photo = mock(MultipartFile.class);
 		when(photo.getBytes()).thenThrow(new IOException("truncated upload"));
 
-		assertThatThrownBy(() -> new TaggingController(service).tag(photo))
+		assertThatThrownBy(() -> new TaggingController(service, mock(CallCapService.class)).tag(photo))
 			.isInstanceOf(InvalidImageException.class);
+		verifyNoInteractions(service);
+	}
+
+	@Test
+	void tag_overDailyCap_returns429() throws Exception {
+		doThrow(new DailyCapExceededException("daily call limit reached, try again tomorrow"))
+			.when(callCapService).reserve();
+
+		mockMvc.perform(multipart("/api/items/tag").file(photoPart()))
+			.andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.error").value("daily_cap_exceeded"));
+
 		verifyNoInteractions(service);
 	}
 }

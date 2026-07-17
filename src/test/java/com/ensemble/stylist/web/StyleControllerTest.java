@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -27,6 +29,8 @@ import com.ensemble.stylist.Outfit;
 import com.ensemble.stylist.StylistMessage;
 import com.ensemble.stylist.StylistService;
 import com.ensemble.stylist.StylistUnavailableException;
+import com.ensemble.usage.CallCapService;
+import com.ensemble.usage.DailyCapExceededException;
 import com.ensemble.wardrobe.WardrobeService;
 import com.ensemble.wardrobe.dto.ItemResponse;
 
@@ -44,6 +48,9 @@ class StyleControllerTest {
 
 	@MockitoBean
 	StylistService service;
+
+	@MockitoBean
+	CallCapService callCapService;
 
 	@MockitoBean
 	WardrobeService wardrobe;
@@ -117,6 +124,20 @@ class StyleControllerTest {
 				.content("{\"prompt\":\"streetwear today\"}"))
 			.andExpect(status().isServiceUnavailable())
 			.andExpect(jsonPath("$.error").value("stylist_unavailable"));
+	}
+
+	@Test
+	void postStyle_overDailyCap_returns429() throws Exception {
+		doThrow(new DailyCapExceededException("daily call limit reached, try again tomorrow"))
+			.when(callCapService).reserve();
+
+		mockMvc.perform(post("/api/style")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"prompt\":\"streetwear today\"}"))
+			.andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.error").value("daily_cap_exceeded"));
+
+		verifyNoInteractions(service);
 	}
 
 	@Test

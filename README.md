@@ -19,7 +19,10 @@ that serves a JSON API under `/api` and the built React/Vite UI as static assets
 - **pre-commit** (optional but recommended local commit gates): `brew install pre-commit` or `pip install pre-commit`
 
 No Claude API key is needed to build or test. Live vision tagging needs a key in a
-git-ignored `.env` — see [Vision tagging](#vision-tagging-tag-preview).
+git-ignored `.env` — see [Vision tagging](#vision-tagging-tag-preview). Every
+`/api/**` route except `POST /api/auth` and `GET /api/health` is passcode-gated —
+see [Passcode gate & daily call cap](#passcode-gate--daily-call-cap) before
+calling `/api/items`, `/api/items/tag`, or `/api/style` locally.
 
 ## Project Layout
 
@@ -162,6 +165,74 @@ and delete all work against DynamoDB alone. Only **live auto-tagging** on `/add`
 calls Claude; without a key the tag-preview degrades to an empty-but-editable form
 (you fill the tags in by hand) and everything else is unaffected. In the packaged
 build the same screens are served by Spring at `http://localhost:8080/`.
+
+## PWA Install (iPhone home screen)
+
+The production build ([`vite-plugin-pwa`](https://vite-pwa-org.netlify.app/)) emits
+a web app manifest and a service worker alongside the built assets, so the
+packaged app installs to an iPhone home screen and opens **standalone** (no
+Safari chrome):
+
+```bash
+./gradlew build                 # or: cd frontend && npm run build
+ls src/main/resources/static/   # manifest.webmanifest, sw.js, the icon set
+```
+
+To install on an iPhone: open the app in Safari (`http://<host>:8080`, or the
+deployed URL), tap **Share → Add to Home Screen**, then launch it from the
+home-screen icon. The service worker precaches the app shell only — `/api/**`
+responses are never cached (`navigateFallbackDenylist`), so authed/priced calls
+always hit the server.
+
+## Passcode gate & daily call cap
+
+Because this app spends real Claude money and can show a private wardrobe, two
+guards wrap the API — both are transparent once you're logged in and under the
+limit.
+
+**Passcode gate.** Every `/api/**` route except `POST /api/auth` and
+`GET /api/health` requires a valid session token. Set a passcode in your
+git-ignored `.env` (see [Vision tagging](#vision-tagging-tag-preview) for the
+`cp .env.example .env` step):
+
+```bash
+# .env
+ENSEMBLE_PASSCODE=<your-demo-passcode>
+# optional: ENSEMBLE_SESSION_SECRET=<separate-hmac-key>   (defaults to the passcode)
+```
+
+A blank/unset `ENSEMBLE_PASSCODE` leaves the gate **effectively closed** — every
+protected route returns `401` until it's set. Exchange the passcode for a
+signed, expiring (default 12h) session token, then send it as the
+`X-Ensemble-Session` header on every subsequent call:
+
+```bash
+TOKEN=$(curl -s -X POST localhost:8080/api/auth \
+  -H 'Content-Type: application/json' -d '{"passcode":"<your-demo-passcode>"}' \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["token"])')
+
+curl -s localhost:8080/api/items -H "X-Ensemble-Session: $TOKEN"
+```
+
+`<img src>` requests can't set headers, so gated photo GETs also accept the
+token as a `?token=` query param (the frontend's `photoUrl(id)` does this
+automatically). The frontend itself renders a passcode entry screen, stores the
+token in `sessionStorage`, and returns to that screen on any `401`, so day-to-day
+use just means logging in once per tab.
+
+**Daily call cap.** `POST /api/style` and `POST /api/items/tag` (the two
+Claude-backed endpoints) share one global counter, keyed by UTC calendar day.
+Once a call would push the day's count past `ensemble.usage.daily-limit`
+(default **100**), the endpoint returns `429` instead of calling Claude — the
+counter increments before the call, so a failed/timed-out call still counts.
+Tune it locally or at deploy via:
+
+```bash
+# application.yml
+ensemble:
+  usage:
+    daily-limit: 100
+```
 
 ## Build
 
