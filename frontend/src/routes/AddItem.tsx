@@ -93,7 +93,7 @@ export default function AddItem() {
     setSaving(true)
     setError(null)
     createItem(photo, tags)
-      .then(() => navigate('/'))
+      .then(() => navigate('/wardrobe'))
       .catch(() => {
         setError('We couldn’t save this item. Please try again.')
         setSaving(false)

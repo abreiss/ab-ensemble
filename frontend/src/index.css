@@ -18,6 +18,14 @@
   --danger: #b00020;
   --danger-soft: #fbe7ea;
 
+  /* Stylist-screen surfaces (drawer / flat-lay tray / pips / rationale) */
+  --paper-sunk: #e9dfca; /* drawer + flat-lay tray background (a step darker than paper) */
+  --border: #d7cab2; /* stronger border than --hairline: inputs, tiles, buttons */
+  --ink-2: #574a3d; /* secondary body text / rationale copy */
+  --placeholder: #a89a86; /* input placeholder + search hint */
+  --pip-empty: #d8cbb2; /* unfilled rating pip */
+  --accent-line: rgba(124, 40, 51, .22); /* border on the user chat bubble */
+
   /* Type */
   --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
   --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -71,6 +79,12 @@ body {
   max-width: 30rem;
   margin: 0 auto;
   min-height: 100dvh;
+}
+
+/* The stylist landing is a two-pane desktop experience (drawer + result), so it
+   breaks out of the phone-width cap when mounted; other screens stay narrow. */
+#root:has(.stylist-layout) {
+  max-width: 72rem;
 }
 
 h1,
@@ -178,6 +192,19 @@ a {
 
 .btn-block {
   width: 100%;
+}
+
+/* "Logged ✓" — the one-shot locked confirmation after a look is worn. Kept fully
+   legible (not faded like a normal disabled button) since it is a done-state. */
+.btn-logged {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent);
+}
+
+.btn-logged:disabled {
+  opacity: 1;
+  cursor: default;
 }
 
 /* ---- Screen scaffold + shared states ------------------------------------ */
@@ -431,6 +458,20 @@ select.input {
   background: var(--paper-raised);
 }
 
+/* Wear-history: a quiet care-label caption (eyebrow above, value below). */
+.wear-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.wear-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
 .danger-zone {
   margin-top: var(--space-4);
   padding-top: var(--space-4);
@@ -458,6 +499,69 @@ select.input {
 
 /* ---- Stylist ------------------------------------------------------------ */
 
+/* Two-pane stylist shell: a wardrobe drawer beside the conversational main
+   column on desktop; stacked with the drawer behind a toggle on mobile. */
+.stylist-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.stylist-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.wardrobe-drawer {
+  flex: 0 0 250px;
+  align-self: stretch;
+  padding: var(--space-4);
+  background: var(--paper-sunk);
+  border-right: 1px solid var(--border);
+}
+
+/* Shown only on narrow viewports, where it toggles the collapsible drawer. */
+.drawer-toggle {
+  display: none;
+}
+
+@media (max-width: 56.25rem) {
+  .stylist-layout {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .drawer-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-start;
+    min-height: 44px; /* touch target */
+    padding: 0 var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: var(--paper-sunk);
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .wardrobe-drawer {
+    display: none;
+    width: 100%;
+    flex-basis: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .wardrobe-drawer.is-open {
+    display: block;
+  }
+}
+
 /* Mono, uppercase micro-label — the care-label voice, reused for section eyebrows. */
 .eyebrow {
   margin: 0;
@@ -468,69 +572,509 @@ select.input {
   color: var(--muted);
 }
 
-.vibe-form {
+/* Screen-reader-only text (e.g. the numeric pip value behind the dots). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Content fades up from just below — matches the existing system, no bounce. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- Wardrobe drawer ----------------------------------------------------- */
+
+.drawer-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
 
-/* The stylist's answer as a hang-tag: pieces above, the note below. */
-.outfit-card {
+.drawer-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.drawer-search {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 11px;
   background: var(--paper-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
-.outfit-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
+.drawer-search:focus-within {
+  border-color: var(--accent);
 }
 
-.outfit-count {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--muted);
+.drawer-search-icon {
+  flex: none;
+  color: var(--placeholder);
 }
 
-/* The picked garments, one photo per piece; auto-fits any small count. */
-.outfit-pieces {
+.drawer-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.drawer-search-input::placeholder {
+  color: var(--placeholder);
+}
+
+.drawer-search-input:focus {
+  outline: none;
+}
+
+.drawer-grid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: var(--space-2);
 }
 
-.outfit-piece {
+.drawer-tile {
   aspect-ratio: 3 / 4;
   overflow: hidden;
-  border-radius: var(--radius-sm);
+  background: var(--paper-raised);
   border: 1px solid var(--hairline);
-  background: var(--paper);
+  border-radius: 9px;
 }
 
-/* Signature: the reason set as a garment care note, hung on one maroon "thread". */
-.outfit-note {
+.drawer-tile.is-in-look {
+  border: 1.5px solid var(--accent);
+}
+
+.drawer-tile-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---- Chat stream --------------------------------------------------------- */
+
+.chat-stream {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding-left: var(--space-3);
-  border-left: 2px solid var(--accent);
+  gap: var(--space-3);
 }
 
-.outfit-reason {
-  margin: 0;
+.chat-turn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  animation: rise 0.28s ease-out;
+}
+
+.chat-turn.is-user {
+  justify-content: flex-end;
+}
+
+.chat-avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
   font-family: var(--font-display);
-  font-size: var(--text-lg);
-  line-height: 1.35;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.chat-bubble {
+  margin: 0;
+  max-width: min(90%, 34rem);
+  padding: 13px 16px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  border-top-left-radius: 4px;
+}
+
+.is-user .chat-bubble {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  border-radius: 14px;
+  border-top-right-radius: 4px;
+}
+
+.chat-thinking {
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+.chat-error {
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 0;
+  text-align: left;
+}
+
+/* ---- Chips (quick-start + adjust) --------------------------------------- */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chips-adjust {
+  padding-top: var(--space-1);
+}
+
+.chip {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--paper-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.08s ease;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.chip:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chip-ghost {
+  background: transparent;
+}
+
+/* ---- Outfit result: flat-lay tray + spec list --------------------------- */
+
+.outfit-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  animation: rise 0.3s ease-out;
+}
+
+.flat-lay {
+  flex: none;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.flat-lay-tray {
+  list-style: none;
+  margin: 0;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  background: var(--paper-sunk);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+}
+
+.flat-lay-tile {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline);
+  border-radius: 11px;
+}
+
+.flat-lay-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.flat-lay-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.flat-lay-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.flat-lay-wear {
+  flex: 1;
+}
+
+.heart-btn {
+  flex: none;
+  width: 44px;
+  padding: 0;
+  color: var(--accent);
+}
+
+.spec-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.spec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 13px 15px;
+  background: var(--paper-raised);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+}
+
+.spec-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.spec-num {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 10px;
+}
+
+.spec-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
   letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.spec-slot {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.spec-attrs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--hairline);
+}
+
+.spec-color {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.spec-swatch {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.spec-rationale {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.spec-bullet {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ---- Rating pips (FORM / WARM) ------------------------------------------ */
+
+.pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pips-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pips-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pip-empty);
+}
+
+.pip.is-filled {
+  background: var(--ink);
+}
+
+/* ---- Composer ------------------------------------------------------------ */
+
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 18px;
+  background: var(--paper-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.composer:focus-within {
+  border-color: var(--accent);
+}
+
+.composer-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.composer-input::placeholder {
+  color: var(--placeholder);
+}
+
+.composer-input:focus {
+  outline: none;
+}
+
+.composer-input:disabled {
+  opacity: 0.6;
+}
+
+.composer-send {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+  transition: transform 0.08s ease, opacity 0.15s ease;
+}
+
+.composer-send:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.composer-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Stack the result column under ~900px so the flat-lay + specs read top-down. */
+@media (max-width: 56.25rem) {
+  .outfit-result {
+    flex-direction: column;
+  }
+
+  .flat-lay {
+    width: 100%;
+  }
 }
 
 /* ---- Passcode gate ------------------------------------------------------- */

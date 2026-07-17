@@ -83,6 +83,21 @@ public class WardrobeService {
 		photoStorage.delete(item.getPhotoKey());
 	}
 
+	/**
+	 * Records that an item was worn: increments {@code wornCount} (an absent/null
+	 * count is treated as 0) and sets {@code lastWorn} to now. Both values are
+	 * computed here in application code — never by the model — so wear-history stays
+	 * deterministic. A read-modify-write; an unknown id throws
+	 * {@link ItemNotFoundException}.
+	 */
+	public ItemResponse markWorn(String itemId) {
+		Item item = find(itemId);
+		int count = (item.getWornCount() == null ? 0 : item.getWornCount()) + 1;
+		item.setWornCount(count);
+		item.setLastWorn(Instant.now());
+		return ItemMapper.toResponse(repository.save(item));
+	}
+
 	/** Loads the stored photo bytes for an existing item. */
 	public byte[] loadPhoto(String itemId) {
 		Item item = find(itemId);

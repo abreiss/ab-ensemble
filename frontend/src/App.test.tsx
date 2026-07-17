@@ -47,8 +47,13 @@ describe('App shell + routing', () => {
     sessionStorage.clear()
   })
 
-  it('mounts the wardrobe grid at /', async () => {
+  it('mounts the stylist screen at / (the landing route)', async () => {
     renderAt('/')
+    expect(await screen.findByTestId('stylist')).toBeInTheDocument()
+  })
+
+  it('mounts the wardrobe grid at /wardrobe', async () => {
+    renderAt('/wardrobe')
     expect(await screen.findByTestId('wardrobe-grid')).toBeInTheDocument()
   })
 
@@ -62,7 +67,7 @@ describe('App shell + routing', () => {
     expect(await screen.findByTestId('item-detail')).toBeInTheDocument()
   })
 
-  it('mounts the stylist screen at /style', async () => {
+  it('redirects the legacy /style route to the stylist landing at /', async () => {
     renderAt('/style')
     expect(await screen.findByTestId('stylist')).toBeInTheDocument()
   })
@@ -72,8 +77,8 @@ describe('App shell + routing', () => {
     expect(screen.getByRole('link', { name: /add/i })).toHaveAttribute('href', '/add')
   })
 
-  it('exposes a persistent stylist navigation control', () => {
+  it('exposes a persistent wardrobe navigation control', () => {
     renderAt('/')
-    expect(screen.getByRole('link', { name: /style/i })).toHaveAttribute('href', '/style')
+    expect(screen.getByRole('link', { name: /wardrobe/i })).toHaveAttribute('href', '/wardrobe')
   })
 })

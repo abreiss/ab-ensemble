@@ -60,7 +60,7 @@ function renderAddItem() {
     <MemoryRouter initialEntries={['/add']}>
       <Routes>
         <Route path="/add" element={<AddItem />} />
-        <Route path="/" element={<div>wardrobe grid</div>} />
+        <Route path="/wardrobe" element={<div>wardrobe grid</div>} />
       </Routes>
     </MemoryRouter>,
   )

@@ -22,6 +22,7 @@ import com.anthropic.models.messages.ContentBlockParam;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.MessageParam;
+import com.anthropic.models.messages.Tool;
 import com.anthropic.models.messages.ToolUnion;
 import com.anthropic.models.messages.ToolUseBlock;
 import com.anthropic.services.blocking.MessageService;
@@ -71,6 +72,12 @@ class AnthropicStylistModelClientTest {
 		return params.tools().orElseThrow().stream()
 			.map(ToolUnion::tool).filter(Optional::isPresent).map(Optional::get)
 			.map(tool -> tool.name()).toList();
+	}
+
+	private static Tool toolNamed(MessageCreateParams params, String name) {
+		return params.tools().orElseThrow().stream()
+			.map(ToolUnion::tool).filter(Optional::isPresent).map(Optional::get)
+			.filter(tool -> name.equals(tool.name())).findFirst().orElseThrow();
 	}
 
 	private static void assertNoImageBlocks(MessageCreateParams params) {
@@ -142,6 +149,86 @@ class AnthropicStylistModelClientTest {
 		// Bounded: CONTINUATION_CAP auto turns, then exactly one forced call — no runaway loop.
 		verify(messages, times(AnthropicStylistModelClient.CONTINUATION_CAP + 1))
 			.create(any(MessageCreateParams.class));
+	}
+
+	@Test
+	void repickConversation_carriesDifferentLookInstruction() {
+		Message reply = message(List.of(
+			toolUse("record_outfit", "r1", Map.of("itemIds", List.of("b"), "reason", "bolder"))));
+		when(messages.create(any(MessageCreateParams.class))).thenReturn(reply);
+
+		// A conversation with a prior assistant turn == a pushback re-pick.
+		seam().proposeOutfit("wardrobe tags", List.of(
+			StylistMessage.user("streetwear today"),
+			StylistMessage.assistant("chose a and b"),
+			StylistMessage.user("too plain")));
+
+		ArgumentCaptor<MessageCreateParams> captor = ArgumentCaptor.forClass(MessageCreateParams.class);
+		verify(messages).create(captor.capture());
+		String system = captor.getValue().system().orElseThrow().asString();
+		// The model is nudged to produce a different look than the previous one.
+		assertThat(system).containsIgnoringCase("different");
+	}
+
+	@Test
+	void firstTurnConversation_hasNoDifferentLookInstruction() {
+		Message reply = message(List.of(
+			toolUse("record_outfit", "r1", Map.of("itemIds", List.of("a"), "reason", "clean"))));
+		when(messages.create(any(MessageCreateParams.class))).thenReturn(reply);
+
+		// No assistant turn yet == the first pick; the re-pick nudge must not fire.
+		seam().proposeOutfit("wardrobe tags", List.of(StylistMessage.user("streetwear today")));
+
+		ArgumentCaptor<MessageCreateParams> captor = ArgumentCaptor.forClass(MessageCreateParams.class);
+		verify(messages).create(captor.capture());
+		String system = captor.getValue().system().orElseThrow().asString();
+		assertThat(system).doesNotContainIgnoringCase("different outfit");
+	}
+
+	@Test
+	void repickConversation_forwardsTextOnly_noImageBytes() {
+		Message reply = message(List.of(
+			toolUse("record_outfit", "r1", Map.of("itemIds", List.of("b"), "reason", "bolder"))));
+		when(messages.create(any(MessageCreateParams.class))).thenReturn(reply);
+
+		seam().proposeOutfit("wardrobe tags", List.of(
+			StylistMessage.user("streetwear today"),
+			StylistMessage.assistant("chose a and b"),
+			StylistMessage.user("too plain")));
+
+		ArgumentCaptor<MessageCreateParams> captor = ArgumentCaptor.forClass(MessageCreateParams.class);
+		verify(messages).create(captor.capture());
+		MessageCreateParams params = captor.getValue();
+		assertNoImageBlocks(params);
+		// Every forwarded turn is plain text content — structurally byte-free.
+		for (MessageParam mp : params.messages()) {
+			assertThat(mp.content().string()).isPresent();
+		}
+	}
+
+	@Test
+	void recordOutfitTool_requestsPerItemRationale_inSchemaPromptAndDescription() {
+		Message reply = message(List.of(
+			toolUse("record_outfit", "r1",
+				Map.of("reason", "clean", "pieces", List.of(Map.of("itemId", "a", "rationale", "base"))))));
+		when(messages.create(any(MessageCreateParams.class))).thenReturn(reply);
+
+		seam().proposeOutfit("wardrobe tags", List.of(StylistMessage.user("brunch")));
+
+		ArgumentCaptor<MessageCreateParams> captor = ArgumentCaptor.forClass(MessageCreateParams.class);
+		verify(messages).create(captor.capture());
+		MessageCreateParams params = captor.getValue();
+
+		// The forced tool's schema requires a `pieces` array carrying a per-item `rationale`.
+		Tool record = toolNamed(params, "record_outfit");
+		Map<String, JsonValue> schema = record.inputSchema()._additionalProperties();
+		String properties = schema.get("properties").toString();
+		assertThat(properties).contains("pieces").contains("rationale");
+		assertThat(schema.get("required").toString()).contains("pieces");
+
+		// The tool description and the system prompt both ask for a per-piece rationale.
+		assertThat(record.description().orElseThrow()).containsIgnoringCase("rationale");
+		assertThat(params.system().orElseThrow().asString()).containsIgnoringCase("rationale");
 	}
 
 	@Test

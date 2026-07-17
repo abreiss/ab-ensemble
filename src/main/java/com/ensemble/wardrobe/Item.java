@@ -15,8 +15,8 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
  * them. A no-arg constructor with getters/setters is required by the bean mapper.
  *
  * <p>The wear-history fields ({@code lastWorn}, {@code wornCount}) are persisted
- * here so they round-trip, but the "I wore this" write action and recency rules
- * belong to issue #7 — this slice does not mutate them.
+ * here and mutated by the "I wore this" action (issue #7) via
+ * {@code WardrobeService.markWorn} — a deterministic, server-computed increment.
  */
 @DynamoDbBean
 public class Item {

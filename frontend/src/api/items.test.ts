@@ -6,6 +6,7 @@ import {
   deleteItem,
   getItem,
   listItems,
+  markWorn,
   photoUrl,
   tagPreview,
   updateTags,
@@ -217,6 +218,25 @@ describe('items API client', () => {
     it('throws on a non-2xx response', async () => {
       fetchMock.mockResolvedValue(jsonResponse({}, 400))
       await expect(updateTags('abc', sampleTags)).rejects.toThrow()
+    })
+  })
+
+  describe('markWorn', () => {
+    it('POSTs /api/items/:id/worn and returns the updated item', async () => {
+      const worn: Item = { ...sampleItem, wornCount: 1, lastWorn: '2026-07-16T00:00:00Z' }
+      fetchMock.mockResolvedValue(jsonResponse(worn))
+
+      const result = await markWorn('abc')
+
+      const [url, init] = lastCall()
+      expect(url).toBe('/api/items/abc/worn')
+      expect(init.method).toBe('POST')
+      expect(result).toEqual(worn)
+    })
+
+    it('throws on a non-2xx response', async () => {
+      fetchMock.mockResolvedValue(jsonResponse({}, 404))
+      await expect(markWorn('missing')).rejects.toThrow()
     })
   })
 

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { login } from './auth'
 import { photoUrl, requestStyle } from './style'
-import type { Outfit } from './style'
+import type { Outfit, StyleTurn } from './style'
 
 /** Builds a fetch-like Response stub (mirrors items.test.ts). */
 function jsonResponse(body: unknown, status = 200): Response {
@@ -17,8 +17,26 @@ const sampleOutfit: Outfit = {
   itemIds: ['a', 'b'],
   reason: 'A navy top over slim denim reads clean and modern.',
   items: [
-    { itemId: 'a', photoUrl: '/api/items/a/photo' },
-    { itemId: 'b', photoUrl: '/api/items/b/photo' },
+    {
+      itemId: 'a',
+      photoUrl: '/api/items/a/photo',
+      rationale: 'Anchors the look with a clean navy top.',
+      category: 'shirt',
+      primaryColor: 'navy',
+      formality: 3,
+      warmth: 2,
+      descriptors: ['linen', 'relaxed'],
+    },
+    {
+      itemId: 'b',
+      photoUrl: '/api/items/b/photo',
+      rationale: 'Slim denim keeps the proportions modern.',
+      category: 'jeans',
+      primaryColor: 'indigo',
+      formality: 2,
+      warmth: 2,
+      descriptors: ['slim'],
+    },
   ],
 }
 
@@ -69,6 +87,51 @@ describe('style API client', () => {
 
       const [, init] = lastCall()
       expect((init.headers as Headers).get('X-Ensemble-Session')).toBe('tok-123')
+    })
+
+    it('POSTs the accumulated history alongside the prompt when re-picking', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(sampleOutfit))
+      const history: StyleTurn[] = [
+        { role: 'user', text: 'streetwear today' },
+        { role: 'assistant', text: 'Previously chose: a, b — clean and modern.' },
+      ]
+
+      await requestStyle('too plain', history)
+
+      const [url, init] = lastCall()
+      expect(url).toBe('/api/style')
+      expect(init.method).toBe('POST')
+      expect(JSON.parse(init.body as string)).toEqual({ prompt: 'too plain', history })
+    })
+
+    it('omits history from the body when none is given (backward compatible)', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(sampleOutfit))
+
+      await requestStyle('streetwear today', [])
+
+      const [, init] = lastCall()
+      const body = JSON.parse(init.body as string)
+      expect(body).toEqual({ prompt: 'streetwear today' })
+      expect('history' in body).toBe(false)
+    })
+
+    it('returns each enriched OutfitItem (rationale + tag fields) unchanged', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(sampleOutfit))
+
+      const outfit = await requestStyle('smart casual')
+
+      expect(outfit.items[0]).toEqual({
+        itemId: 'a',
+        photoUrl: '/api/items/a/photo',
+        rationale: 'Anchors the look with a clean navy top.',
+        category: 'shirt',
+        primaryColor: 'navy',
+        formality: 3,
+        warmth: 2,
+        descriptors: ['linen', 'relaxed'],
+      })
+      expect(outfit.items[1].rationale).toBe('Slim denim keeps the proportions modern.')
+      expect(outfit.items[1].descriptors).toEqual(['slim'])
     })
 
     it('returns an empty-wardrobe outfit (empty itemIds + explanatory reason) unchanged', async () => {

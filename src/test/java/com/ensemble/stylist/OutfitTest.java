@@ -36,4 +36,48 @@ class OutfitTest {
 		assertThatThrownBy(() -> outfit.itemIds().add("c"))
 			.isInstanceOf(UnsupportedOperationException.class);
 	}
+
+	@Test
+	void twoArgConstructor_defaultsToEmptyRationale() {
+		// Back-compat: the pre-rationale constructor still works and carries no rationale.
+		Outfit outfit = new Outfit(List.of("a"), "reason");
+
+		assertThat(outfit.rationaleById()).isEmpty();
+		assertThat(outfit.rationaleFor("a")).isEmpty();
+	}
+
+	@Test
+	void nullRationaleMap_normalizesToEmpty() {
+		Outfit outfit = new Outfit(List.of("a"), "reason", null);
+
+		assertThat(outfit.rationaleById()).isEmpty();
+	}
+
+	@Test
+	void rationaleFor_returnsPerItemText_andEmptyForUnknownId() {
+		Outfit outfit = new Outfit(List.of("a", "b"), "reason",
+			java.util.Map.of("a", "breathes on a warm morning", "b", "earthy tone"));
+
+		assertThat(outfit.rationaleFor("a")).isEqualTo("breathes on a warm morning");
+		assertThat(outfit.rationaleFor("b")).isEqualTo("earthy tone");
+		// An id with no rationale (or unknown) degrades to blank, never null.
+		assertThat(outfit.rationaleFor("missing")).isEmpty();
+	}
+
+	@Test
+	void rationaleById_isDefensivelyCopiedAndUnmodifiable() {
+		java.util.Map<String, String> source = new java.util.HashMap<>();
+		source.put("a", "one");
+		Outfit outfit = new Outfit(List.of("a"), "reason", source);
+		source.put("b", "two");
+
+		assertThat(outfit.rationaleById()).containsOnlyKeys("a");
+		assertThatThrownBy(() -> outfit.rationaleById().put("c", "three"))
+			.isInstanceOf(UnsupportedOperationException.class);
+	}
+
+	@Test
+	void empty_hasNoRationale() {
+		assertThat(Outfit.empty().rationaleById()).isEmpty();
+	}
 }

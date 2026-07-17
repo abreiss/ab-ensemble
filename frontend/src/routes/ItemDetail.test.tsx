@@ -13,6 +13,12 @@ vi.mock('../api/items', () => ({
   photoUrl: (id: string) => `/api/items/${id}/photo`,
 }))
 
+// Deterministic relative label — the helper has its own unit test; here we only
+// care that the component wires a present/absent instant to the right copy.
+vi.mock('../lib/relativeTime', () => ({
+  relativeTime: (iso: string | null | undefined) => (iso ? '2 days ago' : 'not yet worn'),
+}))
+
 import { deleteItem, getItem, updateTags } from '../api/items'
 
 const getItemMock = vi.mocked(getItem)
@@ -39,7 +45,7 @@ function renderDetail(id = 'abc') {
     <MemoryRouter initialEntries={[`/item/${id}`]}>
       <Routes>
         <Route path="/item/:id" element={<ItemDetail />} />
-        <Route path="/" element={<div>wardrobe grid</div>} />
+        <Route path="/wardrobe" element={<div>wardrobe grid</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -76,15 +82,35 @@ describe('ItemDetail', () => {
     expect(tagsArg).toMatchObject({ category: 'shirt', primaryColor: 'black', formality: 3, warmth: 2 })
   })
 
-  it('does not render wear-history fields (deferred to #7)', async () => {
+  it('shows the wear count and a relative last-worn label for a worn item', async () => {
     getItemMock.mockResolvedValue(sampleItem)
 
     renderDetail()
 
     await screen.findByLabelText(/primary color/i)
-    expect(screen.queryByText(/worn/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/last worn/i)).not.toBeInTheDocument()
-    expect(screen.queryByText('7')).not.toBeInTheDocument()
+    // wornCount 7 + a present lastWorn → "Worn 7× · 2 days ago".
+    expect(screen.getByText(/worn 7×/i)).toBeInTheDocument()
+    expect(screen.getByText(/2 days ago/i)).toBeInTheDocument()
+  })
+
+  it('shows a "Never worn" state when the item has never been worn', async () => {
+    getItemMock.mockResolvedValue({ ...sampleItem, wornCount: null, lastWorn: null })
+
+    renderDetail()
+
+    await screen.findByLabelText(/primary color/i)
+    expect(screen.getByText(/never worn/i)).toBeInTheDocument()
+    expect(screen.queryByText(/worn 7×/i)).not.toBeInTheDocument()
+  })
+
+  it('shows a "not yet worn" last-worn state when lastWorn is absent', async () => {
+    getItemMock.mockResolvedValue({ ...sampleItem, wornCount: 2, lastWorn: null })
+
+    renderDetail()
+
+    await screen.findByLabelText(/primary color/i)
+    expect(screen.getByText(/worn 2×/i)).toBeInTheDocument()
+    expect(screen.getByText(/not yet worn/i)).toBeInTheDocument()
   })
 
   it('requires an explicit confirm before deleting, then navigates back to the grid', async () => {

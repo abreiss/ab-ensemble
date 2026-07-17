@@ -3,16 +3,17 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import TagForm from '../components/TagForm'
 import { deleteItem, getItem, updateTags } from '../api/items'
+import { relativeTime } from '../lib/relativeTime'
 import type { Item, TagInput } from '../types/item'
 
 type Status = 'loading' | 'ready' | 'notfound'
 
 /**
  * Item detail (`/item/:id`) — the maintenance surface. Loads one item, shows its
- * photo and an editable `TagForm`, saves tag edits via `updateTags`, and offers a
- * guarded (two-step) delete. Wear-history (`lastWorn`/`wornCount`) is intentionally
- * not shown here — it is deferred to issue #7. Load failure degrades to a
- * non-crashing "not found" state; save/delete failures preserve the user's context.
+ * photo, a quiet wear-history line (`wornCount` + a relative `lastWorn`, display
+ * only), and an editable `TagForm`; saves tag edits via `updateTags` and offers a
+ * guarded (two-step) delete. Load failure degrades to a non-crashing "not found"
+ * state; save/delete failures preserve the user's context.
  */
 export default function ItemDetail() {
   const { id = '' } = useParams()
@@ -55,7 +56,7 @@ export default function ItemDetail() {
     setDeleting(true)
     setError(null)
     deleteItem(id)
-      .then(() => navigate('/'))
+      .then(() => navigate('/wardrobe'))
       .catch(() => {
         setError('We couldn’t delete this item. Please try again.')
         setDeleting(false)
@@ -77,7 +78,7 @@ export default function ItemDetail() {
         <div className="state-block">
           <h1 className="empty-title">Item not found</h1>
           <p className="state-note">This item may have been removed.</p>
-          <Link to="/" className="btn btn-primary">
+          <Link to="/wardrobe" className="btn btn-primary">
             Back to wardrobe
           </Link>
         </div>
@@ -85,9 +86,18 @@ export default function ItemDetail() {
     )
   }
 
+  const wornCount = item.wornCount ?? 0
+  const wearLabel =
+    wornCount === 0 ? 'Never worn' : `Worn ${wornCount}× · ${relativeTime(item.lastWorn)}`
+
   return (
     <section data-testid="item-detail" className="screen">
       <img className="detail-photo" src={item.photoUrl} alt={item.category ?? 'garment'} />
+
+      <p className="wear-history" data-testid="wear-history">
+        <span className="eyebrow">Wear history</span>
+        <span className="wear-value">{wearLabel}</span>
+      </p>
 
       {saved && !error && (
         <p className="banner banner-ok" role="status">

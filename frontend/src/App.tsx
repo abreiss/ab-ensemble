@@ -1,4 +1,4 @@
-import { Link, Route, Routes } from 'react-router-dom'
+import { Link, Navigate, Route, Routes } from 'react-router-dom'
 
 import AuthGate from './components/AuthGate'
 import AddItem from './routes/AddItem'
@@ -7,11 +7,12 @@ import Stylist from './routes/Stylist'
 import WardrobeGrid from './routes/WardrobeGrid'
 
 /**
- * App shell: a persistent header (home link + style/add affordances) wrapping the
- * routed screens. Mobile-first single column; the routes are the wardrobe grid
- * (`/`), stylist (`/style`), add-item (`/add`), and item detail (`/item/:id`).
- * The whole shell sits behind `AuthGate`, which renders the passcode screen until
- * a valid session token is stored.
+ * App shell: a persistent header (home link + wardrobe/add affordances) wrapping
+ * the routed screens. The stylist is now the landing screen: the routes are the
+ * stylist (`/`), the wardrobe grid (`/wardrobe`), add-item (`/add`), and item
+ * detail (`/item/:id`). The legacy `/style` path redirects to the landing `/` so
+ * old bookmarks keep working. The whole shell sits behind `AuthGate`, which
+ * renders the passcode screen until a valid session token is stored.
  */
 export default function App() {
   return (
@@ -22,8 +23,8 @@ export default function App() {
             Ensemble
           </Link>
           <nav className="app-nav">
-            <Link to="/style" className="btn">
-              Style
+            <Link to="/wardrobe" className="btn">
+              Wardrobe
             </Link>
             <Link to="/add" className="btn btn-add">
               + Add
@@ -32,8 +33,9 @@ export default function App() {
         </header>
         <main className="app-main">
           <Routes>
-            <Route path="/" element={<WardrobeGrid />} />
-            <Route path="/style" element={<Stylist />} />
+            <Route path="/" element={<Stylist />} />
+            <Route path="/wardrobe" element={<WardrobeGrid />} />
+            <Route path="/style" element={<Navigate to="/" replace />} />
             <Route path="/add" element={<AddItem />} />
             <Route path="/item/:id" element={<ItemDetail />} />
           </Routes>

@@ -1,0 +1,27 @@
+/* Ensemble — maroon & beige theme.
+   Merge these into :root in frontend/src/index.css.
+   The first block REPLACES existing tokens; the second ADDS new ones. */
+
+:root {
+  /* --- replace existing --- */
+  --paper: #f3ecdd;
+  --paper-raised: #fcf8ef;
+  --ink: #33271f;
+  --muted: #8f8272;
+  --hairline: #e3d8c4;
+  --accent: #7c2833;
+  --accent-soft: #ecd9d3;
+
+  /* --- add new (used by the stylist screen) --- */
+  --paper-sunk: #e9dfca;   /* drawer / flat-lay tray background */
+  --border: #d7cab2;       /* stronger border: inputs, tiles, buttons */
+  --ink-2: #574a3d;        /* secondary body / rationale copy */
+  --placeholder: #a89a86;  /* input placeholder + search hint */
+  --on-accent: #f6ecd9;    /* cream text/icons on a maroon fill */
+  --pip-empty: #d8cbb2;    /* unfilled rating pip */
+  --accent-line: rgba(124, 40, 51, .22); /* user chat bubble border */
+
+  /* keep existing: --danger, --danger-soft, --font-*, --text-*, --space-*, --radius* */
+}
+
+/* also: frontend/index.html <meta name="theme-color"> #F7F5F0 -> #F3ECDD */
