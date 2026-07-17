@@ -4,8 +4,23 @@ import { NEUTRAL_SWATCH, deriveName, slotForCategory, swatchColor } from './spec
 
 describe('specSheet helpers', () => {
   describe('slotForCategory', () => {
-    it.each(['shirt', 'tee', 'sweater', 'jacket'])('maps %s to TOP', (category) => {
-      expect(slotForCategory(category)).toBe('TOP')
+    it.each(['shirt', 'tee', 't-shirt', 'tshirt', 'top', 'sweater', 'jacket'])(
+      'maps %s to TOP',
+      (category) => {
+        expect(slotForCategory(category)).toBe('TOP')
+      },
+    )
+
+    it('maps the vision tagger casing (T-Shirt) to TOP', () => {
+      expect(slotForCategory('T-Shirt')).toBe('TOP')
+    })
+
+    it.each(['footwear'])('maps %s to SHOES', (category) => {
+      expect(slotForCategory(category)).toBe('SHOES')
+    })
+
+    it.each(['hat', 'cap', 'bag', 'tote', 'accessory'])('maps %s to CARRY', (category) => {
+      expect(slotForCategory(category)).toBe('CARRY')
     })
 
     it.each(['pants', 'chinos', 'jeans', 'shorts', 'skirt'])('maps %s to BOTTOM', (category) => {
@@ -14,10 +29,6 @@ describe('specSheet helpers', () => {
 
     it.each(['shoes', 'loafers', 'sneakers', 'boots'])('maps %s to SHOES', (category) => {
       expect(slotForCategory(category)).toBe('SHOES')
-    })
-
-    it.each(['bag', 'tote', 'accessory'])('maps %s to CARRY', (category) => {
-      expect(slotForCategory(category)).toBe('CARRY')
     })
 
     it('is case-insensitive and trims surrounding whitespace', () => {

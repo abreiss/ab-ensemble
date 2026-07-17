@@ -124,7 +124,7 @@ Stylist → landing `/`; grid → `/wardrobe`; fix internal links; lay out the t
 - [x] 4.3 Lay out the two-pane shell in `Stylist.tsx` + `index.css`: `--paper-sunk` drawer (250px, `border-right`) + flex main column; mobile-first stack <900px with the drawer as a toggle/bottom sheet. (WardrobeDrawer contents land in task 5; a placeholder is fine here.)
 - [x] 4.4 Run `npm run test -- --run`; capture desktop + mobile shell screenshots into `20-proofs/assets/`.
 
-### [ ] 5.0 Chat stream, flat-lay result, spec list & chips
+### [x] 5.0 Chat stream, flat-lay result, spec list & chips
 
 Build the conversational stream, composer, chips, and `OutfitResult`, preserving all existing behavior. (Spec Unit 3 — chat + result.)
 
@@ -139,9 +139,9 @@ Build the conversational stream, composer, chips, and `OutfitResult`, preserving
 
 #### 5.0 Tasks
 
-- [ ] 5.1 RED→GREEN: `RatingPips.tsx` (+ test) — render `max` dots, fill `value` with `--ink`, rest `--pip-empty`, Space Mono label; drive from `formality`/`warmth`.
-- [ ] 5.2 RED→GREEN: `WardrobeDrawer.tsx` (+ test) — `Search` (lucide) input, 2-col thumbnail grid from `listItems()`, tiles in the current look outlined `--accent`; loading/error like existing screens.
-- [ ] 5.3 RED→GREEN: `OutfitResult.tsx` (+ test) — flat-lay tray (numbered tiles via `photoUrl`, `Wear today` → existing `markWorn` fan-out, non-persisting `Heart`) + spec cards (index, `deriveName`, `slotForCategory` label, `swatchColor` swatch, `RatingPips`, rationale). Reuse the existing wear-log lock/error behavior.
-- [ ] 5.4 RED→GREEN: chat stream + composer in `Stylist.tsx` — render accumulated turns as user/assistant bubbles with scrollback + a "thinking" state; composer (lucide `ArrowUp`); quick-start chips (`Brunch`, `Interview`, `Date night`, `What goes with these loafers?`) and adjust chips (`Dressier ↑`, `Warmer`, `Swap #N`, `More color`), each firing a turn with its text; keep the free-text path. Preserve multi-turn history/re-pick, empty/too-small, and error→retry.
-- [ ] 5.5 Style everything in `index.css` to the handoff (bubbles, avatar, tray, cards, chips, composer, radii); honor `prefers-reduced-motion`; maroon never on small body text.
-- [ ] 5.6 Run `npm run test -- --run` + `npm run lint`; capture desktop + mobile screenshots into `20-proofs/assets/`.
+- [x] 5.1 RED→GREEN: `RatingPips.tsx` (+ test) — render `max` dots, fill `value` with `--ink`, rest `--pip-empty`, Space Mono label; drive from `formality`/`warmth`.
+- [x] 5.2 RED→GREEN: `WardrobeDrawer.tsx` (+ test) — `Search` (lucide) input, 2-col thumbnail grid from `listItems()`, tiles in the current look outlined `--accent`; loading/error like existing screens.
+- [x] 5.3 RED→GREEN: `OutfitResult.tsx` (+ test) — flat-lay tray (numbered tiles via `photoUrl`, `Wear today` → existing `markWorn` fan-out, non-persisting `Heart`) + spec cards (index, `deriveName`, `slotForCategory` label, `swatchColor` swatch, `RatingPips`, rationale). Reuse the existing wear-log lock/error behavior.
+- [x] 5.4 RED→GREEN: chat stream + composer in `Stylist.tsx` — render accumulated turns as user/assistant bubbles with scrollback + a "thinking" state; composer (lucide `ArrowUp`); quick-start chips (`Brunch`, `Interview`, `Date night`, `What goes with these loafers?`) and adjust chips (`Dressier ↑`, `Warmer`, `Swap #N`, `More color`), each firing a turn with its text; keep the free-text path. Preserve multi-turn history/re-pick, empty/too-small, and error→retry.
+- [x] 5.5 Style everything in `index.css` to the handoff (bubbles, avatar, tray, cards, chips, composer, radii); honor `prefers-reduced-motion`; maroon never on small body text.
+- [x] 5.6 Run `npm run test -- --run` + `npm run lint`; capture desktop + mobile screenshots into `20-proofs/assets/`.

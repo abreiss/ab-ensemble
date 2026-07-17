@@ -10,6 +10,9 @@ export type Slot = 'TOP' | 'BOTTOM' | 'SHOES' | 'CARRY' | 'PIECE'
 const CATEGORY_SLOTS: Record<string, Slot> = {
   shirt: 'TOP',
   tee: 'TOP',
+  't-shirt': 'TOP',
+  tshirt: 'TOP',
+  top: 'TOP',
   sweater: 'TOP',
   jacket: 'TOP',
   pants: 'BOTTOM',
@@ -21,8 +24,11 @@ const CATEGORY_SLOTS: Record<string, Slot> = {
   loafers: 'SHOES',
   sneakers: 'SHOES',
   boots: 'SHOES',
+  footwear: 'SHOES',
   bag: 'CARRY',
   tote: 'CARRY',
+  hat: 'CARRY',
+  cap: 'CARRY',
   accessory: 'CARRY',
 }
 

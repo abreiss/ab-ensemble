@@ -1,14 +1,28 @@
 import { type FormEvent, useCallback, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { ArrowUp } from 'lucide-react'
 
-import { markWorn, photoUrl, requestStyle } from '../api/style'
+import OutfitResult from '../components/OutfitResult'
+import WardrobeDrawer from '../components/WardrobeDrawer'
+import { markWorn, requestStyle } from '../api/style'
 import type { Outfit, StyleTurn } from '../api/style'
 
 type Status = 'idle' | 'loading' | 'ready' | 'error'
 type LogStatus = 'idle' | 'logging' | 'logged' | 'error'
 
+/** One turn rendered in the chat stream (display only; the backend thread is `history`). */
+interface Message {
+  role: 'user' | 'assistant'
+  text: string
+}
+
 /** The canned user turn a bare "Show me another" regenerate contributes to the thread. */
 const REGENERATE_TEXT = 'Show me another look'
+
+/** Quick-start chips under the intro bubble; each sends its text as a first vibe. */
+const QUICK_START = ['Brunch', 'Interview', 'Date night', 'What goes with these loafers?']
+
+/** Adjust chips shown once a look renders; each sends its text as pushback. */
+const ADJUST = ['Dressier ↑', 'Warmer', 'Swap #1', 'More color']
 
 /** One-line summary of a rendered pick, committed to the thread as an assistant turn. */
 function summarize(outfit: Outfit): string {
@@ -16,23 +30,24 @@ function summarize(outfit: Outfit): string {
 }
 
 /**
- * Stylist screen (`/style`): the app's second AI job, now a multi-turn loop. A free-text
- * vibe submits to `POST /api/style`; the grounded result renders as an outfit card — the
- * picked garments as their real stored photos, the stylist's reason as a hang-tag "note".
+ * Stylist screen — the app's landing route (`/`) and its second AI job, as a
+ * conversational spec sheet. A vibe (typed in the composer, or tapped from a
+ * quick-start / adjust chip) submits to `POST /api/style`; the grounded result
+ * renders as an {@link OutfitResult} — a numbered flat-lay of the real photos
+ * beside a per-piece spec card (name / slot / swatch / FORM+WARM pips /
+ * rationale). The exchange is shown as a chat message stream.
  *
- * Re-pick is stateless on the server: the client accumulates the conversation `history`
- * (the vibe + an assistant summary of each pick + the user's feedback) and resends it each
- * turn. Pushback ("too plain") and "Show me another" both replay the full thread so the
- * model produces a *different* look. Handles the real edge states — loading, request
- * failure (retry replays the same turn), and a too-small wardrobe (a normal 200 with an
- * empty look) — across every re-pick without crashing. The LLM never sees images.
+ * Re-pick is stateless on the server: the client accumulates the conversation
+ * `history` (the vibe + an assistant summary of each pick + feedback) and resends
+ * it every turn, so the model produces a *different* look. The real edge states
+ * are preserved across every re-pick — a "thinking" state, request failure (retry
+ * replays the same turn), and a too-small wardrobe (a normal 200 with an empty
+ * look). The LLM never sees images; name/slot/swatch/pips are derived from stored
+ * tags in code. The wardrobe drawer highlights the pieces in the current look.
  */
 export default function Stylist() {
-  const [vibe, setVibe] = useState('')
-  const [pushback, setPushback] = useState('')
-  // The wardrobe drawer is always visible on desktop; on narrow viewports it
-  // collapses behind this toggle (its contents land in task 5.0).
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [messages, setMessages] = useState<Message[]>([])
   const [outfit, setOutfit] = useState<Outfit | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [logStatus, setLogStatus] = useState<LogStatus>('idle')
@@ -43,10 +58,15 @@ export default function Stylist() {
     text: '',
     base: [],
   })
+  // The wardrobe drawer is always visible on desktop; on narrow viewports it
+  // collapses behind this toggle.
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
-  // Run one styling turn: send the newest user text plus the thread `base` that precedes
-  // it. On success commit the turn (newest user text + a summary of the pick) so the next
-  // re-pick carries it. `base` is captured for retry via `pending`.
+  // Run one styling turn: send the newest user text plus the thread `base` that
+  // precedes it. On success append the assistant reply and, for a non-empty look,
+  // commit the turn to `history` so the next re-pick carries it. `base` is captured
+  // for retry via `pending`. This never appends the user turn — the caller does, so
+  // a retry can replay without duplicating the user's message.
   const run = useCallback((newestUserText: string, base: StyleTurn[]) => {
     setPending({ text: newestUserText, base })
     setStatus('loading')
@@ -56,6 +76,7 @@ export default function Stylist() {
       .then((result) => {
         setOutfit(result)
         setStatus('ready')
+        setMessages((prev) => [...prev, { role: 'assistant', text: result.reason }])
         // Only a look with pieces becomes a thread turn; an empty-wardrobe reply does not.
         if (result.itemIds.length > 0) {
           setHistory([
@@ -68,9 +89,20 @@ export default function Stylist() {
       .catch(() => setStatus('error'))
   }, [])
 
-  // Log the whole look worn: mark every rendered piece via the deterministic wear-history
-  // write. One log per look — on success the control locks to "Logged ✓"; a partial
-  // failure keeps the look and offers a retry.
+  // Send a user turn: append the user bubble, then run the request with the current
+  // accumulated thread as the base. Unifies the first vibe and every re-pick.
+  const send = (text: string) => {
+    const clean = text.trim()
+    if (clean === '') {
+      return
+    }
+    setMessages((prev) => [...prev, { role: 'user', text: clean }])
+    run(clean, history)
+  }
+
+  // Log the whole look worn: mark every rendered piece via the deterministic
+  // wear-history write. One log per look — on success the control locks to
+  // "Logged ✓"; a partial failure keeps the look and offers a retry.
   const logLook = useCallback(() => {
     if (outfit === null) {
       return
@@ -82,43 +114,22 @@ export default function Stylist() {
     })
   }, [outfit])
 
-  // A brand-new vibe from the top form starts a fresh thread (empty base).
-  const onSubmit = (event: FormEvent) => {
+  const onComposerSubmit = (event: FormEvent) => {
     event.preventDefault()
-    const prompt = vibe.trim()
-    if (prompt !== '') {
-      run(prompt, [])
-    }
+    send(draft)
+    setDraft('')
   }
 
-  // Pushback: send the free-text feedback with the full accumulated thread.
-  const onPushback = (event: FormEvent) => {
-    event.preventDefault()
-    const feedback = pushback.trim()
-    if (feedback !== '' && status !== 'loading') {
-      setPushback('')
-      run(feedback, history)
-    }
-  }
-
-  // Regenerate: a bare "show me another" turn with the full thread.
-  const regenerate = () => {
-    if (status !== 'loading') {
-      run(REGENERATE_TEXT, history)
-    }
-  }
-
-  // Retry replays the exact turn that failed — same newest text, same thread base.
+  // Retry replays the exact turn that failed — same newest text, same thread base —
+  // without re-appending the user bubble (it is already in the stream).
   const retry = () => run(pending.text, pending.base)
 
-  const hasLook = outfit !== null && outfit.itemIds.length > 0
   const loading = status === 'loading'
   // A style/re-pick request or a wear-log fan-out is in flight. All action controls
   // gate on this so the two never overlap — otherwise a wear-log settling mid-re-pick
   // would land its "Logged ✓" (or error) on the freshly re-picked look.
   const busy = loading || logStatus === 'logging'
-  // Keep the current look on screen while a re-pick is in flight, controls disabled.
-  const showCard = hasLook && outfit !== null && (status === 'ready' || loading)
+  const hasLook = outfit !== null && outfit.itemIds.length > 0
 
   return (
     <div className="stylist-layout">
@@ -137,136 +148,126 @@ export default function Stylist() {
         className={`wardrobe-drawer${drawerOpen ? ' is-open' : ''}`}
         aria-label="Your wardrobe"
       >
-        <p className="eyebrow">Your wardrobe</p>
-        <p className="state-note">Your pieces will appear here.</p>
+        <WardrobeDrawer inLookIds={hasLook && outfit !== null ? outfit.itemIds : []} />
       </aside>
 
       <section data-testid="stylist" className="screen stylist-main">
-        <p className="eyebrow">Stylist</p>
-        <h1 className="screen-title">What’s the vibe?</h1>
-
-      <form className="vibe-form" onSubmit={onSubmit}>
-        <div className="field">
-          <label className="field-label" htmlFor="vibe">
-            Vibe
-          </label>
-          <input
-            id="vibe"
-            className="input"
-            type="text"
-            value={vibe}
-            onChange={(event) => setVibe(event.target.value)}
-            placeholder="streetwear today"
-            autoComplete="off"
-          />
-        </div>
-        <button
-          type="submit"
-          className="btn btn-primary btn-block"
-          disabled={busy || vibe.trim() === ''}
-        >
-          Style me
-        </button>
-      </form>
-
-      {loading && <p className="state-note">Styling your look…</p>}
-
-      {status === 'error' && (
-        <div className="state-block">
-          <p className="banner banner-error">We couldn’t style that vibe.</p>
-          <button type="button" className="btn" onClick={retry}>
-            Try again
-          </button>
-        </div>
-      )}
-
-      {status === 'ready' && outfit !== null && !hasLook && (
-        <div className="state-block empty-state">
-          <h2 className="empty-title">Not enough to style yet</h2>
-          <p className="state-note">{outfit.reason}</p>
-          <Link to="/add" className="btn btn-primary">
-            + Add an item
-          </Link>
-        </div>
-      )}
-
-      {showCard && outfit !== null && (
-        <article className="outfit-card" aria-label="Styled outfit">
-          <header className="outfit-head">
-            <span className="eyebrow">The look</span>
-            <span className="outfit-count">
-              {outfit.items.length} {outfit.items.length === 1 ? 'piece' : 'pieces'}
+        <div className="chat-stream">
+          <div className="chat-turn is-assistant">
+            <span className="chat-avatar" aria-hidden="true">
+              E
             </span>
-          </header>
-          <ul className="outfit-pieces">
-            {outfit.items.map((piece) => (
-              <li key={piece.itemId} className="outfit-piece">
-                <img
-                  className="thumb-img"
-                  src={photoUrl(piece.itemId)}
-                  alt="Garment in the styled look"
-                  loading="lazy"
-                />
-              </li>
-            ))}
-          </ul>
-          <div className="outfit-note">
-            <span className="eyebrow">Stylist’s note</span>
-            <p className="outfit-reason">{outfit.reason}</p>
+            <p className="chat-bubble">
+              Tell me the occasion and I’ll pull a look from your closet.
+            </p>
           </div>
 
-          <div className="outfit-log">
-            {logStatus === 'logged' ? (
-              <button type="button" className="btn btn-logged btn-block" disabled>
-                Logged ✓
-              </button>
+          {messages.length === 0 && (
+            <div className="chips chips-quick-start">
+              {QUICK_START.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  className="chip"
+                  onClick={() => send(chip)}
+                  disabled={busy}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {messages.map((message, index) =>
+            message.role === 'user' ? (
+              <div key={index} className="chat-turn is-user">
+                <p className="chat-bubble">{message.text}</p>
+              </div>
             ) : (
-              <button
-                type="button"
-                className="btn btn-primary btn-block"
-                onClick={logLook}
-                disabled={busy}
-              >
-                I wore this look
-              </button>
-            )}
-            {logStatus === 'error' && (
-              <p className="banner banner-error" role="alert">
-                We couldn’t log that look. Please try again.
-              </p>
-            )}
-          </div>
+              <div key={index} className="chat-turn is-assistant">
+                <span className="chat-avatar" aria-hidden="true">
+                  E
+                </span>
+                <p className="chat-bubble">{message.text}</p>
+              </div>
+            ),
+          )}
 
-          <form className="repick" onSubmit={onPushback}>
-            <label className="field-label" htmlFor="pushback">
-              Not quite right?
-            </label>
-            <div className="repick-row">
-              <input
-                id="pushback"
-                className="input"
-                type="text"
-                value={pushback}
-                onChange={(event) => setPushback(event.target.value)}
-                placeholder="too plain — add a jacket"
-                autoComplete="off"
-                disabled={busy}
-              />
-              <button type="submit" className="btn" disabled={busy || pushback.trim() === ''}>
-                Re-pick
+          {loading && (
+            <div className="chat-turn is-assistant">
+              <span className="chat-avatar" aria-hidden="true">
+                E
+              </span>
+              <p className="chat-bubble chat-thinking" role="status">
+                Styling your look…
+              </p>
+            </div>
+          )}
+
+          {status === 'error' && (
+            <div className="state-block chat-error">
+              <p className="banner banner-error">We couldn’t style that vibe.</p>
+              <button type="button" className="btn" onClick={retry}>
+                Try again
               </button>
             </div>
+          )}
+        </div>
+
+        {hasLook && outfit !== null && (
+          <OutfitResult
+            outfit={outfit}
+            onWearToday={logLook}
+            logStatus={logStatus}
+            busy={busy}
+          />
+        )}
+
+        {hasLook && (
+          <div className="chips chips-adjust">
+            <span className="eyebrow">Adjust</span>
+            {ADJUST.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                className="chip"
+                onClick={() => send(chip)}
+                disabled={busy}
+              >
+                {chip}
+              </button>
+            ))}
             <button
               type="button"
-              className="btn btn-ghost btn-block"
-              onClick={regenerate}
+              className="chip chip-ghost"
+              onClick={() => send(REGENERATE_TEXT)}
               disabled={busy}
             >
               Show me another
             </button>
-          </form>
-        </article>
-      )}
+          </div>
+        )}
+
+        <form className="composer" onSubmit={onComposerSubmit}>
+          <input
+            className="composer-input"
+            type="text"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="Ask for a change, or a whole new look…"
+            aria-label="Message the stylist"
+            autoComplete="off"
+            disabled={busy}
+          />
+          <button
+            type="submit"
+            className="composer-send"
+            aria-label="Send"
+            disabled={busy || draft.trim() === ''}
+          >
+            <ArrowUp size={18} aria-hidden="true" />
+          </button>
+        </form>
       </section>
     </div>
   )
