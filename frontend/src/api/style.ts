@@ -9,10 +9,22 @@ import { markWorn, photoUrl } from './items'
 
 const BASE = '/api/style'
 
-/** One rendered piece of the outfit — mirrors `StyleResponse.OutfitItem`. */
+/**
+ * One rendered piece of the outfit — mirrors `StyleResponse.OutfitItem`. The
+ * `rationale` is the stylist's per-item reason (LLM output); the remaining tag
+ * fields are the item's stored tags (deterministic, not LLM-derived), used to
+ * derive the spec-sheet name, slot label, color swatch, and FORM/WARM pips. Tag
+ * fields are nullable — a degraded vision tag stays a normal, renderable state.
+ */
 export interface OutfitItem {
   itemId: string
   photoUrl: string
+  rationale: string
+  category: string | null
+  primaryColor: string | null
+  formality: number | null
+  warmth: number | null
+  descriptors: string[] | null
 }
 
 /**

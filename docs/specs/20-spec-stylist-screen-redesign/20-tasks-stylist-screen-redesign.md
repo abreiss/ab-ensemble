@@ -88,7 +88,7 @@ Extend the forced output to a rationale per chosen item; parse + ground it; enri
 - [x] 2.5 RED: extend `StyleControllerTest` — the response `items[]` each carry `rationale` + `category`/`primaryColor`/`formality`/`warmth`/`descriptors` joined from the owned item; empty-wardrobe is a normal 200 with empty items. Then add `rationale` + tag fields to `StyleResponse.OutfitItem` and enrich in `StyleController` (join grounded id → `ItemResponse` via `WardrobeService`, attach rationale) to GREEN.
 - [x] 2.6 REFACTOR: de-duplicate the id→tags join; run `./gradlew test -PskipFrontend` + `jacocoTestReport`; confirm 100% branch on `OutfitParser` + grounding. Capture the sample JSON + coverage proof into `20-proofs/`.
 
-### [ ] 3.0 Frontend data layer: enriched contract + deterministic render helpers
+### [x] 3.0 Frontend data layer: enriched contract + deterministic render helpers
 
 Update the TS types/client and add pure spec-sheet helpers. No view code. (Spec Unit 3 — deterministic logic.)
 
@@ -100,11 +100,11 @@ Update the TS types/client and add pure spec-sheet helpers. No view code. (Spec 
 
 #### 3.0 Tasks
 
-- [ ] 3.1 RED: extend `style.test.ts` expecting `OutfitItem` with `rationale` + `category`/`primaryColor`/`formality`/`warmth`/`descriptors`. Then extend the `Outfit`/`OutfitItem` interfaces in `api/style.ts` to GREEN (mirror the backend DTO).
-- [ ] 3.2 RED: write `specSheet.test.ts` for `slotForCategory` — map known categories (shirt/tee/sweater/jacket → TOP; pants/chinos/jeans/shorts/skirt → BOTTOM; shoes/loafers/sneakers/boots → SHOES; bag/tote/accessory → CARRY) and an unknown → fallback. Then implement `slotForCategory` in `specSheet.ts` to GREEN.
-- [ ] 3.3 RED: `specSheet.test.ts` for `deriveName` — full tags → "White linen shirt"; missing color/descriptor degrade sensibly; all-null → a safe label. Then implement `deriveName` to GREEN.
-- [ ] 3.4 RED: `specSheet.test.ts` for `swatchColor` — CSS-keyword colors (white/olive/tan) map through; non-keyword (e.g. "natural") → curated hex; unknown → neutral fallback. Then implement `swatchColor` (small curated map) to GREEN.
-- [ ] 3.5 REFACTOR + run `npm run test -- --run` and `npm run lint`; capture helper test output into `20-proofs/`.
+- [x] 3.1 RED: extend `style.test.ts` expecting `OutfitItem` with `rationale` + `category`/`primaryColor`/`formality`/`warmth`/`descriptors`. Then extend the `Outfit`/`OutfitItem` interfaces in `api/style.ts` to GREEN (mirror the backend DTO).
+- [x] 3.2 RED: write `specSheet.test.ts` for `slotForCategory` — map known categories (shirt/tee/sweater/jacket → TOP; pants/chinos/jeans/shorts/skirt → BOTTOM; shoes/loafers/sneakers/boots → SHOES; bag/tote/accessory → CARRY) and an unknown → fallback. Then implement `slotForCategory` in `specSheet.ts` to GREEN.
+- [x] 3.3 RED: `specSheet.test.ts` for `deriveName` — full tags → "White linen shirt"; missing color/descriptor degrade sensibly; all-null → a safe label. Then implement `deriveName` to GREEN.
+- [x] 3.4 RED: `specSheet.test.ts` for `swatchColor` — CSS-keyword colors (white/olive/tan) map through; non-keyword (e.g. "natural") → curated hex; unknown → neutral fallback. Then implement `swatchColor` (small curated map) to GREEN.
+- [x] 3.5 REFACTOR + run `npm run test -- --run` and `npm run lint`; capture helper test output into `20-proofs/`.
 
 ### [ ] 4.0 Landing-route change + spec-sheet screen shell
 

@@ -18,23 +18,34 @@ import { markWorn, requestStyle } from '../api/style'
 const requestStyleMock = vi.mocked(requestStyle)
 const markWornMock = vi.mocked(markWorn)
 
+import type { OutfitItem } from '../api/style'
+
+/** Builds an enriched OutfitItem with renderable defaults (overridable). */
+function outfitItem(id: string, over: Partial<OutfitItem> = {}): OutfitItem {
+  return {
+    itemId: id,
+    photoUrl: `/api/items/${id}/photo`,
+    rationale: '',
+    category: null,
+    primaryColor: null,
+    formality: null,
+    warmth: null,
+    descriptors: null,
+    ...over,
+  }
+}
+
 const outfit: Outfit = {
   itemIds: ['a', 'b'],
   reason: 'A navy top over slim denim reads clean and modern.',
-  items: [
-    { itemId: 'a', photoUrl: '/api/items/a/photo' },
-    { itemId: 'b', photoUrl: '/api/items/b/photo' },
-  ],
+  items: [outfitItem('a'), outfitItem('b')],
 }
 
 // A second, different look returned by a re-pick.
 const outfit2: Outfit = {
   itemIds: ['c', 'd'],
   reason: 'Swapped in a bolder jacket and darker denim for more edge.',
-  items: [
-    { itemId: 'c', photoUrl: '/api/items/c/photo' },
-    { itemId: 'd', photoUrl: '/api/items/d/photo' },
-  ],
+  items: [outfitItem('c'), outfitItem('d')],
 }
 
 /** The assistant summary the route commits to the thread after a pick renders. */
