@@ -96,7 +96,7 @@ anti-escalation denies, scoped `PassRole`, and no OIDC-provider create/delete.
 - [x] 2.6 Wire both documents into `aws_iam_policy.terraform_scoped` and `aws_iam_policy.boundary`; reference `aws_iam_policy.boundary.arn` in the scoped policy's `CreateRole` condition (self-reference). _(Implemented as `local.boundary_policy_arn` (identical computed ARN) + `depends_on = [aws_iam_policy.boundary]` to keep the review JSON renderable without a live apply and avoid a data-source ⇄ resource cycle; ordering preserved.)_
 - [x] 2.7 Render both policies to JSON (`terraform plan` + `terraform show -json`, or a committed template) into `terraform/bootstrap/policies/`; run `aws accessanalyzer validate-policy` on both; document any accepted finding. Capture the 2.0 proof artifacts. _(Both return zero findings; account id redacted to `123456789012` in the committed JSON.)_
 
-### [ ] 3.0 Provision the Terraform-runner IAM user via one-time bootstrap apply and document it
+### [x] 3.0 Provision the Terraform-runner IAM user via one-time bootstrap apply and document it
 
 Run the one-time admin `apply` that creates the `abreiss-ensemble-terraform` user with the
 scoped policy attached and the boundary policy present, deliver its access key to Claude's
@@ -112,14 +112,14 @@ local environment only (never committed), and write `docs/AWS_ACCESS.md`, cross-
 
 #### 3.0 Tasks
 
-- [ ] 3.1 In `identity.tf`, add `aws_iam_user "terraform_runner"` (name `abreiss-ensemble-terraform`, within the namespace) and an `aws_iam_user_policy_attachment` attaching the scoped policy.
-- [ ] 3.2 Add `aws_iam_access_key` for the user and expose `access_key_id` + `secret` as `sensitive = true` outputs in `outputs.tf`; note the console-generated alternative (no key in state) for `AWS_ACCESS.md`.
-- [ ] 3.3 Write `docs/AWS_ACCESS.md`: what the bootstrap creates (user, scoped policy, boundary); the one-time admin apply steps with elevated creds; how the key reaches the local env (`~/.aws/credentials` profile or git-ignored `.env`); rotation/revocation; the enumerated `*`-exception list from Unit 1; the assume-role (option B) drop-in note; the "state is local/git-ignored" warning.
-- [ ] 3.4 Add cross-links: a prerequisites/credentials pointer to `AWS_ACCESS.md` in `docs/DEVELOPMENT.md`, and a deployment/security pointer in `docs/ARCHITECTURE.md`.
-- [ ] 3.5 Perform the one-time admin `apply` with elevated creds; configure the local `<ensemble-terraform>` profile from the outputs; run `aws sts get-caller-identity` as the new identity. (If no live account: record the deferred status per the Live-account note and skip to Task 4.1's simulator-only path.) Capture the redacted apply summary + `get-caller-identity` output.
-- [ ] 3.6 Verify no secrets committed: `git status --porcelain`, `pre-commit run --all-files`, confirm no `*.tfstate` / access key is tracked. Capture the 3.0 proof artifacts (redacted).
+- [x] 3.1 In `identity.tf`, add `aws_iam_user "terraform_runner"` (name `abreiss-ensemble-terraform`, within the namespace) and an `aws_iam_user_policy_attachment` attaching the scoped policy.
+- [x] 3.2 Add `aws_iam_access_key` for the user and expose `access_key_id` + `secret` as `sensitive = true` outputs in `outputs.tf`; note the console-generated alternative (no key in state) for `AWS_ACCESS.md`.
+- [x] 3.3 Write `docs/AWS_ACCESS.md`: what the bootstrap creates (user, scoped policy, boundary); the one-time admin apply steps with elevated creds; how the key reaches the local env (`~/.aws/credentials` profile or git-ignored `.env`); rotation/revocation; the enumerated `*`-exception list from Unit 1; the assume-role (option B) drop-in note; the "state is local/git-ignored" warning.
+- [x] 3.4 Add cross-links: a prerequisites/credentials pointer to `AWS_ACCESS.md` in `docs/DEVELOPMENT.md`, and a deployment/security pointer in `docs/ARCHITECTURE.md`.
+- [x] 3.5 Perform the one-time admin `apply` with elevated creds; configure the local `<ensemble-terraform>` profile from the outputs; run `aws sts get-caller-identity` as the new identity. (If no live account: record the deferred status per the Live-account note and skip to Task 4.1's simulator-only path.) Capture the redacted apply summary + `get-caller-identity` output. _(Applied live: 5 resources created; identity resolves to `user/abreiss-ensemble-terraform`. First apply corrected an IAM tag-value `#` → validation fix.)_
+- [x] 3.6 Verify no secrets committed: `git status --porcelain`, `pre-commit run --all-files`, confirm no `*.tfstate` / access key is tracked. Capture the 3.0 proof artifacts (redacted). _(git shows no tfstate; `check-ignore` confirms ignore; `block-aws-keys` scan Passed.)_
 
-### [ ] 4.0 Prove the isolation: Policy Simulator matrix + live allow/deny CLI tests
+### [~] 4.0 Prove the isolation: Policy Simulator matrix + live allow/deny CLI tests
 
 Demonstrate the scoping and boundary actually hold — offline via the IAM Policy Simulator
 and against real AWS via the scoped identity — including the boundary-enforcement pair and
@@ -134,7 +134,7 @@ the OIDC-create denial, cleaning up every throwaway `abreiss-ensemble-test-*` re
 
 #### 4.0 Tasks
 
-- [ ] 4.1 Write a Policy Simulator script (`simulate-principal-policy` against the user, or `simulate-custom-policy` on the rendered docs) covering, per service (S3/DynamoDB/ECR/App Runner/Secrets/IAM), an allowed action on a prefixed ARN and the same action denied on a non-prefixed ARN; save results (JSON/table) to `docs/specs/16-spec-scoped-iam-identity/proof/`.
+- [x] 4.1 Write a Policy Simulator script (`simulate-principal-policy` against the user, or `simulate-custom-policy` on the rendered docs) covering, per service (S3/DynamoDB/ECR/App Runner/Secrets/IAM), an allowed action on a prefixed ARN and the same action denied on a non-prefixed ARN; save results (JSON/table) to `docs/specs/16-spec-scoped-iam-identity/proof/`. _(Done via `simulate-custom-policy` on the committed rendered scoped policy — read-only, no apply needed. Script: `terraform/bootstrap/simulate-scoping.sh` (also supports `MODE=principal` post-apply); results: `proof/simulate-matrix.{json,txt}`, all 12 checks PASS.)_
 - [ ] 4.2 Run the live allow/deny CLI session as the scoped identity: `aws s3 ls s3://<unrelated-bucket>` → `AccessDenied`; create + list a throwaway `abreiss-ensemble-test-*` bucket → success. Capture the transcript (account/secrets redacted).
 - [ ] 4.3 Run the boundary-enforcement pair: `aws iam create-role` **without** `--permissions-boundary` → denied; **with** the correct boundary ARN + `abreiss-ensemble-*` role name → success. Capture separately.
 - [ ] 4.4 Run `aws iam create-open-id-connect-provider ...` → denied; capture the `AccessDenied`.
