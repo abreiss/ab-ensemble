@@ -108,7 +108,7 @@ PK, on-demand billing).
 - [x] 2.5 In `data_stores.tf` declare `aws_dynamodb_table` `abreiss-ensemble-items` (`hash_key = "itemId"`, attribute `itemId` type `S`, `billing_mode = PAY_PER_REQUEST`) matching the single-item model.
 - [x] 2.6 Run `terraform -chdir=terraform/deploy fmt` and `validate` (init with `-backend=false` locally) until both exit `0`; capture the output as the proof artifact and note the full `plan` is operator-run in 6.0.
 
-### [ ] 3.0 Terraform app-delivery resources: ECR, App Runner, Secrets Manager containers (Unit 2b — validated IaC)
+### [x] 3.0 Terraform app-delivery resources: ECR, App Runner, Secrets Manager containers (Unit 2b — validated IaC)
 
 Declare the ECR repository (`abreiss-ensemble-*`, image scanning on, immutable-tag/lifecycle
 policy for git-SHA tags); the App Runner service (`abreiss-ensemble-*`) running the ECR image
@@ -128,10 +128,10 @@ declared **without values** so plaintext never enters state.
 
 #### 3.0 Tasks
 
-- [ ] 3.1 In `ecr.tf` declare `aws_ecr_repository` (`abreiss-ensemble-app`) with `image_scanning_configuration { scan_on_push = true }`, `image_tag_mutability = "IMMUTABLE"`, and an `aws_ecr_lifecycle_policy` expiring old/untagged images (git-SHA tag scheme).
-- [ ] 3.2 In `secrets.tf` declare three `aws_secretsmanager_secret` containers (`abreiss-ensemble-anthropic-key`, `-passcode`, `-session-secret`) with **no** `secret_string` and `lifecycle { ignore_changes = [...] }` guarding any out-of-band value — no plaintext in state.
-- [ ] 3.3 In `apprunner.tf` declare the App Runner service (`abreiss-ensemble-app`): ECR image source, port `8080`, `health_check_configuration { path = "/api/health" }`, `instance_configuration` with documented cpu/memory + `instance_role_arn` (from 4.0), an `aws_apprunner_auto_scaling_configuration_version` (min 1 / max 2), non-secret `runtime_environment_variables` (`ENSEMBLE_PHOTOS_BACKEND=s3`, `ENSEMBLE_PHOTOS_S3_BUCKET`, `ENSEMBLE_DYNAMODB_ENDPOINT=""`, `ENSEMBLE_DYNAMODB_TABLE_NAME=abreiss-ensemble-items`, region), and `runtime_environment_secrets` referencing the three secret ARNs; wire `authentication_configuration.access_role_arn` (from 4.0) if private-ECR pull requires it.
-- [ ] 3.4 Run `fmt`/`validate` clean; grep the rendered config and committed HCL to confirm no secret values and no hard-coded account id; capture as the proof artifact.
+- [x] 3.1 In `ecr.tf` declare `aws_ecr_repository` (`abreiss-ensemble-app`) with `image_scanning_configuration { scan_on_push = true }`, `image_tag_mutability = "IMMUTABLE"`, and an `aws_ecr_lifecycle_policy` expiring old/untagged images (git-SHA tag scheme).
+- [x] 3.2 In `secrets.tf` declare three `aws_secretsmanager_secret` containers (`abreiss-ensemble-anthropic-key`, `-passcode`, `-session-secret`) with **no** `secret_string` and `lifecycle { ignore_changes = [...] }` guarding any out-of-band value — no plaintext in state. (Implemented as: no `aws_secretsmanager_secret_version` resource at all, so no lifecycle block is needed — `secret_string` genuinely never exists in this module, the strictest reading of the FR's "omit `secret_string`, or `ignore_changes`" either/or and of the "no plaintext ever in state" security requirement.)
+- [x] 3.3 In `apprunner.tf` declare the App Runner service (`abreiss-ensemble-app`): ECR image source, port `8080`, `health_check_configuration { path = "/api/health" }`, `instance_configuration` with documented cpu/memory + `instance_role_arn` (from 4.0), an `aws_apprunner_auto_scaling_configuration_version` (min 1 / max 2), non-secret `runtime_environment_variables` (`ENSEMBLE_PHOTOS_BACKEND=s3`, `ENSEMBLE_PHOTOS_S3_BUCKET`, `ENSEMBLE_DYNAMODB_ENDPOINT=""`, `ENSEMBLE_DYNAMODB_TABLE_NAME=abreiss-ensemble-items`, region), and `runtime_environment_secrets` referencing the three secret ARNs; wire `authentication_configuration.access_role_arn` (from 4.0) if private-ECR pull requires it. (`instance_role_arn`/`access_role_arn` deliberately omitted for now — both Optional in the AWS provider schema — so this task's own `validate` passes standalone; Task 4.0 wires them in once the roles exist.)
+- [x] 3.4 Run `fmt`/`validate` clean; grep the rendered config and committed HCL to confirm no secret values and no hard-coded account id; capture as the proof artifact.
 
 ### [ ] 4.0 Terraform IAM roles: instance role + CI OIDC role, boundary-capped + Access Analyzer clean (Unit 2c — validated IaC)
 
