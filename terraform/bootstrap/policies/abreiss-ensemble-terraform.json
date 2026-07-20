@@ -1,0 +1,295 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "s3:PutLifecycleConfiguration",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutBucket*",
+        "s3:ListBucket",
+        "s3:GetLifecycleConfiguration",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetBucket*",
+        "s3:DeleteBucketPolicy",
+        "s3:DeleteBucket",
+        "s3:CreateBucket"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::abreiss-ensemble-*",
+      "Sid": "S3BucketScoped"
+    },
+    {
+      "Action": [
+        "s3:PutObjectTagging",
+        "s3:PutObject",
+        "s3:GetObjectTagging",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::abreiss-ensemble-*/*",
+      "Sid": "S3ObjectScoped"
+    },
+    {
+      "Action": [
+        "dynamodb:UpdateTimeToLive",
+        "dynamodb:UpdateTable",
+        "dynamodb:UpdateContinuousBackups",
+        "dynamodb:UntagResource",
+        "dynamodb:TagResource",
+        "dynamodb:ListTagsOfResource",
+        "dynamodb:DescribeTimeToLive",
+        "dynamodb:DescribeTable",
+        "dynamodb:DescribeContinuousBackups",
+        "dynamodb:DeleteTable",
+        "dynamodb:CreateTable"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1",
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:dynamodb:us-east-1:123456789012:table/abreiss-ensemble-*",
+      "Sid": "DynamoDbScoped"
+    },
+    {
+      "Action": [
+        "ecr:UntagResource",
+        "ecr:TagResource",
+        "ecr:SetRepositoryPolicy",
+        "ecr:PutLifecyclePolicy",
+        "ecr:PutImageTagMutability",
+        "ecr:PutImageScanningConfiguration",
+        "ecr:ListTagsForResource",
+        "ecr:GetRepositoryPolicy",
+        "ecr:GetLifecyclePolicy",
+        "ecr:DescribeRepositories",
+        "ecr:DeleteRepositoryPolicy",
+        "ecr:DeleteRepository",
+        "ecr:DeleteLifecyclePolicy",
+        "ecr:CreateRepository"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1",
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:ecr:us-east-1:123456789012:repository/abreiss-ensemble-*",
+      "Sid": "EcrRepositoryScoped"
+    },
+    {
+      "Action": [
+        "apprunner:UpdateService",
+        "apprunner:UntagResource",
+        "apprunner:TagResource",
+        "apprunner:StartDeployment",
+        "apprunner:ListTagsForResource",
+        "apprunner:ListOperations",
+        "apprunner:DescribeService",
+        "apprunner:DescribeOperation",
+        "apprunner:DeleteService"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:apprunner:us-east-1:123456789012:service/abreiss-ensemble-*/*",
+      "Sid": "AppRunnerServiceScoped"
+    },
+    {
+      "Action": [
+        "secretsmanager:UpdateSecret",
+        "secretsmanager:UntagResource",
+        "secretsmanager:TagResource",
+        "secretsmanager:PutSecretValue",
+        "secretsmanager:ListSecretVersionIds",
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:DeleteSecret",
+        "secretsmanager:CreateSecret"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1",
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:secretsmanager:us-east-1:123456789012:secret:abreiss-ensemble-*",
+      "Sid": "SecretsManagerScoped"
+    },
+    {
+      "Action": [
+        "sts:GetCallerIdentity",
+        "s3:ListAllMyBuckets"
+      ],
+      "Effect": "Allow",
+      "Resource": "*",
+      "Sid": "AccountLevelGlobalActions"
+    },
+    {
+      "Action": [
+        "secretsmanager:ListSecrets",
+        "ecr:GetAuthorizationToken",
+        "dynamodb:ListTables",
+        "apprunner:ListServices",
+        "apprunner:ListObservabilityConfigurations",
+        "apprunner:ListAutoScalingConfigurations",
+        "apprunner:CreateService",
+        "apprunner:CreateObservabilityConfiguration",
+        "apprunner:CreateAutoScalingConfiguration"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "*",
+      "Sid": "AccountLevelRegionalActions"
+    },
+    {
+      "Action": "iam:CreateRole",
+      "Condition": {
+        "StringEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::123456789012:policy/abreiss-ensemble-boundary"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::123456789012:role/abreiss-ensemble-*",
+      "Sid": "IamCreateRoleWithBoundaryOnly"
+    },
+    {
+      "Action": [
+        "iam:UpdateRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:UntagRole",
+        "iam:TagRole",
+        "iam:PutRolePolicy",
+        "iam:PutRolePermissionsBoundary",
+        "iam:ListRoleTags",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:GetRolePolicy",
+        "iam:GetRole",
+        "iam:DetachRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:DeleteRole",
+        "iam:AttachRolePolicy"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::123456789012:role/abreiss-ensemble-*",
+      "Sid": "IamRoleManagementScoped"
+    },
+    {
+      "Action": [
+        "iam:UntagPolicy",
+        "iam:TagPolicy",
+        "iam:SetDefaultPolicyVersion",
+        "iam:ListPolicyVersions",
+        "iam:GetPolicyVersion",
+        "iam:GetPolicy",
+        "iam:DeletePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:CreatePolicyVersion",
+        "iam:CreatePolicy"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::123456789012:policy/abreiss-ensemble-*",
+      "Sid": "IamPolicyManagementScoped"
+    },
+    {
+      "Action": "iam:PassRole",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "apprunner.amazonaws.com",
+            "build.apprunner.amazonaws.com",
+            "tasks.apprunner.amazonaws.com"
+          ]
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::123456789012:role/abreiss-ensemble-*",
+      "Sid": "IamPassRoleToAppRunnerOnly"
+    },
+    {
+      "Action": [
+        "iam:ListOpenIDConnectProviders",
+        "iam:GetOpenIDConnectProvider"
+      ],
+      "Effect": "Allow",
+      "Resource": "*",
+      "Sid": "IamOidcReadOnly"
+    },
+    {
+      "Action": "iam:DeleteRolePermissionsBoundary",
+      "Effect": "Deny",
+      "Resource": "*",
+      "Sid": "DenyRemovingPermissionsBoundary"
+    },
+    {
+      "Action": "iam:PutRolePermissionsBoundary",
+      "Condition": {
+        "StringNotEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::123456789012:policy/abreiss-ensemble-boundary"
+        }
+      },
+      "Effect": "Deny",
+      "Resource": "*",
+      "Sid": "DenyWeakeningPermissionsBoundary"
+    },
+    {
+      "Action": [
+        "iam:UntagPolicy",
+        "iam:TagPolicy",
+        "iam:SetDefaultPolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:CreatePolicyVersion"
+      ],
+      "Effect": "Deny",
+      "Resource": "arn:aws:iam::123456789012:policy/abreiss-ensemble-boundary",
+      "Sid": "DenyBoundaryPolicyModification"
+    },
+    {
+      "Action": "iam:*",
+      "Effect": "Deny",
+      "Resource": [
+        "arn:aws:iam::123456789012:user/abreiss-ensemble-terraform",
+        "arn:aws:iam::123456789012:policy/abreiss-ensemble-terraform"
+      ],
+      "Sid": "DenySelfModification"
+    },
+    {
+      "Action": [
+        "iam:UpdateOpenIDConnectProviderThumbprint",
+        "iam:UntagOpenIDConnectProvider",
+        "iam:TagOpenIDConnectProvider",
+        "iam:RemoveClientIDFromOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider",
+        "iam:CreateOpenIDConnectProvider",
+        "iam:AddClientIDToOpenIDConnectProvider"
+      ],
+      "Effect": "Deny",
+      "Resource": "*",
+      "Sid": "DenyOidcProviderMutation"
+    }
+  ],
+  "Version": "2012-10-17"
+}

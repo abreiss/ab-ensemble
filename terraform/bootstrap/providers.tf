@@ -30,4 +30,22 @@ locals {
   iam_role_arn   = "arn:${local.partition}:iam::${local.account_id}:role/${local.prefix}-*"
   iam_policy_arn = "arn:${local.partition}:iam::${local.account_id}:policy/${local.prefix}-*"
   iam_user_arn   = "arn:${local.partition}:iam::${local.account_id}:user/${local.prefix}-terraform"
+
+  # The two managed policies this module creates, addressed by their exact ARNs.
+  # These are computed from name (not `aws_iam_policy.*.arn`) on purpose: the scoped
+  # policy's CreateRole condition and the boundary's own self-protection Deny must
+  # name the boundary ARN, and computing it keeps those documents renderable to
+  # committed review JSON without a live apply and avoids a data-source ⇄ resource
+  # cycle. `depends_on` on the scoped policy preserves create-ordering.
+  boundary_policy_arn = "arn:${local.partition}:iam::${local.account_id}:policy/${local.prefix}-boundary"
+  scoped_policy_arn   = "arn:${local.partition}:iam::${local.account_id}:policy/${local.prefix}-terraform"
+
+  # App Runner service principals `iam:PassRole` may target. This identity can pass
+  # only `abreiss-ensemble-*` roles, and only to App Runner — never arbitrary roles
+  # to arbitrary services.
+  apprunner_pass_principals = [
+    "apprunner.amazonaws.com",
+    "build.apprunner.amazonaws.com",
+    "tasks.apprunner.amazonaws.com",
+  ]
 }
