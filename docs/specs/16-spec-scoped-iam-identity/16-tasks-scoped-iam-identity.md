@@ -119,7 +119,7 @@ local environment only (never committed), and write `docs/AWS_ACCESS.md`, cross-
 - [x] 3.5 Perform the one-time admin `apply` with elevated creds; configure the local `<ensemble-terraform>` profile from the outputs; run `aws sts get-caller-identity` as the new identity. (If no live account: record the deferred status per the Live-account note and skip to Task 4.1's simulator-only path.) Capture the redacted apply summary + `get-caller-identity` output. _(Applied live: 5 resources created; identity resolves to `user/abreiss-ensemble-terraform`. First apply corrected an IAM tag-value `#` → validation fix.)_
 - [x] 3.6 Verify no secrets committed: `git status --porcelain`, `pre-commit run --all-files`, confirm no `*.tfstate` / access key is tracked. Capture the 3.0 proof artifacts (redacted). _(git shows no tfstate; `check-ignore` confirms ignore; `block-aws-keys` scan Passed.)_
 
-### [~] 4.0 Prove the isolation: Policy Simulator matrix + live allow/deny CLI tests
+### [x] 4.0 Prove the isolation: Policy Simulator matrix + live allow/deny CLI tests
 
 Demonstrate the scoping and boundary actually hold — offline via the IAM Policy Simulator
 and against real AWS via the scoped identity — including the boundary-enforcement pair and
@@ -135,8 +135,8 @@ the OIDC-create denial, cleaning up every throwaway `abreiss-ensemble-test-*` re
 #### 4.0 Tasks
 
 - [x] 4.1 Write a Policy Simulator script (`simulate-principal-policy` against the user, or `simulate-custom-policy` on the rendered docs) covering, per service (S3/DynamoDB/ECR/App Runner/Secrets/IAM), an allowed action on a prefixed ARN and the same action denied on a non-prefixed ARN; save results (JSON/table) to `docs/specs/16-spec-scoped-iam-identity/proof/`. _(Done via `simulate-custom-policy` on the committed rendered scoped policy — read-only, no apply needed. Script: `terraform/bootstrap/simulate-scoping.sh` (also supports `MODE=principal` post-apply); results: `proof/simulate-matrix.{json,txt}`, all 12 checks PASS.)_
-- [ ] 4.2 Run the live allow/deny CLI session as the scoped identity: `aws s3 ls s3://<unrelated-bucket>` → `AccessDenied`; create + list a throwaway `abreiss-ensemble-test-*` bucket → success. Capture the transcript (account/secrets redacted).
-- [ ] 4.3 Run the boundary-enforcement pair: `aws iam create-role` **without** `--permissions-boundary` → denied; **with** the correct boundary ARN + `abreiss-ensemble-*` role name → success. Capture separately.
-- [ ] 4.4 Run `aws iam create-open-id-connect-provider ...` → denied; capture the `AccessDenied`.
-- [ ] 4.5 Clean up every throwaway resource (`aws s3 rb` the test bucket, delete the test role, etc.) and verify with a follow-up list showing no `abreiss-ensemble-test-*` residue. Capture the cleanup transcript.
-- [ ] 4.6 Assemble the simulator matrix + CLI transcripts into `docs/specs/16-spec-scoped-iam-identity/proof/` and record the deferred `#9 terraform apply` cross-issue gate (Non-Goal 2, Success Metric 6).
+- [x] 4.2 Run the live allow/deny CLI session as the scoped identity: `aws s3 ls s3://<unrelated-bucket>` → `AccessDenied`; create + list a throwaway `abreiss-ensemble-test-*` bucket → success. Capture the transcript (account/secrets redacted). _(Also captured a non-prefixed `CreateBucket` deny for good measure.)_
+- [x] 4.3 Run the boundary-enforcement pair: `aws iam create-role` **without** `--permissions-boundary` → denied; **with** the correct boundary ARN + `abreiss-ensemble-*` role name → success. Capture separately. _(With-boundary success confirms `BoundaryArn = …:policy/abreiss-ensemble-boundary`.)_
+- [x] 4.4 Run `aws iam create-open-id-connect-provider ...` → denied; capture the `AccessDenied`. _(Explicit deny via `DenyOidcProviderMutation`.)_
+- [x] 4.5 Clean up every throwaway resource (`aws s3 rb` the test bucket, delete the test role, etc.) and verify with a follow-up list showing no `abreiss-ensemble-test-*` residue. Capture the cleanup transcript. _(role→NoSuchEntity, bucket→NoSuchBucket, admin sweep→clean.)_
+- [x] 4.6 Assemble the simulator matrix + CLI transcripts into `docs/specs/16-spec-scoped-iam-identity/proof/` and record the deferred `#9 terraform apply` cross-issue gate (Non-Goal 2, Success Metric 6). _(Proof: `16-task-04-proofs.md`, `simulate-matrix.{json,txt}`, `live-cli-transcript.txt`.)_

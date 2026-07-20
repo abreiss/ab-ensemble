@@ -1,0 +1,14 @@
+SERVICE        ACTION                       EXPECT       DECISION RESULT
+-------        ------                       ------       -------- ------
+S3             s3:PutObject                 allowed      allowed  PASS
+S3             s3:PutObject                 denied       implicitDeny PASS
+DynamoDB       dynamodb:CreateTable         allowed      allowed  PASS
+DynamoDB       dynamodb:CreateTable         denied       implicitDeny PASS
+ECR            ecr:CreateRepository         allowed      allowed  PASS
+ECR            ecr:CreateRepository         denied       implicitDeny PASS
+AppRunner      apprunner:UpdateService      allowed      allowed  PASS
+AppRunner      apprunner:UpdateService      denied       implicitDeny PASS
+SecretsManager secretsmanager:GetSecretValue allowed      allowed  PASS
+SecretsManager secretsmanager:GetSecretValue denied       implicitDeny PASS
+IAM            iam:DeleteRole               allowed      allowed  PASS
+IAM            iam:DeleteRole               denied       implicitDeny PASS

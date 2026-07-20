@@ -1,0 +1,98 @@
+[
+  {
+    "service": "S3",
+    "action": "s3:PutObject",
+    "resource": "arn:aws:s3:::abreiss-ensemble-photos/demo.jpg",
+    "expected": "allowed",
+    "decision": "allowed",
+    "result": "PASS"
+  },
+  {
+    "service": "S3",
+    "action": "s3:PutObject",
+    "resource": "arn:aws:s3:::someone-elses-bucket/demo.jpg",
+    "expected": "denied",
+    "decision": "implicitDeny",
+    "result": "PASS"
+  },
+  {
+    "service": "DynamoDB",
+    "action": "dynamodb:CreateTable",
+    "resource": "arn:aws:dynamodb:us-east-1:123456789012:table/abreiss-ensemble-items",
+    "expected": "allowed",
+    "decision": "allowed",
+    "result": "PASS"
+  },
+  {
+    "service": "DynamoDB",
+    "action": "dynamodb:CreateTable",
+    "resource": "arn:aws:dynamodb:us-east-1:123456789012:table/prod-billing",
+    "expected": "denied",
+    "decision": "implicitDeny",
+    "result": "PASS"
+  },
+  {
+    "service": "ECR",
+    "action": "ecr:CreateRepository",
+    "resource": "arn:aws:ecr:us-east-1:123456789012:repository/abreiss-ensemble-app",
+    "expected": "allowed",
+    "decision": "allowed",
+    "result": "PASS"
+  },
+  {
+    "service": "ECR",
+    "action": "ecr:CreateRepository",
+    "resource": "arn:aws:ecr:us-east-1:123456789012:repository/other-team-app",
+    "expected": "denied",
+    "decision": "implicitDeny",
+    "result": "PASS"
+  },
+  {
+    "service": "AppRunner",
+    "action": "apprunner:UpdateService",
+    "resource": "arn:aws:apprunner:us-east-1:123456789012:service/abreiss-ensemble-web/abc123",
+    "expected": "allowed",
+    "decision": "allowed",
+    "result": "PASS"
+  },
+  {
+    "service": "AppRunner",
+    "action": "apprunner:UpdateService",
+    "resource": "arn:aws:apprunner:us-east-1:123456789012:service/prod-payments/def456",
+    "expected": "denied",
+    "decision": "implicitDeny",
+    "result": "PASS"
+  },
+  {
+    "service": "SecretsManager",
+    "action": "secretsmanager:GetSecretValue",
+    "resource": "arn:aws:secretsmanager:us-east-1:123456789012:secret:abreiss-ensemble-anthropic-key",
+    "expected": "allowed",
+    "decision": "allowed",
+    "result": "PASS"
+  },
+  {
+    "service": "SecretsManager",
+    "action": "secretsmanager:GetSecretValue",
+    "resource": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod-db-password",
+    "expected": "denied",
+    "decision": "implicitDeny",
+    "result": "PASS"
+  },
+  {
+    "service": "IAM",
+    "action": "iam:DeleteRole",
+    "resource": "arn:aws:iam::123456789012:role/abreiss-ensemble-apprunner",
+    "expected": "allowed",
+    "decision": "allowed",
+    "result": "PASS"
+  },
+  {
+    "service": "IAM",
+    "action": "iam:DeleteRole",
+    "resource": "arn:aws:iam::123456789012:role/OrganizationAccountAccessRole",
+    "expected": "denied",
+    "decision": "implicitDeny",
+    "result": "PASS"
+  }
+]
