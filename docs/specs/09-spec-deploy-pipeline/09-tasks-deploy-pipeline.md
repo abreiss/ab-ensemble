@@ -80,7 +80,7 @@ are mocked — no live network in tests. Local `bootRun` and existing tests beha
 - [x] 1.9 Wire config + defaults: in `application.yml` set `ensemble.photos.backend: ${ENSEMBLE_PHOTOS_BACKEND:disk}`, `ensemble.photos.s3.bucket: ${ENSEMBLE_PHOTOS_S3_BUCKET:}`, `endpoint: ${ENSEMBLE_DYNAMODB_ENDPOINT:http://localhost:8000}`, `table-name: ${ENSEMBLE_DYNAMODB_TABLE_NAME:ensemble-items}`; keep `src/test/resources/application.yml` on disk defaults; document the three new vars in `.env.example`; confirm `./gradlew bootRun` behaves as before.
 - [x] 1.10 Run `./gradlew test jacocoTestReport -PskipFrontend`; confirm all tests green and ≥90% line / 100% branch on the selector + DynamoDB endpoint/credentials logic; record the JaCoCo report path as the proof artifact.
 
-### [ ] 2.0 Terraform deploy module scaffold + runtime data stores (Unit 2a — validated IaC)
+### [x] 2.0 Terraform deploy module scaffold + runtime data stores (Unit 2a — validated IaC)
 
 Add a new self-contained `terraform/deploy/` root module alongside `terraform/bootstrap/`
 (no collision, same prefix/region/provider conventions): `hashicorp/aws ~> 5.0`,
@@ -101,12 +101,12 @@ PK, on-demand billing).
 
 #### 2.0 Tasks
 
-- [ ] 2.1 Create `terraform/deploy/versions.tf`: `required_version >= 1.11.0`, `hashicorp/aws ~> 5.0`, and a `backend "s3"` block with `bucket = "abreiss-ensemble-tfstate"`, a `key`, `region`, and `use_lockfile = true` (no `dynamodb_table`).
-- [ ] 2.2 Add `providers.tf` (`provider "aws"` on `var.aws_region`; `data.aws_caller_identity`/`aws_partition`/`aws_region`; `locals` for the `abreiss-ensemble-*` bucket/table/ecr/apprunner/secret/role ARNs derived from account id + prefix) and `variables.tf` (`aws_region` default `us-east-1`, `resource_prefix` default `abreiss-ensemble`), mirroring `terraform/bootstrap/`; no hard-coded account id.
-- [ ] 2.3 Add the state-bucket bootstrap in `terraform/deploy/README.md` (and an optional `create-state-bucket.sh`): a reproducible one-time step creating `abreiss-ensemble-tfstate` (versioning on, SSE, all public access blocked) within the prefix using the scoped identity, plus the `terraform init` against the S3 backend.
-- [ ] 2.4 In `data_stores.tf` declare the S3 photos bucket `abreiss-ensemble-photos` with `aws_s3_bucket_public_access_block` (all `true`) and `aws_s3_bucket_server_side_encryption_configuration` (SSE); versioning optional.
-- [ ] 2.5 In `data_stores.tf` declare `aws_dynamodb_table` `abreiss-ensemble-items` (`hash_key = "itemId"`, attribute `itemId` type `S`, `billing_mode = PAY_PER_REQUEST`) matching the single-item model.
-- [ ] 2.6 Run `terraform -chdir=terraform/deploy fmt` and `validate` (init with `-backend=false` locally) until both exit `0`; capture the output as the proof artifact and note the full `plan` is operator-run in 6.0.
+- [x] 2.1 Create `terraform/deploy/versions.tf`: `required_version >= 1.11.0`, `hashicorp/aws ~> 5.0`, and a `backend "s3"` block with `bucket = "abreiss-ensemble-tfstate"`, a `key`, `region`, and `use_lockfile = true` (no `dynamodb_table`).
+- [x] 2.2 Add `providers.tf` (`provider "aws"` on `var.aws_region`; `data.aws_caller_identity`/`aws_partition`/`aws_region`; `locals` for the `abreiss-ensemble-*` bucket/table/ecr/apprunner/secret/role ARNs derived from account id + prefix) and `variables.tf` (`aws_region` default `us-east-1`, `resource_prefix` default `abreiss-ensemble`), mirroring `terraform/bootstrap/`; no hard-coded account id.
+- [x] 2.3 Add the state-bucket bootstrap in `terraform/deploy/README.md` (and an optional `create-state-bucket.sh`): a reproducible one-time step creating `abreiss-ensemble-tfstate` (versioning on, SSE, all public access blocked) within the prefix using the scoped identity, plus the `terraform init` against the S3 backend.
+- [x] 2.4 In `data_stores.tf` declare the S3 photos bucket `abreiss-ensemble-photos` with `aws_s3_bucket_public_access_block` (all `true`) and `aws_s3_bucket_server_side_encryption_configuration` (SSE); versioning optional.
+- [x] 2.5 In `data_stores.tf` declare `aws_dynamodb_table` `abreiss-ensemble-items` (`hash_key = "itemId"`, attribute `itemId` type `S`, `billing_mode = PAY_PER_REQUEST`) matching the single-item model.
+- [x] 2.6 Run `terraform -chdir=terraform/deploy fmt` and `validate` (init with `-backend=false` locally) until both exit `0`; capture the output as the proof artifact and note the full `plan` is operator-run in 6.0.
 
 ### [ ] 3.0 Terraform app-delivery resources: ECR, App Runner, Secrets Manager containers (Unit 2b — validated IaC)
 
