@@ -1,0 +1,100 @@
+# Standing PR/push quality gates: backend + frontend tests, Terraform
+# fmt/validate, and the #16-deferred IAM Access Analyzer policy-lint gate
+# (see docs/AWS_ACCESS.md "Standing policy checks"). No `terraform apply`
+# and no static AWS credentials anywhere in this workflow.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: ./gradlew test -PskipFrontend
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run test -- --run
+        working-directory: frontend
+
+  terraform-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.0"
+      - run: terraform fmt -check -recursive
+        working-directory: terraform/deploy
+      # No AWS credentials in this job: init against a local backend only
+      # (the real S3 backend requires the state bucket from Task 6.1) --
+      # `validate` never makes a live AWS API call either way.
+      - run: terraform init -backend=false
+        working-directory: terraform/deploy
+      - run: terraform validate
+        working-directory: terraform/deploy
+
+  # IAM Access Analyzer policy-lint on the rendered instance-role + CI-role
+  # policy JSON (terraform/deploy/policies/*.json) -- the #16-deferred
+  # standing gate.
+  #
+  # KNOWN, DOCUMENTED GAP (docs/AWS_ACCESS.md "Standing policy checks"):
+  # `access-analyzer:ValidatePolicy` is a read-only, account-level action
+  # that no abreiss-ensemble-* role can be granted -- the abreiss-ensemble-
+  # boundary (terraform/bootstrap, out of scope for terraform/deploy) does
+  # not allow it for any role it bounds, and widening the abreiss-ensemble-ci
+  # role's own policy to request it would still be denied by that boundary
+  # while also breaking Task 4.0's "matches #16 exactly, no widening"
+  # requirement. So this step assumes the same abreiss-ensemble-ci role as
+  # every other check here (no new/broader role) and is expected to fail
+  # with AccessDeniedException until an operator with a broader/admin
+  # session runs the lint by hand (terraform/deploy/policies/README.md has
+  # the exact commands) or the boundary is deliberately widened by a future,
+  # narrowly-scoped change to terraform/bootstrap. `continue-on-error` keeps
+  # this a standing, always-runs check without perpetually red-blocking
+  # every PR on a gap that is structural, not a regression.
+  policy-lint:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC, no static keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: aws accessanalyzer validate-policy (instance role)
+        continue-on-error: true
+        run: |
+          aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY \
+            --policy-document file://terraform/deploy/policies/abreiss-ensemble-instance-runtime.json
+
+      - name: aws accessanalyzer validate-policy (CI role)
+        continue-on-error: true
+        run: |
+          aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY \
+            --policy-document file://terraform/deploy/policies/abreiss-ensemble-ci.json

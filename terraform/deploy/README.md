@@ -50,6 +50,20 @@ See [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) for the deploy narrativ
 and [`docs/AWS_ACCESS.md`](../../docs/AWS_ACCESS.md) for the identity this module
 runs as.
 
+## Wiring outputs into GitHub Actions
+
+`.github/workflows/deploy.yml` and `ci.yml`'s `policy-lint` job read this
+module's outputs as **repository variables** (Settings > Secrets and
+variables > Actions > Variables) — not secrets, since none of them are
+credential values, just resource identifiers. After `terraform apply`
+(Task 6.1), the operator sets:
+
+| Repo variable | Source output |
+| --- | --- |
+| `AWS_CI_ROLE_ARN` | `ci_role_arn` |
+| `AWS_ECR_REPOSITORY_URL` | `ecr_repository_url` |
+| `AWS_APPRUNNER_SERVICE_ARN` | `app_runner_service_arn` |
+
 ## Policy lint (`aws accessanalyzer validate-policy`)
 
 The rendered instance-role and CI-role policies are committed under

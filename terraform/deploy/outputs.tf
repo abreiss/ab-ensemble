@@ -11,6 +11,11 @@ output "ecr_repository_url" {
   value       = aws_ecr_repository.app.repository_url
 }
 
+output "app_runner_service_arn" {
+  description = "ARN of the App Runner service -- the deploy workflow (Task 5.0) passes this to `aws apprunner update-service`/`describe-service` to repoint the service at each new git-SHA image tag and poll rollout status."
+  value       = aws_apprunner_service.app.arn
+}
+
 output "dynamodb_table_name" {
   description = "Name of the DynamoDB items table, for ENSEMBLE_DYNAMODB_TABLE_NAME / operator verification."
   value       = aws_dynamodb_table.items.name

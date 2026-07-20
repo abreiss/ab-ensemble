@@ -1,0 +1,93 @@
+# Push-to-deploy: build the app image, push it to ECR under an immutable
+# git-SHA tag, then repoint the App Runner service at that tag. Auth is
+# GitHub OIDC only (aws-actions/configure-aws-credentials) -- no stored AWS
+# keys anywhere in this workflow. See docs/AWS_ACCESS.md and
+# terraform/deploy/iam.tf for the abreiss-ensemble-ci role this assumes.
+#
+# Repository variables this workflow reads (Settings > Secrets and variables >
+# Actions > Variables), populated by the operator after `terraform apply`
+# (Task 6.1) from this module's outputs.tf -- none of them are secret values,
+# just resource identifiers, so they are repo *variables*, not secrets:
+#   AWS_CI_ROLE_ARN            <- output ci_role_arn
+#   AWS_ECR_REPOSITORY_URL     <- output ecr_repository_url
+#   AWS_APPRUNNER_SERVICE_ARN  <- output app_runner_service_arn
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC, no static keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build image
+        run: docker build -t "$IMAGE" .
+        env:
+          IMAGE: ${{ vars.AWS_ECR_REPOSITORY_URL }}:sha-${{ github.sha }}
+
+      - name: Push image (immutable git-SHA tag)
+        run: docker push "$IMAGE"
+        env:
+          IMAGE: ${{ vars.AWS_ECR_REPOSITORY_URL }}:sha-${{ github.sha }}
+
+      # apprunner.tf pins image_identifier to a literal ":latest" tag (pushed
+      # exactly once as the Task 6.1 bootstrap seed -- ECR's IMMUTABLE tag
+      # policy means :latest can never be pushed again). Every deploy after
+      # that must repoint the service at the new sha-<git-sha> tag, which
+      # `update-service` does *and* implicitly starts the deployment --
+      # `start-deployment` only redeploys the currently-configured tag, so it
+      # cannot pick up a new image identifier and is not used here.
+      - name: Deploy to App Runner (repoint at the new image tag)
+        run: |
+          aws apprunner update-service \
+            --service-arn "$SERVICE_ARN" \
+            --source-configuration "{\"ImageRepository\":{\"ImageIdentifier\":\"$IMAGE\",\"ImageRepositoryType\":\"ECR\"}}"
+        env:
+          SERVICE_ARN: ${{ vars.AWS_APPRUNNER_SERVICE_ARN }}
+          IMAGE: ${{ vars.AWS_ECR_REPOSITORY_URL }}:sha-${{ github.sha }}
+
+      - name: Verify rollout
+        run: |
+          for _ in $(seq 1 60); do
+            status=$(aws apprunner describe-service --service-arn "$SERVICE_ARN" --query 'Service.Status' --output text)
+            echo "App Runner service status: $status"
+            case "$status" in
+              RUNNING)
+                echo "Deployment succeeded."
+                exit 0
+                ;;
+              OPERATION_IN_PROGRESS)
+                sleep 10
+                ;;
+              *)
+                echo "Deployment failed or in an unexpected state: $status" >&2
+                aws apprunner list-operations --service-arn "$SERVICE_ARN" --max-results 5
+                exit 1
+                ;;
+            esac
+          done
+          echo "Timed out waiting for the App Runner deployment to finish." >&2
+          exit 1
+        env:
+          SERVICE_ARN: ${{ vars.AWS_APPRUNNER_SERVICE_ARN }}
