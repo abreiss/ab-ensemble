@@ -1,9 +1,7 @@
-# App Runner service running the Ensemble container. `instance_role_arn`
-# (instance_configuration) and `access_role_arn` (authentication_configuration)
-# are added once terraform/deploy/iam.tf (Task 4.0) declares those roles --
-# both are Optional in the AWS provider schema, so this file `fmt`/`validate`s
-# cleanly on its own; see the Task 3.0 cross-task dependency note in
-# 09-tasks-deploy-pipeline.md. `plan`/`apply` need both tasks present.
+# App Runner service running the Ensemble container. `instance_role_arn` and
+# `access_role_arn` reference the two roles terraform/deploy/iam.tf (Task 4.0)
+# declares -- the instance role the running container assumes, and the
+# access role App Runner's build system assumes to pull the private ECR image.
 
 resource "aws_apprunner_auto_scaling_configuration_version" "app" {
   auto_scaling_configuration_name = "${local.prefix}-app"
@@ -22,6 +20,10 @@ resource "aws_apprunner_service" "app" {
     # StartDeployment after each ECR push; App Runner must not auto-redeploy
     # on a schedule/poll of its own.
     auto_deployments_enabled = false
+
+    authentication_configuration {
+      access_role_arn = aws_iam_role.ecr_access.arn
+    }
 
     image_repository {
       image_repository_type = "ECR"
@@ -61,6 +63,8 @@ resource "aws_apprunner_service" "app" {
     # documented here as the one place to retune (spec Open Question 2).
     cpu    = "1024"
     memory = "2048"
+
+    instance_role_arn = aws_iam_role.instance.arn
   }
 
   health_check_configuration {

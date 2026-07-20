@@ -13,3 +13,15 @@ variable "resource_prefix" {
   type        = string
   default     = "abreiss-ensemble"
 }
+
+variable "github_repository" {
+  description = "GitHub \"owner/repo\" the CI OIDC role's trust policy is scoped to (the sts:sub condition only matches tokens minted for this repository)."
+  type        = string
+  default     = "abreiss/ab-ensemble"
+}
+
+variable "github_ref" {
+  description = "Git ref the CI OIDC role's trust policy is scoped to, in GitHub Actions' OIDC sub-claim format (e.g. refs/heads/main). Only workflow runs on this ref may assume the CI role."
+  type        = string
+  default     = "refs/heads/main"
+}

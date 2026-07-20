@@ -192,6 +192,23 @@ This is a **one-time gate** — nothing yet prevents a future edit from widening
 statement to `Resource: "*"` or dropping a `Deny`. Wiring Access Analyzer / a policy
 linter into CI as a standing guard is deferred to issue #9's CI work.
 
+**Known gap surfaced while authoring `terraform/deploy/iam.tf` (#9 Task 4.0):**
+`access-analyzer:ValidatePolicy` is a read-only, account-level action that
+neither the scoped `abreiss-ensemble-terraform` identity nor the new
+`abreiss-ensemble-ci` OIDC role were granted — the former by the enumerated
+exception list above (never widened for this), the latter because #9's FR
+requires the CI role's permissions to match #16's pre-authorization exactly
+("no policy widening"). Rendering the two roles' policy JSON and running the
+lint locally therefore needs a **broader/admin AWS session**, same as the
+one-time bootstrap lint referenced above — see
+`terraform/deploy/policies/README.md` for the exact commands. Issue #9's
+standing CI policy-lint check (Task 5.4) will need to resolve this the same
+way: either run under a session with `access-analyzer:ValidatePolicy` that is
+**not** the `abreiss-ensemble-ci` role, or accept a narrowly-scoped addition of
+just that one action (it is name/token-only, no resource access, matching the
+existing `AccountLevelGlobalActions` exception pattern) — a decision for #9's
+Unit 3 work, not resolved here.
+
 ## Related docs
 
 - [`terraform/bootstrap/README.md`](../terraform/bootstrap/README.md) — module usage quick-start.

@@ -29,4 +29,20 @@ locals {
   apprunner_arn = "arn:${local.partition}:apprunner:${var.aws_region}:${local.account_id}:service/${local.prefix}-*/*"
   secrets_arn   = "arn:${local.partition}:secretsmanager:${var.aws_region}:${local.account_id}:secret:${local.prefix}-*"
   iam_role_arn  = "arn:${local.partition}:iam::${local.account_id}:role/${local.prefix}-*"
+
+  # The abreiss-ensemble-boundary ARN, computed rather than a data lookup: the
+  # instance/CI/ecr-access roles this module creates (iam.tf, Task 4.0) must
+  # name this exact ARN as their permissions_boundary or the abreiss-ensemble-
+  # terraform identity's IamCreateRoleWithBoundaryOnly condition (bootstrap
+  # policies.tf) denies iam:CreateRole.
+  boundary_policy_arn = "arn:${local.partition}:iam::${local.account_id}:policy/${local.prefix}-boundary"
+
+  # Service principals iam:PassRole may target, mirroring bootstrap's
+  # apprunner_pass_principals so the CI role's PassRole condition matches
+  # exactly what the #16 boundary already allows.
+  apprunner_pass_principals = [
+    "apprunner.amazonaws.com",
+    "build.apprunner.amazonaws.com",
+    "tasks.apprunner.amazonaws.com",
+  ]
 }

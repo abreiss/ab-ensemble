@@ -42,8 +42,25 @@ terraform apply       # as the abreiss-ensemble-terraform identity
 | `ecr.tf` | ECR repository for the app image |
 | `secrets.tf` | Secrets Manager containers (no values — populated out-of-band) |
 | `apprunner.tf` | The App Runner service running the app |
-| `iam.tf` | App Runner instance role + GitHub OIDC CI role, both boundary-capped |
+| `iam.tf` | App Runner instance role, ECR-pull access role, and the GitHub OIDC CI role — all boundary-capped |
+| `outputs.tf` | Service URL, ECR repo URL, table/bucket names, CI role ARN |
+| `policies/` | Rendered instance-role + CI-role policy JSON, for human review and `aws accessanalyzer validate-policy` (see `policies/README.md`) |
 
 See [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) for the deploy narrative
 and [`docs/AWS_ACCESS.md`](../../docs/AWS_ACCESS.md) for the identity this module
 runs as.
+
+## Policy lint (`aws accessanalyzer validate-policy`)
+
+The rendered instance-role and CI-role policies are committed under
+[`policies/`](policies/). `access-analyzer:ValidatePolicy` is a read-only,
+account-level action the scoped `abreiss-ensemble-terraform` identity was
+**not** granted by `#16`'s bootstrap (by design — see `docs/AWS_ACCESS.md`'s
+enumerated exception list). Run the lint under a broader/admin AWS session:
+
+```bash
+aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY \
+  --policy-document file://policies/abreiss-ensemble-instance-runtime.json
+aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY \
+  --policy-document file://policies/abreiss-ensemble-ci.json
+```

@@ -1,0 +1,52 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "ecr:UploadLayerPart",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:CompleteLayerUpload",
+        "ecr:BatchGetImage",
+        "ecr:BatchCheckLayerAvailability"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:ecr:us-east-1:123456789012:repository/abreiss-ensemble-*",
+      "Sid": "CiEcrScoped"
+    },
+    {
+      "Action": "ecr:GetAuthorizationToken",
+      "Effect": "Allow",
+      "Resource": "*",
+      "Sid": "CiEcrAuthToken"
+    },
+    {
+      "Action": [
+        "apprunner:UpdateService",
+        "apprunner:StartDeployment",
+        "apprunner:DescribeService"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:apprunner:us-east-1:123456789012:service/abreiss-ensemble-*/*",
+      "Sid": "CiAppRunnerScoped"
+    },
+    {
+      "Action": "iam:PassRole",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "apprunner.amazonaws.com",
+            "build.apprunner.amazonaws.com",
+            "tasks.apprunner.amazonaws.com"
+          ]
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::123456789012:role/abreiss-ensemble-*",
+      "Sid": "CiPassRole"
+    }
+  ],
+  "Version": "2012-10-17"
+}

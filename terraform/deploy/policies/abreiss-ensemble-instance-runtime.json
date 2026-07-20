@@ -1,0 +1,34 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::abreiss-ensemble-*/*",
+      "Sid": "RuntimeS3Object"
+    },
+    {
+      "Action": [
+        "dynamodb:UpdateItem",
+        "dynamodb:Scan",
+        "dynamodb:Query",
+        "dynamodb:PutItem",
+        "dynamodb:GetItem",
+        "dynamodb:DeleteItem"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:dynamodb:us-east-1:123456789012:table/abreiss-ensemble-*",
+      "Sid": "RuntimeDynamoDb"
+    },
+    {
+      "Action": "secretsmanager:GetSecretValue",
+      "Effect": "Allow",
+      "Resource": "arn:aws:secretsmanager:us-east-1:123456789012:secret:abreiss-ensemble-*",
+      "Sid": "RuntimeSecrets"
+    }
+  ],
+  "Version": "2012-10-17"
+}
