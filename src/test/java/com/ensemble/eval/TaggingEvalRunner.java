@@ -48,7 +48,7 @@ public final class TaggingEvalRunner {
 		System.out.printf("Loaded %d gold labels from %s%n", gold.length, goldFile);
 
 		AnthropicClient client = buildClient();
-		ImageProcessor imageProcessor = new ImageProcessor(new PhotoProperties(null, 0));
+		ImageProcessor imageProcessor = new ImageProcessor(new PhotoProperties(null, 0, null, null));
 		EvalVisionClient vision = new EvalVisionClient(client);
 		TagJudge tagJudge = new TagJudge(client);
 		Random rnd = new Random(SEED);

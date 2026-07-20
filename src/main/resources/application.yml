@@ -16,10 +16,12 @@ spring:
 
 ensemble:
   dynamodb:
-    # Local dev points at DynamoDB Local (docker compose up -d dynamodb).
-    endpoint: http://localhost:8000
+    # Local dev points at DynamoDB Local (docker compose up -d dynamodb); deploy
+    # sets ENSEMBLE_DYNAMODB_ENDPOINT to blank so DynamoDbConfig falls back to
+    # the default credential provider chain against real DynamoDB (no override).
+    endpoint: ${ENSEMBLE_DYNAMODB_ENDPOINT:http://localhost:8000}
     region: us-east-1
-    table-name: ensemble-items
+    table-name: ${ENSEMBLE_DYNAMODB_TABLE_NAME:ensemble-items}
     # Create the table on startup if absent. Disabled in tests (see
     # src/test/resources/application.yml) so context tests need no live DynamoDB.
     auto-create-table: true
@@ -29,6 +31,11 @@ ensemble:
     # Reject uploads whose decoded pixel count exceeds this, so a small but highly
     # compressed "decompression bomb" cannot blow up memory. ~50MP >> any phone camera.
     max-upload-pixels: 50000000
+    # Which PhotoStorage bean is active: disk (default, local dev) or s3 (deploy).
+    backend: ${ENSEMBLE_PHOTOS_BACKEND:disk}
+    s3:
+      # Only read when backend=s3; unused in local disk mode.
+      bucket: ${ENSEMBLE_PHOTOS_S3_BUCKET:}
   anthropic:
     # API key, supplied via ENSEMBLE_ANTHROPIC_API_KEY (from the git-ignored .env
     # file above, or the process environment). Empty when unset -> normalized to

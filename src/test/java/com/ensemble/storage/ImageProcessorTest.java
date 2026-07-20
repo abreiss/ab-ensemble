@@ -29,7 +29,7 @@ class ImageProcessorTest {
 	private static final long DEFAULT_MAX_PIXELS = 50_000_000L;
 
 	private final ImageProcessor processor =
-		new ImageProcessor(new PhotoProperties("unused", DEFAULT_MAX_PIXELS));
+		new ImageProcessor(new PhotoProperties("unused", DEFAULT_MAX_PIXELS, null, null));
 
 	private static byte[] pngOf(int width, int height) throws IOException {
 		return encode(width, height, "png");
@@ -98,7 +98,7 @@ class ImageProcessorTest {
 
 	@Test
 	void imageExceedingPixelCap_throwsInvalidImageException() throws IOException {
-		ImageProcessor capped = new ImageProcessor(new PhotoProperties("unused", 10_000L));
+		ImageProcessor capped = new ImageProcessor(new PhotoProperties("unused", 10_000L, null, null));
 
 		assertThatExceptionOfType(InvalidImageException.class)
 			.isThrownBy(() -> capped.toResizedJpeg(pngOf(200, 200)));
@@ -106,7 +106,7 @@ class ImageProcessorTest {
 
 	@Test
 	void whenReaderThrowsUnchecked_throwsInvalidImageException() throws IOException {
-		ImageProcessor faulty = new ImageProcessor(new PhotoProperties("unused", DEFAULT_MAX_PIXELS)) {
+		ImageProcessor faulty = new ImageProcessor(new PhotoProperties("unused", DEFAULT_MAX_PIXELS, null, null)) {
 			@Override
 			BufferedImage readRaster(ImageReader reader) {
 				throw new ArrayIndexOutOfBoundsException("corrupt scan data");

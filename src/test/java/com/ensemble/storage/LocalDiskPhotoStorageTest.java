@@ -38,7 +38,7 @@ class LocalDiskPhotoStorageTest {
 
 	@BeforeEach
 	void setUp() {
-		PhotoProperties props = new PhotoProperties(tempDir.toString(), DEFAULT_MAX_PIXELS);
+		PhotoProperties props = new PhotoProperties(tempDir.toString(), DEFAULT_MAX_PIXELS, null, null);
 		storage = new LocalDiskPhotoStorage(props, new ImageProcessor(props));
 	}
 

@@ -27,6 +27,9 @@ dependencies {
 	// No Spring Data / JPA (see AGENTS.md): one item model, itemId partition key.
 	implementation platform('software.amazon.awssdk:bom:2.30.0')
 	implementation 'software.amazon.awssdk:dynamodb-enhanced'
+	// S3 — deploy-time PhotoStorage backend (S3PhotoStorage), selected via
+	// ensemble.photos.backend=s3; disk remains the local-dev default.
+	implementation 'software.amazon.awssdk:s3'
 
 	// Photo compression/resize (≤800px JPEG on save) for LocalDiskPhotoStorage.
 	implementation 'net.coobird:thumbnailator:0.4.20'

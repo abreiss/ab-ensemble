@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.ensemble.config.PhotoProperties;
@@ -18,8 +19,13 @@ import com.ensemble.config.PhotoProperties;
  * <p>Keys are resolved inside the base directory; a key that would escape it
  * (path traversal) is rejected — defensive even though keys are derived from
  * server-generated ids.
+ *
+ * <p>The default {@link PhotoStorage} backend ({@code ensemble.photos.backend}
+ * unset or {@code disk}); {@link S3PhotoStorage} takes over when
+ * {@code backend=s3}. Exactly one of the two beans is ever present.
  */
 @Component
+@ConditionalOnProperty(name = "ensemble.photos.backend", havingValue = "disk", matchIfMissing = true)
 public class LocalDiskPhotoStorage implements PhotoStorage {
 
 	private final Path baseDir;
