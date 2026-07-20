@@ -1,0 +1,139 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::abreiss-ensemble-*",
+      "Sid": "RuntimeS3Bucket"
+    },
+    {
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::abreiss-ensemble-*/*",
+      "Sid": "RuntimeS3Object"
+    },
+    {
+      "Action": [
+        "dynamodb:UpdateItem",
+        "dynamodb:Scan",
+        "dynamodb:Query",
+        "dynamodb:PutItem",
+        "dynamodb:GetItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:DeleteItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:BatchGetItem"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:dynamodb:us-east-1:123456789012:table/abreiss-ensemble-*",
+      "Sid": "RuntimeDynamoDb"
+    },
+    {
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:secretsmanager:us-east-1:123456789012:secret:abreiss-ensemble-*",
+      "Sid": "RuntimeSecrets"
+    },
+    {
+      "Action": [
+        "ecr:UploadLayerPart",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:CompleteLayerUpload",
+        "ecr:BatchGetImage",
+        "ecr:BatchCheckLayerAvailability"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:ecr:us-east-1:123456789012:repository/abreiss-ensemble-*",
+      "Sid": "CiEcrScoped"
+    },
+    {
+      "Action": "ecr:GetAuthorizationToken",
+      "Effect": "Allow",
+      "Resource": "*",
+      "Sid": "CiEcrAuthToken"
+    },
+    {
+      "Action": [
+        "apprunner:UpdateService",
+        "apprunner:StartDeployment",
+        "apprunner:DescribeService"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:apprunner:us-east-1:123456789012:service/abreiss-ensemble-*/*",
+      "Sid": "CiAppRunnerScoped"
+    },
+    {
+      "Action": "apprunner:ListServices",
+      "Effect": "Allow",
+      "Resource": "*",
+      "Sid": "CiAppRunnerList"
+    },
+    {
+      "Action": "iam:PassRole",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "apprunner.amazonaws.com",
+            "build.apprunner.amazonaws.com",
+            "tasks.apprunner.amazonaws.com"
+          ]
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::123456789012:role/abreiss-ensemble-*",
+      "Sid": "CiPassRole"
+    },
+    {
+      "Action": [
+        "iam:PutUserPermissionsBoundary",
+        "iam:PutRolePermissionsBoundary",
+        "iam:DeleteUserPermissionsBoundary",
+        "iam:DeleteRolePermissionsBoundary"
+      ],
+      "Effect": "Deny",
+      "Resource": "*",
+      "Sid": "DenyAnyPermissionsBoundaryAction"
+    },
+    {
+      "Action": "iam:*",
+      "Effect": "Deny",
+      "Resource": "arn:aws:iam::123456789012:policy/abreiss-ensemble-boundary",
+      "Sid": "DenyBoundaryPolicySelfModification"
+    }
+  ],
+  "Version": "2012-10-17"
+}

@@ -24,6 +24,19 @@ repos:
         language: pygrep
         types: [text]
 
+      # Secret scan: block accidental commit of an AWS access key (mirrors the
+      # Anthropic guard). Catches the access-key id (AKIA...) and a populated
+      # aws_secret_access_key assignment. The AWS_ACCESS.md doc and the spec-16
+      # proof transcripts intentionally show AWS's published example key (the
+      # AKIA...EXAMPLE placeholder) in redacted output, so those paths are
+      # allowlisted; a real key anywhere else is blocked.
+      - id: block-aws-keys
+        name: Block committed AWS access keys
+        entry: 'AKIA[0-9A-Z]{16}|aws_secret_access_key\s*=\s*[A-Za-z0-9/+=]{40}'
+        language: pygrep
+        types: [text]
+        exclude: '^docs/(AWS_ACCESS\.md|specs/16-spec-scoped-iam-identity/.*)$'
+
       # Fast backend unit tests (no Node toolchain needed).
       - id: backend-tests
         name: Backend tests (gradle, -PskipFrontend)

@@ -56,6 +56,7 @@ Photos are compressed/resized (≤800px JPEG) on save. Code depends only on the 
 - **Data:** S3 (photos) + DynamoDB (items) — reached by the App Runner instance role via IAM, no VPC connector.
 - **Secrets:** Claude API key + passcode in AWS Secrets Manager.
 - **Pipeline:** Terraform (ECR, App Runner, S3, DynamoDB, IAM, Secrets Manager, OIDC) + GitHub Actions (build → push ECR → deploy). GitHub→AWS auth via OIDC.
+- **Terraform identity:** in the shared AWS account, Terraform runs as a dedicated, prefix-scoped IAM user (`abreiss-ensemble-terraform`) created by a one-time bootstrap in [`terraform/bootstrap/`](../terraform/bootstrap/) — it can only touch `abreiss-ensemble-*` resources. See [AWS_ACCESS.md](AWS_ACCESS.md).
 - **Frontend:** vite-plugin-pwa generates the manifest + service worker for iPhone home-screen install.
 
 ## Security
@@ -63,3 +64,4 @@ Photos are compressed/resized (≤800px JPEG) on save. Code depends only on the 
 - Single-user demo: a **user-entered passcode gate**, checked server-side (never shipped in the client bundle).
 - A **daily call cap** (~100/day → 429) is the app-side backstop, since no key-level spend cap is available.
 - No secrets committed; keys via env (dev) / Secrets Manager (deploy).
+- **Blast-radius containment in the shared AWS account:** Terraform runs as a scoped IAM identity limited to `abreiss-ensemble-*` resources, with a permissions boundary capping every role it creates to the same box. Full narrative + the enumerated `Resource: "*"` exceptions in [AWS_ACCESS.md](AWS_ACCESS.md).

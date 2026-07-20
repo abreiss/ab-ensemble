@@ -8,6 +8,7 @@ How to set up, run, and develop Ensemble. Read [AGENTS.md](../AGENTS.md) first f
 - Node 20+ and npm
 - Docker (for DynamoDB Local and the container build)
 - A Claude API key (set as an environment variable — never committed)
+- **For AWS/Terraform work only:** credentials for the scoped `abreiss-ensemble-terraform` identity. Local dev and tests need none of this; see [AWS_ACCESS.md](AWS_ACCESS.md) for what the identity is, how an admin creates it once, and how its key reaches a local AWS profile (never committed).
 
 ## Project Layout
 

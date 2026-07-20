@@ -1,0 +1,77 @@
+===================================================================
+ Live allow/deny session as scoped identity abreiss-ensemble-terraform
+ account id redacted; throwaway resources suffixed 20260720114406, cleaned up below
+===================================================================
+
+----- SETUP (admin): create an UNRELATED non-prefixed bucket = 'someone else's' -----
+CMD> aws s3 mb s3://not-ensemble-unrelated-20260720114406
+make_bucket: not-ensemble-unrelated-20260720114406
+[exit 0]
+
+===== 4.2a DENY: scoped identity lists the unrelated bucket → expect AccessDenied =====
+CMD> aws --profile abreiss-ensemble-terraform s3 ls s3://not-ensemble-unrelated-20260720114406
+
+An error occurred (AccessDenied) when calling the ListObjectsV2 operation: User: arn:aws:iam::REDACTED_ACCT:user/abreiss-ensemble-terraform is not authorized to perform: s3:ListBucket on resource: "arn:aws:s3:::not-ensemble-unrelated-20260720114406" because no identity-based policy allows the s3:ListBucket action
+[exit 254]
+
+===== 4.2b DENY: scoped identity creates a NON-prefixed bucket → expect AccessDenied =====
+CMD> aws --profile abreiss-ensemble-terraform s3 mb s3://not-ensemble-unrelated-20260720114406-scoped-attempt
+make_bucket failed: s3://not-ensemble-unrelated-20260720114406-scoped-attempt An error occurred (AccessDenied) when calling the CreateBucket operation: User: arn:aws:iam::REDACTED_ACCT:user/abreiss-ensemble-terraform is not authorized to perform: s3:CreateBucket on resource: "arn:aws:s3:::not-ensemble-unrelated-20260720114406-scoped-attempt" because no identity-based policy allows the s3:CreateBucket action
+[exit 1]
+
+===== 4.2c ALLOW: scoped identity creates a throwaway abreiss-ensemble-test-* bucket =====
+CMD> aws --profile abreiss-ensemble-terraform s3 mb s3://abreiss-ensemble-test-20260720114406
+make_bucket: abreiss-ensemble-test-20260720114406
+[exit 0]
+
+===== 4.2d ALLOW: scoped identity lists its own prefixed bucket =====
+CMD> aws --profile abreiss-ensemble-terraform s3 ls s3://abreiss-ensemble-test-20260720114406
+[exit 0]
+
+===== 4.3a DENY: create-role WITHOUT --permissions-boundary → expect denied =====
+CMD> aws --profile abreiss-ensemble-terraform iam create-role --role-name abreiss-ensemble-test-role-20260720114406 --assume-role-policy-document {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"tasks.apprunner.amazonaws.com"},"Action":"sts:AssumeRole"}]}
+
+An error occurred (AccessDenied) when calling the CreateRole operation: User: arn:aws:iam::REDACTED_ACCT:user/abreiss-ensemble-terraform is not authorized to perform: iam:CreateRole on resource: arn:aws:iam::REDACTED_ACCT:role/abreiss-ensemble-test-role-20260720114406 because no identity-based policy allows the iam:CreateRole action
+[exit 254]
+
+===== 4.3b ALLOW: create-role WITH correct boundary + abreiss-ensemble-* name =====
+CMD> aws iam create-role --role-name abreiss-ensemble-test-role-20260720114406 --permissions-boundary <boundary-arn> ...
+{
+    "Name": "abreiss-ensemble-test-role-20260720114406",
+    "Arn": "arn:aws:iam::REDACTED_ACCT:role/abreiss-ensemble-test-role-20260720114406",
+    "BoundaryArn": "arn:aws:iam::REDACTED_ACCT:policy/abreiss-ensemble-boundary"
+}
+[exit 0]
+
+===== 4.4 DENY: create-open-id-connect-provider → expect explicit deny =====
+CMD> aws --profile abreiss-ensemble-terraform iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com/20260720114406 --client-id-list sts.amazonaws.com --thumbprint-list aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+An error occurred (AccessDenied) when calling the CreateOpenIDConnectProvider operation: User: arn:aws:iam::REDACTED_ACCT:user/abreiss-ensemble-terraform is not authorized to perform: iam:CreateOpenIDConnectProvider on resource: arn:aws:iam::REDACTED_ACCT:oidc-provider/token.actions.githubusercontent.com/20260720114406 with an explicit deny in an identity-based policy: arn:aws:iam::REDACTED_ACCT:policy/abreiss-ensemble-terraform
+[exit 254]
+
+===== 4.5 CLEANUP + residue verification =====
+CMD> aws --profile abreiss-ensemble-terraform iam delete-role --role-name abreiss-ensemble-test-role-20260720114406
+[exit 0]
+
+CMD> aws --profile abreiss-ensemble-terraform s3 rb s3://abreiss-ensemble-test-20260720114406
+remove_bucket: abreiss-ensemble-test-20260720114406
+[exit 0]
+
+CMD> aws s3 rb s3://not-ensemble-unrelated-20260720114406
+remove_bucket: not-ensemble-unrelated-20260720114406
+[exit 0]
+
+-- get-role on deleted test role → expect NoSuchEntity --
+CMD> aws --profile abreiss-ensemble-terraform iam get-role --role-name abreiss-ensemble-test-role-20260720114406
+
+An error occurred (NoSuchEntity) when calling the GetRole operation: The role with name abreiss-ensemble-test-role-20260720114406 cannot be found.
+[exit 254]
+
+-- list the deleted test bucket → expect NoSuchBucket --
+CMD> aws --profile abreiss-ensemble-terraform s3 ls s3://abreiss-ensemble-test-20260720114406
+
+An error occurred (NoSuchBucket) when calling the ListObjectsV2 operation: The specified bucket does not exist
+[exit 254]
+
+-- targeted admin sweep for any abreiss-ensemble-test / unrelated residue --
+  none (clean)

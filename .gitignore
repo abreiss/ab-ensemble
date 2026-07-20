@@ -63,3 +63,21 @@ eval/tagging/out/
 
 ### Lavish review artifacts (generated HTML review surfaces) ###
 .lavish/
+
+### Terraform (terraform/bootstrap/) — state can hold the access-key secret ###
+# Never commit state; it is the biggest credential-leak risk for the bootstrap.
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+crash.*.log
+# tfvars may hold secrets/account-specific values; the committed module needs none.
+*.tfvars
+*.tfvars.json
+# Keep the provider lock file committable for reproducible plans.
+!.terraform.lock.hcl
+
+### AWS credential files (belong in ~/.aws or a git-ignored .env, never the repo) ###
+.aws-credentials
+aws-credentials
+credentials.csv
