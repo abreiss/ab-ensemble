@@ -300,6 +300,14 @@ a {
   border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
 }
 
+/* Persistent, non-blocking notice (e.g. the daily-AI-cap banner): neutral, not an
+   error — the batch is still fully tag-and-saveable by hand. */
+.banner-warn {
+  background: var(--paper-sunk);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+}
+
 /* ---- Photo picker + preview --------------------------------------------- */
 
 .photo-picker {
@@ -325,6 +333,129 @@ a {
   border-radius: var(--radius);
   border: 1px solid var(--hairline);
   background: var(--paper-raised);
+}
+
+/* Secondary acquisition sources under the library picker; the camera button only
+   appears where `getUserMedia` is available and the paste button only where the
+   async clipboard-read API is (the Cmd/Ctrl-V paste path needs no button). */
+.source-camera,
+.source-paste {
+  margin-top: var(--space-3);
+}
+
+/* ---- Camera surface (in-app live capture) ------------------------------- */
+
+/* Replaces the source controls while the camera is open: a full-width viewfinder,
+   a strip of captured-shot thumbnails, a large shutter, and Done/Cancel. Reuses the
+   .btn/.state-note/.photo-picker classes for the controls and error fallback. */
+.camera-surface {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.camera-viewfinder {
+  width: 100%;
+  max-height: 60dvh;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--hairline);
+  background: #000;
+}
+
+/* Horizontal, scrollable strip of shots taken so far this session. */
+.camera-shots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+}
+
+.camera-shot {
+  flex: 0 0 auto;
+}
+
+.camera-shot-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline);
+}
+
+.camera-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Large, one-handed shutter — comfortably above the 44px touch-target floor. */
+.camera-shutter {
+  min-height: 56px;
+  font-size: var(--text-lg);
+}
+
+.camera-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.camera-actions .btn {
+  flex: 1;
+}
+
+.camera-error {
+  gap: var(--space-4);
+}
+
+/* ---- Review queue (batch add) ------------------------------------------- */
+
+/* An ordered list of pending tiles, each a photo + editable tag form, saved
+   together by the sticky "Save all". Reuses .photo-preview / .banner / .btn. */
+.review-queue {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.queue-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+}
+
+/* Sits over the tile's photo, top-right, so a mis-picked shot is one tap to drop. */
+.queue-tile-remove {
+  align-self: flex-end;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs);
+}
+
+/* Sticky footer so "Save all" (and its running progress) stays reachable while
+   scrolling a long batch on mobile. */
+.queue-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0 calc(env(safe-area-inset-bottom) + var(--space-2));
+  background: linear-gradient(to top, var(--paper) 70%, transparent);
+}
+
+.queue-actions .state-note {
+  text-align: center;
 }
 
 /* ---- Tag form ----------------------------------------------------------- */

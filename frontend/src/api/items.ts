@@ -11,10 +11,26 @@ import type { Item, TagInput, TagSuggestion } from '../types/item'
 
 const BASE = '/api/items'
 
-/** Throws a descriptive error for a non-2xx response; otherwise returns it. */
+/**
+ * Error thrown for any non-2xx API response, carrying the HTTP `status` so callers
+ * can react to a specific code (e.g. a `429` daily cap) via the typed status rather
+ * than string-matching the message. The `401` re-auth path lives in `http.ts` and
+ * is unaffected.
+ */
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(status: number, action: string) {
+    super(`${action} failed with status ${status}`)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+/** Throws a typed `ApiError` for a non-2xx response; otherwise returns it. */
 function ensureOk(response: Response, action: string): Response {
   if (!response.ok) {
-    throw new Error(`${action} failed with status ${response.status}`)
+    throw new ApiError(response.status, action)
   }
   return response
 }

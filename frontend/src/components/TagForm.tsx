@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 import DescriptorChips from './DescriptorChips'
 import { tagsAreValid, validateTags } from '../lib/tagValidation'
@@ -7,10 +7,20 @@ import type { TagInput, TagSuggestion } from '../types/item'
 interface TagFormProps {
   /** Pre-fill values; every field is nullable (a degraded suggestion is normal). */
   initial?: TagSuggestion | null
-  /** Called with a validated `TagInput` when the user saves. */
-  onSubmit: (tags: TagInput) => void
+  /**
+   * Called with a validated `TagInput` when the user submits. Omit it to run the
+   * form without its own submit button — e.g. the review queue, which reads each
+   * tile's tags via `onChange` and drives saving from a single "Save all".
+   */
+  onSubmit?: (tags: TagInput) => void
+  /**
+   * Reports the live draft on every edit: a validated `TagInput` when the required
+   * fields are valid, else `null`. Lets a parent (the review queue) read each
+   * tile's current tags without owning the draft state.
+   */
+  onChange?: (tags: TagInput | null) => void
   /** Text for the submit button (e.g. "Save item" / "Save changes"). */
-  submitLabel: string
+  submitLabel?: string
   /** When true, a save is in flight — the form stays disabled. */
   submitting?: boolean
 }
@@ -50,18 +60,53 @@ function optional(text: string): string | null {
 }
 
 /**
+ * Maps a valid draft to the API `TagInput` (blank optional fields omitted as
+ * `null`). Only call once the required fields pass `tagsAreValid` — the
+ * `formality`/`warmth` casts assume a selected value.
+ */
+function toTagInput(draft: Draft): TagInput {
+  return {
+    category: draft.category.trim(),
+    primaryColor: optional(draft.primaryColor),
+    secondaryColor: optional(draft.secondaryColor),
+    formality: draft.formality as number,
+    pattern: optional(draft.pattern),
+    warmth: draft.warmth as number,
+    descriptors: draft.descriptors,
+  }
+}
+
+/**
  * Shared editable tag form used by both the add and detail screens. It seeds its
  * state from `initial` once on mount, so a parent that receives a new suggestion
  * (e.g. after tag-preview resolves) should remount it via a `key`. A null field
  * renders as an empty, editable control — never an error. Save is gated by the
  * same required-field rules the backend enforces (`tagValidation`).
  */
-export default function TagForm({ initial, onSubmit, submitLabel, submitting = false }: TagFormProps) {
+export default function TagForm({
+  initial,
+  onSubmit,
+  onChange,
+  submitLabel,
+  submitting = false,
+}: TagFormProps) {
   const [draft, setDraft] = useState<Draft>(() => toDraft(initial))
   const [touched, setTouched] = useState(false)
 
   const errors = validateTags(draft)
   const canSave = tagsAreValid(draft) && !submitting
+
+  // Report the draft's validated tags (or null) on mount and after every edit.
+  // A ref holds the latest callback so a parent re-render (new closure) never
+  // re-fires the report effect — only a real draft change does. The ref is kept
+  // in sync in its own effect (declared first, so it runs before the report).
+  const onChangeRef = useRef(onChange)
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
+  useEffect(() => {
+    onChangeRef.current?.(tagsAreValid(draft) ? toTagInput(draft) : null)
+  }, [draft])
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }))
@@ -73,15 +118,7 @@ export default function TagForm({ initial, onSubmit, submitLabel, submitting = f
     if (!tagsAreValid(draft)) {
       return
     }
-    onSubmit({
-      category: draft.category.trim(),
-      primaryColor: optional(draft.primaryColor),
-      secondaryColor: optional(draft.secondaryColor),
-      formality: draft.formality as number,
-      pattern: optional(draft.pattern),
-      warmth: draft.warmth as number,
-      descriptors: draft.descriptors,
-    })
+    onSubmit?.(toTagInput(draft))
   }
 
   return (
@@ -172,9 +209,11 @@ export default function TagForm({ initial, onSubmit, submitLabel, submitting = f
         <DescriptorChips value={draft.descriptors} onChange={(next) => set('descriptors', next)} />
       </div>
 
-      <button type="submit" className="btn btn-primary btn-block" disabled={!canSave}>
-        {submitting ? 'Saving…' : submitLabel}
-      </button>
+      {onSubmit && (
+        <button type="submit" className="btn btn-primary btn-block" disabled={!canSave}>
+          {submitting ? 'Saving…' : submitLabel}
+        </button>
+      )}
     </form>
   )
 }
