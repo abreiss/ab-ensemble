@@ -215,7 +215,7 @@ spec Unit 2 and Success Metric 2.
   machine-verifiable evidence for this run; the on-device touch proof remains
   the one open, non-blocking item from assumption A1.5.
 
-### [ ] 3.0 Remove/undo affordance + real wardrobe-drawer source
+### [x] 3.0 Remove/undo affordance + real wardrobe-drawer source
 
 Let the user iterate without a drag: a ≥44px tap "×" on each placed tile removes
 it (item reappears in the source), plus drag-back-to-source removal. Render the
@@ -246,29 +246,56 @@ and Success Metric 3.
 
 #### 3.0 Tasks
 
-- [ ] 3.1 [RED] Write `frontend/src/components/AssembleSource.test.tsx`: given a
+- [x] 3.1 [RED] Write `frontend/src/components/AssembleSource.test.tsx`: given a
   `placedIds` prop the matching tiles are omitted; typing in the search narrows
   the visible tiles; tiles render with the `drawer-grid` / `drawer-tile` /
   `drawer-search` classes and a draggable attribute. Run to confirm failure.
-- [ ] 3.2 [GREEN] Create `frontend/src/components/AssembleSource.tsx` — a sibling
+- [x] 3.2 [GREEN] Create `frontend/src/components/AssembleSource.tsx` — a sibling
   of `WardrobeDrawer` reusing its CSS classes + `searchText`, adding
   `useDraggable` tiles and a `placedIds` exclusion filter. Do **not** modify
   `WardrobeDrawer`. Use it as the source list in `Assemble.tsx`. Make 3.1 pass.
-- [ ] 3.3 [RED→GREEN] Add removal tests to `placement.test.ts` (free-single-zone;
+- [x] 3.3 [RED→GREEN] Add removal tests to `placement.test.ts` (free-single-zone;
   keep-other-tray-items) if not already covered by 2.2, and ensure the
   `removeItem` branches stay at 100%. Make green.
-- [ ] 3.4 [RED] Add an `Assemble.test.tsx` test: a placed tile renders a "×"
+
+  Verification note: task 2.2 already added both required removal cases
+  (`removeItem` describe block: "frees a single-occupancy zone…" and
+  "removing one tray item leaves the other tray items intact", plus the
+  never-placed no-op). Re-ran the coverage command with thresholds pinned to
+  100 on every dimension — passes with no gap, so no new test was needed here.
+- [x] 3.4 [RED] Add an `Assemble.test.tsx` test: a placed tile renders a "×"
   remove control; tapping it removes the item and the id reappears in the source
   (excluded → included); the control meets the ≥44px contract. Add the
   drag-back wiring test (`onDragEnd` with `over` = source droppable removes the
   item). Run to confirm failure.
-- [ ] 3.5 [GREEN] Render a ≥44px "×" affordance on each placed tile in
+
+  RED verification: temporarily stripped the "×" button from `PlacedTile` and
+  the `SOURCE_DROPPABLE_ID` branch from `onDragEnd`, reran the suite — exactly
+  the 2 new tests failed (tap-remove: "Unable to find role=button… /remove
+  item/i"; drag-back: placed `<img>` still present after the synthetic
+  drag-back event) while all 6 pre-existing tests kept passing. Restored the
+  implementation immediately after (see 3.5).
+- [x] 3.5 [GREEN] Render a ≥44px "×" affordance on each placed tile in
   `Assemble.tsx` calling `removeItem`; wire drag-back-to-source removal in
   `onDragEnd`. Add placed-tile + "×" styles to `index.css` reusing tokens. Make
   3.4 pass.
-- [ ] 3.6 [REFACTOR] Verify `npm test -- --run` + `npm run lint` green. Capture
+- [x] 3.6 [REFACTOR] Verify `npm test -- --run` + `npm run lint` green. Capture
   the placed-tile "×" + source-exclusion screenshot. Commit
   (`feat(frontend): remove/undo affordance + wardrobe drag source`).
+
+  Verified: `npm test -- --run` → 256/256 across 27 files; `npm run lint` and
+  `npx tsc -b` both exit clean. Screenshot deferred to manual verification
+  (headless run, no browser) — see `21-proofs/21-task-03-proofs.md`.
+
+  Implementation note (3.2 wiring): `Assemble.tsx` now imports `AssembleSource`
+  (+ its `SOURCE_DROPPABLE_ID` export) in place of the task-2.5 inline
+  placeholder `SourceTile`/`<ul className="drawer-grid assemble-source">`
+  block, passing `items` and `placedIds(placement)` as props. `AssembleSource`
+  fetches nothing itself — `Assemble.tsx` already owns the `listItems()` call
+  for its own loading/error/empty states, so passing `items` down avoids a
+  second, redundant fetch (a deliberate, documented divergence from
+  `WardrobeDrawer`'s self-fetching pattern; the CSS classes/markup/`searchText`
+  are reused verbatim, which is the part assumption A1.3 required).
 
 ### [ ] 4.0 "Wear today" fan-out to `markWorn`
 

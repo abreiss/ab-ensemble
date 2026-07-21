@@ -3,16 +3,20 @@ import { Link } from 'react-router-dom'
 import { DndContext, useDraggable, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 
+import AssembleSource, { SOURCE_DROPPABLE_ID } from '../components/AssembleSource'
 import Mannequin from '../components/Mannequin'
 import { listItems, photoUrl } from '../api/items'
 import { pointerSensorConfig, touchSensorConfig } from '../lib/dndConfig'
-import { createPlacement, placeItem, type PlacementState } from '../lib/placement'
+import { createPlacement, placeItem, placedIds, removeItem, type PlacementState } from '../lib/placement'
 import type { Slot } from '../lib/specSheet'
 import type { Item } from '../types/item'
 
 type Status = 'loading' | 'ready' | 'error'
 
-/** The shape a draggable source tile's dnd-kit `data` carries. */
+/** The shape a draggable tile's dnd-kit `data` carries — both source tiles
+ * (`AssembleSource`) and placed tiles (`PlacedTile` below) carry the same
+ * shape so `onDragEnd` reads it the same way regardless of where the drag
+ * started. */
 interface DraggableData {
   category?: string | null
 }
@@ -22,37 +26,54 @@ interface DroppableData {
   slot?: Slot
 }
 
-interface SourceTileProps {
-  item: Item
+interface PlacedTileProps {
+  itemId: string
+  category?: string | null
+  onRemove: (itemId: string) => void
 }
 
 /**
- * One draggable wardrobe tile in the source list, reusing `WardrobeDrawer`'s
- * `drawer-tile` look. This is a minimal, unexcluded placeholder source for
- * Unit 2 (drag-and-drop mechanics); Unit 3 replaces it with the real
- * `AssembleSource` (search + already-placed exclusion).
+ * A placed item's tile inside a mannequin zone: the photo, plus a ≥44px tap
+ * "×" that removes it without a drag (spec Unit 3). The tile is also
+ * `useDraggable` (same `id`/`data` shape as a source tile) so it can be
+ * dragged back onto the wardrobe source to remove it instead — `onRemove` is
+ * shared by both paths, `Assemble.tsx`'s `onDragEnd` calls it when the drop
+ * target is `AssembleSource`'s `SOURCE_DROPPABLE_ID`.
  */
-function SourceTile({ item: it }: SourceTileProps) {
+function PlacedTile({ itemId, category, onRemove }: PlacedTileProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: it.itemId,
-    data: { category: it.category } satisfies DraggableData,
+    id: itemId,
+    data: { category } satisfies DraggableData,
   })
 
   return (
-    <li
+    <div
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      data-item-id={it.itemId}
-      className={isDragging ? 'drawer-tile is-dragging' : 'drawer-tile'}
+      data-item-id={itemId}
+      className={isDragging ? 'drawer-tile placed-tile is-dragging' : 'drawer-tile placed-tile'}
     >
       <img
         className="drawer-tile-img"
-        src={photoUrl(it.itemId)}
-        alt={it.category ?? 'garment'}
+        src={photoUrl(itemId)}
+        alt={category ?? 'garment'}
         loading="lazy"
       />
-    </li>
+      <button
+        type="button"
+        className="placed-remove"
+        aria-label="Remove item"
+        style={{ minWidth: 44, minHeight: 44 }}
+        // A tap on "×" must never be captured as the start of a drag: without
+        // this, dnd-kit's pointer listeners (spread on this same node's
+        // ancestor) would see the pointerdown before the button's click.
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={() => onRemove(itemId)}
+      >
+        <span aria-hidden="true">×</span>
+      </button>
+    </div>
   )
 }
 
@@ -95,35 +116,43 @@ export default function Assemble() {
     settle(listItems())
   }
 
-  // Renders a placed item's tile inside its mannequin zone, reusing the same
-  // `drawer-tile` look as the source list. `Mannequin` stays agnostic of the
-  // `Item` shape / `photoUrl` — this is the render callback it invokes.
+  // Tap- or drag-back-removal both land here: pulls `itemId` out of whichever
+  // slot holds it (a no-op if it somehow isn't placed) so it reappears in
+  // `AssembleSource`'s exclusion-filtered list on the next render.
+  const handleRemove = useCallback((itemId: string) => {
+    setPlacement((prev) => removeItem(prev, itemId))
+  }, [])
+
+  // Renders a placed item's tile inside its mannequin zone as a draggable
+  // `PlacedTile` (photo + "×"), reusing the same `drawer-tile` look as the
+  // source list. `Mannequin` stays agnostic of the `Item` shape / `photoUrl`
+  // — this is the render callback it invokes.
   const renderPlacedItem = useCallback(
     (itemId: string) => {
       const placedItem = items.find((it) => it.itemId === itemId)
       return (
-        <div className="drawer-tile placed-tile" data-item-id={itemId}>
-          <img
-            className="drawer-tile-img"
-            src={photoUrl(itemId)}
-            alt={placedItem?.category ?? 'garment'}
-            loading="lazy"
-          />
-        </div>
+        <PlacedTile itemId={itemId} category={placedItem?.category} onRemove={handleRemove} />
       )
     },
-    [items],
+    [items, handleRemove],
   )
 
   // dnd-kit fires `onDragEnd` on every drag release, including ones that
   // never crossed a valid drop target (`over` is null then) — those are
-  // no-ops here, not a fall-through to a default zone. When `over` is a real
+  // no-ops here, not a fall-through to a default zone. Dropping onto
+  // `AssembleSource`'s `SOURCE_DROPPABLE_ID` is the drag-back-to-source
+  // removal path (Unit 3), handled before the zone-routing logic since that
+  // id is not a `Slot` and carries no `data.slot`. When `over` is a real
   // mannequin zone, its `data.slot` is always populated (see `Mannequin.tsx`),
   // so this becomes the manual-override path; passing `undefined` instead
   // would fall back to the item's category default in `placeItem`.
   const onDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
     if (!over) {
+      return
+    }
+    if (over.id === SOURCE_DROPPABLE_ID) {
+      setPlacement((prev) => removeItem(prev, String(active.id)))
       return
     }
     const category = (active.data.current as DraggableData | undefined)?.category ?? null
@@ -175,11 +204,7 @@ export default function Assemble() {
       <p className="state-note">Drag items from your wardrobe onto the mannequin.</p>
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <Mannequin placed={placement} renderPlacedItem={renderPlacedItem} />
-        <ul className="drawer-grid assemble-source">
-          {items.map((it) => (
-            <SourceTile key={it.itemId} item={it} />
-          ))}
-        </ul>
+        <AssembleSource items={items} placedIds={placedIds(placement)} />
       </DndContext>
     </section>
   )

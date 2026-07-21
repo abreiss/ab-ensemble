@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DndContextProps, DragEndEvent } from '@dnd-kit/core'
 
 import Assemble from './Assemble'
+import { SOURCE_DROPPABLE_ID } from '../components/AssembleSource'
 import type { Slot } from '../lib/specSheet'
 import type { Item } from '../types/item'
 
@@ -100,6 +101,31 @@ function dragEndEvent(activeId: string, category: string | null, overSlot: Slot 
             disabled: false,
             rect: { width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 },
           },
+  }
+}
+
+/**
+ * Builds a synthetic drag-back-to-source `DragEndEvent`: `over` is
+ * `AssembleSource`'s `SOURCE_DROPPABLE_ID` droppable rather than a mannequin
+ * zone, so its `data.current` carries no `slot` (that field only exists on
+ * `Mannequin`'s zones — see `DroppableData` in `Assemble.tsx`).
+ */
+function dragBackToSourceEvent(activeId: string, category: string | null): DragEndEvent {
+  return {
+    activatorEvent: new Event('pointerup'),
+    active: {
+      id: activeId,
+      data: { current: { category } },
+      rect: { current: { initial: null, translated: null } },
+    },
+    collisions: null,
+    delta: { x: 0, y: 0 },
+    over: {
+      id: SOURCE_DROPPABLE_ID,
+      data: { current: {} },
+      disabled: false,
+      rect: { width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 },
+    },
   }
 }
 
@@ -205,5 +231,55 @@ describe('Assemble drag-and-drop wiring', () => {
 
     const topZone = document.querySelector('[data-slot="TOP"]') as HTMLElement
     expect(within(topZone).queryByRole('img')).not.toBeInTheDocument()
+  })
+})
+
+describe('Assemble remove/undo affordance', () => {
+  it('removes a placed item via its tap "×" control and it reappears in the source list', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt')])
+    const user = userEvent.setup()
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+
+    const topZone = document.querySelector('[data-slot="TOP"]') as HTMLElement
+    expect(within(topZone).getByRole('img')).toBeInTheDocument()
+    // Placed — excluded from the source list.
+    expect(document.querySelector('.assemble-source [data-item-id="shirt-1"]')).toBeNull()
+
+    const removeButton = within(topZone).getByRole('button', { name: /remove item/i })
+    // The ≥44px touch-target contract, asserted directly on the control.
+    expect(removeButton).toHaveStyle({ minWidth: '44px', minHeight: '44px' })
+
+    await user.click(removeButton)
+
+    expect(within(topZone).queryByRole('img')).not.toBeInTheDocument()
+    // Removed — back in the source list (excluded → included).
+    expect(document.querySelector('.assemble-source [data-item-id="shirt-1"]')).not.toBeNull()
+  })
+
+  it('removes a placed item when onDragEnd reports it dropped back onto the source droppable', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt')])
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+
+    const topZone = document.querySelector('[data-slot="TOP"]') as HTMLElement
+    expect(within(topZone).getByRole('img')).toBeInTheDocument()
+
+    act(() => {
+      dragEndRef.current?.(dragBackToSourceEvent('shirt-1', 'shirt'))
+    })
+
+    expect(within(topZone).queryByRole('img')).not.toBeInTheDocument()
+    expect(document.querySelector('.assemble-source [data-item-id="shirt-1"]')).not.toBeNull()
   })
 })
