@@ -12,12 +12,14 @@ import type { Item } from '../types/item'
 // The screen must never touch the network in tests; mock the items API module.
 vi.mock('../api/items', () => ({
   listItems: vi.fn(),
+  markWorn: vi.fn(),
   photoUrl: (id: string) => `/api/items/${id}/photo`,
 }))
 
-import { listItems } from '../api/items'
+import { listItems, markWorn } from '../api/items'
 
 const listItemsMock = vi.mocked(listItems)
+const markWornMock = vi.mocked(markWorn)
 
 // jsdom cannot simulate a real dnd-kit drag (PointerSensor needs real pointer
 // events + layout measurement it doesn't implement — see the spec's Technical
@@ -131,6 +133,7 @@ function dragBackToSourceEvent(activeId: string, category: string | null): DragE
 
 beforeEach(() => {
   listItemsMock.mockReset()
+  markWornMock.mockReset()
   dragEndRef.current = undefined
 })
 
@@ -281,5 +284,63 @@ describe('Assemble remove/undo affordance', () => {
 
     expect(within(topZone).queryByRole('img')).not.toBeInTheDocument()
     expect(document.querySelector('.assemble-source [data-item-id="shirt-1"]')).not.toBeNull()
+  })
+})
+
+describe('Assemble wear-today fan-out', () => {
+  it('logs every placed item via markWorn exactly once and locks to "Logged ✓" on success', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt'), item('bag-1', 'bag')])
+    markWornMock.mockResolvedValue(item('shirt-1', 'shirt'))
+    const user = userEvent.setup()
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('bag-1', 'bag', 'CARRY'))
+    })
+
+    const wearButton = screen.getByRole('button', { name: /wear today/i })
+    expect(wearButton).not.toBeDisabled()
+
+    await user.click(wearButton)
+
+    await waitFor(() => expect(markWornMock).toHaveBeenCalledTimes(2))
+    expect(markWornMock).toHaveBeenCalledWith('shirt-1')
+    expect(markWornMock).toHaveBeenCalledWith('bag-1')
+
+    expect(await screen.findByRole('button', { name: /logged/i })).toBeDisabled()
+  })
+
+  it('surfaces a retryable error banner when a per-item markWorn write is rejected', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt')])
+    markWornMock.mockRejectedValue(new Error('offline'))
+    const user = userEvent.setup()
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+
+    await user.click(screen.getByRole('button', { name: /wear today/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn.t log/i)
+    // Still retryable — the primary action itself is not locked to "Logged ✓".
+    expect(screen.getByRole('button', { name: /wear today/i })).not.toBeDisabled()
+  })
+
+  it('disables the "Wear today" action when nothing is placed', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt')])
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    expect(screen.getByRole('button', { name: /wear today/i })).toBeDisabled()
+    expect(markWornMock).not.toHaveBeenCalled()
   })
 })

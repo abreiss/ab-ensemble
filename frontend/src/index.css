@@ -1382,6 +1382,14 @@ select.input {
   transition: border-color 0.15s ease;
 }
 
+.assemble-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
 /* Highlighted while a placed tile is dragged back over the source list — the
    drag-back-to-source removal path. Mirrors `.mannequin-zone.is-drop-target`
    so both drop-target affordances read the same way; the transition above is

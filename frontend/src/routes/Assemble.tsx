@@ -5,13 +5,14 @@ import type { DragEndEvent } from '@dnd-kit/core'
 
 import AssembleSource, { SOURCE_DROPPABLE_ID } from '../components/AssembleSource'
 import Mannequin from '../components/Mannequin'
-import { listItems, photoUrl } from '../api/items'
+import { listItems, markWorn, photoUrl } from '../api/items'
 import { pointerSensorConfig, touchSensorConfig } from '../lib/dndConfig'
 import { createPlacement, placeItem, placedIds, removeItem, type PlacementState } from '../lib/placement'
 import type { Slot } from '../lib/specSheet'
 import type { Item } from '../types/item'
 
 type Status = 'loading' | 'ready' | 'error'
+type LogStatus = 'idle' | 'logging' | 'logged' | 'error'
 
 /** The shape a draggable tile's dnd-kit `data` carries — both source tiles
  * (`AssembleSource`) and placed tiles (`PlacedTile` below) carry the same
@@ -97,6 +98,7 @@ export default function Assemble() {
   const [items, setItems] = useState<Item[]>([])
   const [status, setStatus] = useState<Status>('loading')
   const [placement, setPlacement] = useState<PlacementState>(() => createPlacement())
+  const [logStatus, setLogStatus] = useState<LogStatus>('idle')
 
   const settle = useCallback((request: Promise<Item[]>) => {
     request
@@ -164,6 +166,25 @@ export default function Assemble() {
   const touchSensor = useSensor(touchSensorConfig.sensor, touchSensorConfig.options)
   const sensors = useSensors(pointerSensor, touchSensor)
 
+  const currentlyPlacedIds = placedIds(placement)
+
+  // Log the assembled set worn: fans out to the existing per-item `markWorn`
+  // (`POST /api/items/:id/worn`) once per placed id, mirroring the exact
+  // `Promise.allSettled(...)` + `idle|logging|logged|error` lifecycle used by
+  // `Stylist.tsx` / `OutfitResult.tsx` for an AI-picked look — the wear-history
+  // write stays deterministic and server-owned either way. No new endpoint, no
+  // new persisted "outfit" entity: this screen only re-uses the item write.
+  const logWorn = useCallback(() => {
+    if (currentlyPlacedIds.length === 0) {
+      return
+    }
+    setLogStatus('logging')
+    Promise.allSettled(currentlyPlacedIds.map((itemId) => markWorn(itemId))).then((results) => {
+      const anyFailed = results.some((result) => result.status === 'rejected')
+      setLogStatus(anyFailed ? 'error' : 'logged')
+    })
+  }, [currentlyPlacedIds])
+
   if (status === 'loading') {
     return (
       <section data-testid="assemble" className="screen">
@@ -204,8 +225,31 @@ export default function Assemble() {
       <p className="state-note">Drag items from your wardrobe onto the mannequin.</p>
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <Mannequin placed={placement} renderPlacedItem={renderPlacedItem} />
-        <AssembleSource items={items} placedIds={placedIds(placement)} />
+        <AssembleSource items={items} placedIds={currentlyPlacedIds} />
       </DndContext>
+
+      <div className="assemble-actions">
+        {logStatus === 'logged' ? (
+          <button type="button" className="btn btn-logged" disabled>
+            Logged ✓
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={logWorn}
+            disabled={currentlyPlacedIds.length === 0 || logStatus === 'logging'}
+          >
+            Wear today
+          </button>
+        )}
+
+        {logStatus === 'error' && (
+          <p className="banner banner-error" role="alert">
+            We couldn’t log that look. Please try again.
+          </p>
+        )}
+      </div>
     </section>
   )
 }

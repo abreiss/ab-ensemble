@@ -297,7 +297,7 @@ and Success Metric 3.
   `WardrobeDrawer`'s self-fetching pattern; the CSS classes/markup/`searchText`
   are reused verbatim, which is the part assumption A1.3 required).
 
-### [ ] 4.0 "Wear today" fan-out to `markWorn`
+### [x] 4.0 "Wear today" fan-out to `markWorn`
 
 Add a "Wear today" action on the assembled set that fans out to the existing
 `markWorn(id)` (`POST /api/items/:id/worn`) once per placed item id, reusing the
@@ -323,19 +323,45 @@ backend endpoint or persisted entity. Covers spec Unit 4 and Success Metrics 4 &
 
 #### 4.0 Tasks
 
-- [ ] 4.1 [RED] Add an `Assemble.test.tsx` test (mock `markWorn`): "Wear today"
+- [x] 4.1 [RED] Add an `Assemble.test.tsx` test (mock `markWorn`): "Wear today"
   on N placed items calls `markWorn` exactly N times, once per placed id, and the
   control locks to "Logged ✓" on success. Run to confirm failure.
-- [ ] 4.2 [RED] Add tests: one rejected `markWorn` surfaces the retryable
+
+  RED verification: added `markWorn: vi.fn()` to the `../api/items` mock plus
+  three new tests in a `Assemble wear-today fan-out` describe block; ran
+  `npm test -- --run src/routes/Assemble.test.tsx` — all 3 new tests failed
+  (`getByRole('button', { name: /wear today/i })` not found — no such control
+  exists yet), the 8 pre-existing tests kept passing.
+- [x] 4.2 [RED] Add tests: one rejected `markWorn` surfaces the retryable
   `banner banner-error` + retry state; the "Wear today" action is disabled /
   withheld when `placedIds.length === 0`. Run to confirm failure.
-- [ ] 4.3 [GREEN] Implement the "Wear today" action in `Assemble.tsx` reusing the
+
+  Covered by the same RED run as 4.1 (all three new tests — success-lock,
+  rejected-fan-out error banner, and disabled-when-empty — were written and
+  confirmed failing together).
+- [x] 4.3 [GREEN] Implement the "Wear today" action in `Assemble.tsx` reusing the
   exact `Promise.allSettled(placedIds.map(markWorn))` + `idle|logging|logged|
   error` lifecycle from `Stylist.tsx`, and the `btn btn-primary` / `btn
   btn-logged` / `banner banner-error` affordances from `OutfitResult.tsx`.
   Disable when nothing is placed. Make 4.1 + 4.2 pass. (Do **not** add a
   save/favorite affordance — saving looks is a non-goal.)
-- [ ] 4.4 [REFACTOR] Verify `npm test -- --run` + `npm run lint` green; confirm
+
+  GREEN verification: added `markWorn` to the `../api/items` import, a
+  `LogStatus` state (`idle|logging|logged|error`), and a `logWorn` callback
+  wired to a new `.assemble-actions` block rendering the `btn btn-primary` /
+  `btn btn-logged` / `banner banner-error` affordances. Ran
+  `npm test -- --run src/routes/Assemble.test.tsx` — 11/11 pass (8
+  pre-existing + 3 new).
+- [x] 4.4 [REFACTOR] Verify `npm test -- --run` + `npm run lint` green; confirm
   `git diff --stat src/` shows no backend Java changes and `grep -rn "markWorn"
   frontend/src/routes/Assemble.tsx` shows reuse. Capture the "Logged ✓"
   screenshot. Commit (`feat(frontend): wear-today fan-out on assembled look`).
+
+  Verified: `npm test -- --run` → 259/259 across 27 files; `npm run lint` and
+  `npx tsc -b` both exit clean; `git diff --stat src/` is empty (no backend
+  Java changes) and `grep -rn "markWorn" frontend/src/routes/Assemble.tsx`
+  shows the reused `../api/items` import. Added a single small
+  `.assemble-actions` layout rule to `index.css` (spacing only, existing
+  tokens) for the new action row. Screenshot deferred to manual verification
+  (headless run, no browser) — see `21-proofs/21-task-04-proofs.md`. This
+  completes all four parent tasks (1.0–4.0) for issue #20 / spec 21.
