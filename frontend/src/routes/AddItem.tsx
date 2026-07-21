@@ -2,7 +2,9 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import TagForm from '../components/TagForm'
+import CameraCapture from '../components/CameraCapture'
 import { ApiError, createItem, tagPreview } from '../api/items'
+import { cameraSupported } from '../lib/camera'
 import {
   clipboardReadSupported,
   imageFilesFromClipboardData,
@@ -75,6 +77,11 @@ export default function AddItem() {
   // usable. Probed once at mount — capability doesn't change during a session; the
   // Cmd/Ctrl-V paste-event path works regardless of this.
   const [canPasteViaButton] = useState(clipboardReadSupported)
+  // Whether the in-app live camera is usable (secure context + `getUserMedia`).
+  // Probed once at mount; when false only the always-present file picker is offered.
+  const [canUseCamera] = useState(cameraSupported)
+  // Whether the live-camera surface is currently open in place of the source controls.
+  const [cameraOpen, setCameraOpen] = useState(false)
   // Monotonic id source so each queued tile is uniquely addressable — the id is
   // also the request identity, so an out-of-order tag response can only seed its
   // own tile (never another item's).
@@ -213,6 +220,14 @@ export default function AddItem() {
     }
   }
 
+  // The in-app camera hands its captured shots up in one go; close the surface and
+  // funnel them through the shared queue (each becomes an auto-tagging tile). Cancel
+  // just closes the surface (CameraCapture stops its own tracks on both paths).
+  const onCameraDone = (files: File[]) => {
+    setCameraOpen(false)
+    enqueue(files)
+  }
+
   // A tile's `TagForm` reports its validated tags (or null while incomplete) here,
   // so "Save all" can persist each tile without owning its draft state.
   const onTagsChange = (id: string, tags: TagInput | null) => {
@@ -275,23 +290,39 @@ export default function AddItem() {
     <section data-testid="add-item" className="screen">
       <h1 className="screen-title">Add an item</h1>
 
-      <label className="photo-picker">
-        <span className="field-label">
-          {items.length > 0 ? 'Add more photos' : 'Take or choose garment photos'}
-        </span>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          aria-label="Choose a garment photo"
-          onChange={onSelectPhotos}
-        />
-      </label>
+      {cameraOpen ? (
+        <CameraCapture onDone={onCameraDone} onCancel={() => setCameraOpen(false)} />
+      ) : (
+        <>
+          <label className="photo-picker">
+            <span className="field-label">
+              {items.length > 0 ? 'Add more photos' : 'Take or choose garment photos'}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              aria-label="Choose a garment photo"
+              onChange={onSelectPhotos}
+            />
+          </label>
 
-      {canPasteViaButton && (
-        <button type="button" className="btn btn-block source-paste" onClick={onPasteButton}>
-          Paste image
-        </button>
+          {canUseCamera && (
+            <button
+              type="button"
+              className="btn btn-block source-camera"
+              onClick={() => setCameraOpen(true)}
+            >
+              Take photos
+            </button>
+          )}
+
+          {canPasteViaButton && (
+            <button type="button" className="btn btn-block source-paste" onClick={onPasteButton}>
+              Paste image
+            </button>
+          )}
+        </>
       )}
 
       {capReached && (

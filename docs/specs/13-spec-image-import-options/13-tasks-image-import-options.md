@@ -25,6 +25,8 @@ meaningful queue/source/save logic (Vitest + RTL, Arrange-Act-Assert), and do
 | `frontend/src/lib/clipboardImages.test.ts` | Unit tests for image extraction (incl. multiple), non-image filtering, and capability gating. |
 | `frontend/src/components/CameraCapture.tsx` | New component owning the `getUserMedia` viewfinder, multi-shot capture, guaranteed track teardown, and permission/no-device fallback. |
 | `frontend/src/components/CameraCapture.test.tsx` | Tests the mandated teardown (`stop()` on every track), `getUserMedia` rejection fallback, and capture → `onDone(files)`. |
+| `frontend/src/lib/camera.ts` | New pure capability probe `cameraSupported()` (secure-context `getUserMedia` presence) kept in `lib/` — mirrors `clipboardReadSupported`, so `CameraCapture.tsx` exports only a component. |
+| `frontend/src/lib/camera.test.ts` | Unit tests for `cameraSupported()`: true with `getUserMedia`, false when `mediaDevices`/`getUserMedia` is absent. |
 | `frontend/src/api/items.ts` | Add a typed `ApiError { status }` thrown by `ensureOk` so a mid-batch `429` is detectable without string matching; `tagPreview`/`createItem` reused as-is otherwise. |
 | `frontend/src/api/items.test.ts` | Add a test that a `429` rejects with `ApiError.status === 429`; existing non-2xx/401 behaviour unchanged. |
 | `frontend/src/api/http.ts` | Unchanged — referenced to confirm the `401` re-auth path stays untouched by the `ApiError` change. |
@@ -299,7 +301,7 @@ button, Blob→File wrapping, multi-paste batch.)
 - [x] 4.7 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
   `npm run lint` (clean).
 
-### [ ] 5.0 In-app live camera with multi-shot capture and guaranteed stream teardown
+### [x] 5.0 In-app live camera with multi-shot capture and guaranteed stream teardown
 
 Add a **"Take photos"** control that opens an in-app camera via
 `getUserMedia({ video: { facingMode: 'environment' } })` into a `<video>`
@@ -335,29 +337,34 @@ teardown, permission/no-device fallback, secure-context degrade.)
 
 #### 5.0 Tasks
 
-- [ ] 5.1 (RED) Write `frontend/src/components/CameraCapture.test.tsx`, mocking
+- [x] 5.1 (RED) Write `frontend/src/components/CameraCapture.test.tsx`, mocking
   `navigator.mediaDevices.getUserMedia` and `canvas.toBlob`: assert every acquired
   track's `stop()` is called on unmount and on cancel/Done; a `getUserMedia`
   rejection renders the message + file-picker fallback; capturing then "Done" calls
   `onDone` with the captured `File`(s). Confirm RED.
-- [ ] 5.2 (GREEN) Implement `frontend/src/components/CameraCapture.tsx`: open
+- [x] 5.2 (GREEN) Implement `frontend/src/components/CameraCapture.tsx`: open
   `getUserMedia({ video: { facingMode: 'environment' } })` into a `<video>`; shutter
   captures the frame to `<canvas>` → `toBlob()` → `blobToImageFile`; accumulate
   thumbnails; "Done" → `onDone(files)`; "Cancel"/unmount stop all tracks;
   permission-denied/no-device → message + fallback that invokes the file picker;
   guard for `getUserMedia` availability / secure context.
-- [ ] 5.3 (RED) In `AddItem.test.tsx`, add a test that the "Take photos" control
+- [x] 5.3 (RED) In `AddItem.test.tsx`, add a test that the "Take photos" control
   mounts `CameraCapture` and a multi-shot "Done" enqueues each captured file as a
   tile that auto-tags; the control is absent (file picker only) when `getUserMedia`
   is unavailable. Confirm RED.
-- [ ] 5.4 (GREEN) Wire the "Take photos" control in `AddItem` to open
+- [x] 5.4 (GREEN) Wire the "Take photos" control in `AddItem` to open
   `CameraCapture` and route its `onDone(files)` → `enqueue(files)`; render the
   control only where `getUserMedia` is available, otherwise rely on the always-
   present file picker.
-- [ ] 5.5 (GREEN) Add camera-surface styles to `index.css` (full-width video, large
-  shutter, thumbnail strip, Done/Cancel); capture
+- [~] 5.5 (GREEN) Add camera-surface styles to `index.css` (full-width video, large
+  shutter, thumbnail strip, Done/Cancel) — **done**; capture
   `proof/camera-viewfinder-mobile.png` on a mobile viewport / secure context (demo
-  content only).
-- [ ] 5.6 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
-  `npm run lint` (clean); manually confirm no dangling camera indicator after
-  Done/cancel.
+  content only). **Pending manual capture** — needs the running backend + frontend on
+  a secure context (`localhost` or an installed PWA) with a real camera; this session
+  has no headless browser / device camera and won't fabricate the image. Exact repro
+  steps + target path (`13-proofs/assets/camera-viewfinder-mobile.png`) are in
+  `13-proofs/13-task-05-proofs.md`.
+- [x] 5.6 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
+  `npm run lint` (clean); the mandated teardown test (`stop()` on every track on
+  unmount/cancel/Done) is the automated proof of "no dangling camera indicator" — the
+  on-device visual confirmation is folded into the 5.5 manual capture follow-up.

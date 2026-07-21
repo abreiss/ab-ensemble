@@ -22,12 +22,44 @@ vi.mock('../lib/clipboardImages', async () => {
   return { ...actual, clipboardReadSupported: vi.fn(() => false) }
 })
 
+// Stub the camera component so this suite exercises only AddItem's wiring — does the
+// gated control mount it, and does its `onDone(files)` route into the shared queue —
+// while CameraCapture's own internals (getUserMedia, canvas, track teardown) are
+// covered by CameraCapture.test.tsx. The fake exposes a button that emits two
+// captured files, standing in for a multi-shot "Done".
+vi.mock('../components/CameraCapture', () => ({
+  default: ({ onDone, onCancel }: { onDone: (f: File[]) => void; onCancel: () => void }) => (
+    <div data-testid="camera-capture">
+      <button
+        type="button"
+        onClick={() =>
+          onDone([
+            new File([new Uint8Array([1])], 'shot-1.jpg', { type: 'image/jpeg' }),
+            new File([new Uint8Array([2])], 'shot-2.jpg', { type: 'image/jpeg' }),
+          ])
+        }
+      >
+        mock camera done
+      </button>
+      <button type="button" onClick={onCancel}>
+        mock camera cancel
+      </button>
+    </div>
+  ),
+}))
+
+// Mock the capability probe (now a pure `lib/` helper) so the "Take photos" control's
+// presence is controllable without stubbing `navigator.mediaDevices` per test.
+vi.mock('../lib/camera', () => ({ cameraSupported: vi.fn(() => true) }))
+
 import { ApiError, createItem, tagPreview } from '../api/items'
 import { clipboardReadSupported } from '../lib/clipboardImages'
+import { cameraSupported } from '../lib/camera'
 
 const tagPreviewMock = vi.mocked(tagPreview)
 const createItemMock = vi.mocked(createItem)
 const clipboardReadSupportedMock = vi.mocked(clipboardReadSupported)
+const cameraSupportedMock = vi.mocked(cameraSupported)
 
 const suggestion: TagSuggestion = {
   category: 'denim jacket',
@@ -88,6 +120,10 @@ beforeEach(() => {
   // absent unless a test opts in (the paste-event path works regardless).
   clipboardReadSupportedMock.mockReset()
   clipboardReadSupportedMock.mockReturnValue(false)
+  // Default: in-app camera available, so the "Take photos" control is present; a
+  // test opts out to prove the file-picker-only degrade.
+  cameraSupportedMock.mockReset()
+  cameraSupportedMock.mockReturnValue(true)
   // jsdom has no object-URL support; stub it. Distinct URLs per call so each
   // queued item gets its own preview key (mirrors real browser behavior).
   revokeSpy = vi.fn()
@@ -515,5 +551,37 @@ describe('AddItem review queue', () => {
     await waitFor(() => expect(readMock).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(tagPreviewMock).toHaveBeenCalledTimes(1))
     expect(await screen.findByLabelText(/^category/i)).toBeInTheDocument()
+  })
+
+  it('opens the in-app camera and enqueues each captured shot as an auto-tagging tile', async () => {
+    // The "Take photos" control mounts CameraCapture; a multi-shot "Done" routes its
+    // files through the shared queue, so each capture becomes its own auto-tagged tile
+    // (a single shot + Done is just the N=1 case).
+    cameraSupportedMock.mockReturnValue(true)
+    tagPreviewMock.mockResolvedValue(suggestion)
+    const user = userEvent.setup()
+
+    renderAddItem()
+    await user.click(screen.getByRole('button', { name: /take photos/i }))
+    expect(screen.getByTestId('camera-capture')).toBeInTheDocument()
+
+    // The fake camera's "Done" emits two captured files.
+    await user.click(screen.getByRole('button', { name: /mock camera done/i }))
+
+    await waitFor(() => expect(tagPreviewMock).toHaveBeenCalledTimes(2))
+    const categories = await screen.findAllByLabelText(/^category/i)
+    expect(categories).toHaveLength(2)
+    // The camera surface closes once its shots are handed off to the queue.
+    expect(screen.queryByTestId('camera-capture')).not.toBeInTheDocument()
+  })
+
+  it('hides the "Take photos" control and keeps the file picker when getUserMedia is unavailable', () => {
+    cameraSupportedMock.mockReturnValue(false)
+
+    renderAddItem()
+
+    expect(screen.queryByRole('button', { name: /take photos/i })).not.toBeInTheDocument()
+    // The always-present library picker remains the baseline acquisition path.
+    expect(screen.getByLabelText(/choose a garment photo/i)).toBeInTheDocument()
   })
 })
