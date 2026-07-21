@@ -6,29 +6,32 @@ and proof artifacts. Account ids in cited evidence are redacted to
 
 ## 1) Executive Summary
 
-- **Overall: PASS** (testable core — Units 1–3 + Unit 4's in-workflow scope, per
-  the spec's Resolved Decision Q2). No gate tripped. Two operator-run proof
-  captures remain **deferred by design**: the CI-driven deploy log (task 6.3)
-  and the public-URL golden-path screenshots (task 6.4). Both are gated on the
-  #9 PR merging to `main`, because the push to `main` **is** the deploy
-  pipeline's trigger — they cannot exist before the merge this validation
-  precedes. The spec itself designates them operator-run captures attached
-  after the fact (Resolved Decision Q2 → A; Unit 4 purpose statement).
-- **Implementation Ready: Yes** — all code, IaC, CI, docs, and live-apply
-  evidence exist and verify; the deferred items have a documented completion
-  path (merge → capture → append to `09-proofs/09-task-06-proofs.md`).
+- **Overall: PASS** — now for the **full spec**, all four units. The first
+  validation pass (2026-07-20 17:55) passed the testable core with tasks
+  6.3/6.4 deferred-by-design (Resolved Decision Q2); this update closes them:
+  the #9 work merged to `main`, the push-to-deploy pipeline has since produced
+  **two consecutive green CI-driven deploys**, and the golden path is proven
+  live against the public URL (API-level transcript + operator browser
+  screenshot), with data verified in real S3/DynamoDB. No gate tripped.
+- **Implementation Ready: Yes** — code, IaC, CI, docs, live apply, live
+  pipeline, and live golden path all exist and verify.
 - **Key metrics:**
-  - Functional requirements verified: **22/24** (2 deferred-by-design, 0 failed,
+  - Functional requirements verified: **24/24** (0 deferred, 0 failed,
     0 unknown).
   - Proof artifacts working: **6/6 proof files** exist and verify; every
-    re-runnable check re-run fresh during this validation passed.
+    re-runnable check re-run fresh during validation passed.
   - Files changed vs expected: all changed files map to the task list's
     Relevant Files or carry explicit task linkage (see Gate D notes).
-  - Fresh test evidence (2026-07-20): backend `./gradlew test jacocoTestReport
-    -PskipFrontend --rerun-tasks` → **264 tests, 0 failures**; frontend
-    `npm test -- --run` → **177 tests, 0 failures**; `terraform fmt -check` +
-    `validate` → clean; live `curl https://<app-runner-url>/api/health` →
-    `200 {"status":"ok"}`.
+  - Fresh test evidence (2026-07-20, first pass): backend `./gradlew test
+    jacocoTestReport -PskipFrontend --rerun-tasks` → **264 tests, 0 failures**;
+    frontend `npm test -- --run` → **177 tests, 0 failures**; `terraform fmt
+    -check` + `validate` → clean. Since then, CI re-ran both suites green on
+    every push to `main` (runs `29792951459`, `29793550720`).
+  - Fresh live evidence (2026-07-20, this update): Deploy runs `29792951440`
+    and `29793550735` green end-to-end (OIDC → SHA-tagged ECR push →
+    `update-service` → `RUNNING`); post-rollout
+    `curl https://<app-runner-url>/api/health` → `200 {"status":"ok"}`;
+    golden path executed against the public URL (see U4-FR3).
 
 ## 2) Coverage Matrix
 
@@ -71,8 +74,8 @@ and proof artifacts. Account ids in cited evidence are redacted to
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | U4-FR1 One-time operator sequence (state bucket, init + `use_lockfile`, apply as scoped identity, secrets out-of-band) | Verified | `09-proofs/09-task-06-proofs.md`: caller-identity artifact, apply transcript, `AWSCURRENT` on all three secrets, converging plan (`No changes`) |
-| U4-FR2 Push to `main` deploys via pipeline; public URL serves PWA + health 200 | Deferred (operator-run; gated on this PR's merge — the push **is** the trigger) | Health half already live: fresh `curl .../api/health` → `200 {"status":"ok"}` this validation; CI run log to be appended to task-06 proofs post-merge (task 6.3) |
-| U4-FR3 Golden path end-to-end in cloud (add → tag → vibe → grounded outfit → pushback), photos in S3, items in DynamoDB, secrets from Secrets Manager | Deferred (operator-run; requires browser/iPhone capture post-merge — task 6.4) | Prerequisites all proven live: service `RUNNING`, secrets by ARN resolved at startup (`cloud` profile working), health 200 |
+| U4-FR2 Push to `main` deploys via pipeline; public URL serves PWA + health 200 | Verified | Deploy runs `29792951440` + `29793550735` green end-to-end (OIDC assume → `sha-<git-sha>` ECR push → `update-service` → `RUNNING`); redacted log excerpt + post-rollout health `200` in task-06 proofs. Two surfaced defects fixed under task 6.3 with full linkage: unset repo variables (runbook step) and the enterprise **ID-stamped OIDC subject** the trust policy had to match (commits `e6de487`, `b39f537`, `00eff1f`) |
+| U4-FR3 Golden path end-to-end in cloud (add → tag → vibe → grounded outfit → pushback), photos in S3, items in DynamoDB, secrets from Secrets Manager | Verified | Task-06 proofs "Golden path — API level": auth via Secrets-Manager passcode, 4 garments Haiku-tagged (incl. the editable-fallback `400` guardrail firing live), grounded outfit, pushback re-pick swapping exactly one piece, wear write (`wornCount` 0→1); `aws s3api list-objects-v2` shows the 4 photo JPEGs, `aws dynamodb get-item` shows the full item model incl. wear-history; operator browser screenshot of the deployed stylist flow embedded (`assets/09-task-06-stylist-datenight.png`) |
 | U4-FR4 Deferred #16 gate: apply under only the scoped identity; gaps closed narrowly | Verified | Gate write-up in task-06 proofs: final apply + `No changes` plan under scoped user only, diagnostic policy deleted first; gaps closed as `abreiss-ensemble-terraform-ext` (second managed policy, resource-scoped) + PassRole-condition removal — never `*`, documented in `docs/AWS_ACCESS.md` |
 | U4-FR5 Deploy runbook (README + DEVELOPMENT, ARCHITECTURE narrative) | Verified | README "Deploy to AWS (App Runner)" (all six required elements incl. rollback-by-earlier-SHA); `docs/DEVELOPMENT.md` "Deploying (operator-run)"; `docs/ARCHITECTURE.md` "Deployment (shipped — issue #9)"; commit `55a2a59` |
 
@@ -96,14 +99,14 @@ and proof artifacts. Account ids in cited evidence are redacted to
 | 3.0 | `09-proofs/09-task-03-proofs.md` (plan excerpt, HCL, no-secret grep) | Verified | File exists; HCL cross-checked; fresh no-account-id grep clean |
 | 4.0 | `09-proofs/09-task-04-proofs.md` (policy JSON, boundary, trust policy) | Verified | Rendered policies exist under `terraform/deploy/policies/`; lint gap documented (see Issues) |
 | 5.0 | `09-proofs/09-task-05-proofs.md` (workflow files, secret scan) | Verified | Both workflows exist as described; fresh workflow scan clean |
-| 6.0 | `09-proofs/09-task-06-proofs.md` (apply transcript, health, secrets, 6.5 gate, 6.6 runbook) | Verified (6.1/6.2/6.5/6.6) | Live health re-checked this validation (`200 {"status":"ok"}`); 6.3/6.4 sections to be appended post-merge |
+| 6.0 | `09-proofs/09-task-06-proofs.md` (apply transcript, health, secrets, 6.5 gate, 6.6 runbook, 6.3 pipeline run, 6.4 golden path + screenshot) | Verified (all of 6.1–6.6) | Live health re-checked post-rollout (`200 {"status":"ok"}`); 6.3/6.4 sections appended with the pipeline log excerpt, golden-path transcript, S3/DynamoDB reads, and the embedded screenshot (file confirmed present in `09-proofs/assets/`) |
 
 ## 3) Validation Issues
 
 | Severity | Issue | Impact | Recommendation |
 | --- | --- | --- | --- |
 | MEDIUM | Access Analyzer lint has never produced a clean run under the scoped identity — `access-analyzer:ValidatePolicy` is denied for both the scoped user and the boundary-capped CI role (structural: fixing it means widening the boundary itself, a `terraform/bootstrap/` change out of #9's scope). CI runs the lint `continue-on-error`; the exact operator commands for a broader session are in `terraform/deploy/policies/README.md`. | Success Metric 2's lint clause is satisfied via its documented-findings branch, not a green lint run | Operator: run the two `validate-policy` commands under an admin session once and attach the output; longer-term, consider a deliberate, narrow boundary addition in `terraform/bootstrap/` |
-| LOW (tracking) | Tasks 6.3/6.4 open until post-merge: CI deploy log + golden-path screenshots | None for this validation (deferred by Resolved Decision Q2); parent 6.0 stays `[~]` | After merging the #9 PR: capture the Actions run log (redacted) and golden-path screenshots, append to `09-proofs/09-task-06-proofs.md`, mark 6.3/6.4/6.0 `[x]` |
+| LOW (resolved) | ~~Tasks 6.3/6.4 open until post-merge~~ — closed in this update: pipeline runs `29792951440`/`29793550735` green, golden-path evidence + screenshot appended, 6.3/6.4/6.0 all `[x]` | None | No action; kept for the audit trail |
 
 No CRITICAL or HIGH issues. Gate D notes: changed files outside the Relevant
 Files list are all linked — `application-cloud.yml` + `CloudProfileConfigTest`
@@ -114,12 +117,39 @@ prescribed gap closures, admin-applied, fully narrated in
 of task 1.2's `PhotoProperties` extension), `.gitignore` (state/creds ignore
 rules), `.terraform.lock.hcl` (standard provider pinning).
 
+Gate D notes for this update's post-merge commits (all core changes linked to
+task 6.3 in their commit messages): `.github/workflows/ci.yml`
+(`continue-on-error` on the policy-lint credentials step, `e6de487`);
+`terraform/deploy/iam.tf` + `variables.tf` + the
+`policies/abreiss-ensemble-ci-trust.json` review copy (ID-stamped OIDC subject
+fix, `00eff1f`, applied via a one-resource in-place `terraform apply` under the
+scoped identity with a converging plan afterwards); the temporary
+`debug-oidc.yml` diagnostic was added (`b39f537`) and deleted (`00eff1f`) —
+net-zero. Proof/doc commits `bf6ab04`/`0610d6a` are supporting files.
+
 ## 4) Evidence Appendix
 
-- **Commits analyzed** (`origin/main..HEAD`): `2327f5a` (task 1.0), `32ab2bb`
-  (2.0), `6925535` (3.0), `e2f8618` (4.0), `dd9b4dd` (5.0), `cd1ae5c` (6.1
-  live-deploy fixes: amd64 seed, PassRole condition, cloud profile), `55a2a59`
-  (6.5 write-up + 6.6 runbook).
+- **Commits analyzed** (`origin/main..HEAD`, first pass): `2327f5a` (task
+  1.0), `32ab2bb` (2.0), `6925535` (3.0), `e2f8618` (4.0), `dd9b4dd` (5.0),
+  `cd1ae5c` (6.1 live-deploy fixes: amd64 seed, PassRole condition, cloud
+  profile), `55a2a59` (6.5 write-up + 6.6 runbook).
+- **Post-merge commits analyzed (this update):** `e6de487` (6.3: policy-lint
+  PR-event guard), `b39f537` (6.3: temporary OIDC diagnostic), `00eff1f` (6.3:
+  ID-stamped OIDC subject trust fix + diagnostic removal), `bf6ab04` (6.3/6.4
+  proof evidence), `0610d6a` (6.4 screenshot embed, 6.0 complete).
+- **Fresh commands run for this update (2026-07-20 evening):**
+  - `gh run watch` on Deploy `29792951440` and `29793550735` → both green
+    through Verify rollout (`RUNNING`); CI `29792951459`/`29793550720` green.
+  - `curl https://<app-runner-url>/api/health` post-rollout →
+    `200 {"status":"ok"}`.
+  - Golden-path API transcript against the public URL (auth → tag ×4 →
+    create ×4 → style → pushback re-pick → worn) — summarized in task-06
+    proofs; session token and passcode never captured.
+  - `aws s3api list-objects-v2` (photos bucket) → exactly 4 item JPEGs;
+    `aws dynamodb get-item` (tee item) → full model incl.
+    `wornCount 1`/`lastWorn`.
+  - `ls 09-proofs/assets/` → `09-task-06-stylist-datenight.png` present and
+    embedded in the proof doc.
 - **Fresh commands run for this validation (2026-07-20):**
   - `./gradlew test jacocoTestReport -PskipFrontend --rerun-tasks` → BUILD
     SUCCESSFUL; 264 tests, 0 failures/errors/skips.
@@ -138,5 +168,6 @@ rules), `.terraform.lock.hcl` (standard provider pinning).
   front-load context per the proof-artifact standard, and contain no
   credentials (account id redacted to `123456789012` throughout).
 
-**Validation Completed:** 2026-07-20 17:55 local
+**Validation Completed:** 2026-07-20 17:55 local (testable core);
+2026-07-20 ~18:50 local (full-spec update closing 6.3/6.4)
 **Validation Performed By:** Claude (Fable 5)
