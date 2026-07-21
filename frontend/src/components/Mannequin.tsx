@@ -23,11 +23,17 @@ const BODY_ZONES: ZoneDef[] = [
 ]
 
 /**
- * The side "extras" tray. `CARRY` is its stable identifier; unrecognized/
- * `PIECE` items degrade into the same tray, a rule owned by the placement
- * model (`lib/placement.ts`), not this component.
+ * The side "extras" tray. `CARRY` is its stable drop-target identifier (see
+ * `MannequinZone`'s `useDroppable`), but the tray *displays* both `CARRY` and
+ * `PIECE` placements (see `itemsFor` below) — `PIECE` is where
+ * `slotForCategory` (`lib/placement.ts`) degrades an unrecognized category,
+ * so this keeps that default-routing path a real, safe feature rather than
+ * an item that lands in a slot no zone renders.
  */
 const EXTRAS_ZONE: ZoneDef = { slot: 'CARRY', label: 'Extras', className: 'mannequin-zone-extras' }
+
+/** Slots the extras tray displays — its own drop target plus the `PIECE` degrade-to slot. */
+const EXTRAS_DISPLAY_SLOTS: readonly Slot[] = [EXTRAS_ZONE.slot, 'PIECE']
 
 interface MannequinProps {
   /** Item ids currently placed in each zone, keyed by `Slot`. A slot missing
@@ -77,13 +83,15 @@ function MannequinZone({ zone, children }: MannequinZoneProps) {
  * screen reliably lands a drop.
  */
 export default function Mannequin({ placed = {}, renderPlacedItem }: MannequinProps) {
-  const itemsFor = (slot: Slot): ReactNode => {
+  // Accepts one or more slots so the extras tray can display `CARRY` and
+  // `PIECE` together while each body-region zone still passes just its own.
+  const itemsFor = (...slots: readonly Slot[]): ReactNode => {
     if (!renderPlacedItem) {
       return null
     }
-    return (placed[slot] ?? []).map((itemId) => (
-      <Fragment key={itemId}>{renderPlacedItem(itemId)}</Fragment>
-    ))
+    return slots
+      .flatMap((slot) => placed[slot] ?? [])
+      .map((itemId) => <Fragment key={itemId}>{renderPlacedItem(itemId)}</Fragment>)
   }
 
   return (
@@ -113,7 +121,7 @@ export default function Mannequin({ placed = {}, renderPlacedItem }: MannequinPr
         ))}
       </div>
 
-      <MannequinZone zone={EXTRAS_ZONE}>{itemsFor(EXTRAS_ZONE.slot)}</MannequinZone>
+      <MannequinZone zone={EXTRAS_ZONE}>{itemsFor(...EXTRAS_DISPLAY_SLOTS)}</MannequinZone>
     </div>
   )
 }

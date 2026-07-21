@@ -131,6 +131,33 @@ function dragBackToSourceEvent(activeId: string, category: string | null): DragE
   }
 }
 
+/**
+ * Builds a synthetic `DragEndEvent` whose drop target carries no `data.slot`
+ * at all — modeling `slotForCategory`'s default-routing path. Every real
+ * mannequin zone always populates `data.slot` (see `DroppableData` in
+ * `Assemble.tsx`), so this path is unreachable via today's UI; it exists so
+ * an unrecognized `category` can be regression-tested routing through
+ * `slotForCategory` to `PIECE`.
+ */
+function dragEndEventNoSlotOverride(activeId: string, category: string | null): DragEndEvent {
+  return {
+    activatorEvent: new Event('pointerup'),
+    active: {
+      id: activeId,
+      data: { current: { category } },
+      rect: { current: { initial: null, translated: null } },
+    },
+    collisions: null,
+    delta: { x: 0, y: 0 },
+    over: {
+      id: 'unslotted-zone',
+      data: { current: {} },
+      disabled: false,
+      rect: { width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 },
+    },
+  }
+}
+
 beforeEach(() => {
   listItemsMock.mockReset()
   markWornMock.mockReset()
@@ -342,5 +369,53 @@ describe('Assemble wear-today fan-out', () => {
 
     expect(screen.getByRole('button', { name: /wear today/i })).toBeDisabled()
     expect(markWornMock).not.toHaveBeenCalled()
+  })
+
+  it('re-enables "Wear today" (not the stuck "Logged ✓") once the outfit changes after logging', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt'), item('bag-1', 'bag')])
+    markWornMock.mockResolvedValue(item('shirt-1', 'shirt'))
+    const user = userEvent.setup()
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+
+    await user.click(screen.getByRole('button', { name: /wear today/i }))
+    expect(await screen.findByRole('button', { name: /logged/i })).toBeDisabled()
+
+    // Editing the assembled look after logging must release the lock so the
+    // revised outfit can be logged too, instead of staying stuck on "Logged ✓".
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('bag-1', 'bag', 'CARRY'))
+    })
+
+    expect(screen.queryByRole('button', { name: /logged/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /wear today/i })).not.toBeDisabled()
+  })
+})
+
+describe('Assemble extras tray PIECE routing', () => {
+  it('renders a PIECE-routed placement as a removable tile in the extras tray', async () => {
+    listItemsMock.mockResolvedValue([item('mystery-1', 'monocle')])
+    const user = userEvent.setup()
+
+    renderAssemble()
+    await screen.findByText(/^extras$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEventNoSlotOverride('mystery-1', 'monocle'))
+    })
+
+    const extrasZone = document.querySelector('[data-slot="CARRY"]') as HTMLElement
+    expect(within(extrasZone).getByRole('img')).toHaveAttribute(
+      'src',
+      '/api/items/mystery-1/photo',
+    )
+
+    await user.click(within(extrasZone).getByRole('button', { name: /remove item/i }))
+    expect(within(extrasZone).queryByRole('img')).not.toBeInTheDocument()
   })
 })

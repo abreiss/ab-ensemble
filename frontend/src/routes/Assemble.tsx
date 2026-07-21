@@ -118,12 +118,28 @@ export default function Assemble() {
     settle(listItems())
   }
 
+  // Editing the assembled look must release a prior "Logged ✓" lock so the
+  // revised outfit can be logged too, instead of staying stuck disabled
+  // forever. Called from every placement-changing handler below (not a
+  // `useEffect` keyed on `placement` — synchronous setState-in-effect is a
+  // derived-state smell the `react-hooks/set-state-in-effect` lint rule
+  // flags). The `prev === 'logging'` guard means it never yanks the lock out
+  // from under an in-progress `logWorn` fan-out: placement isn't gated on
+  // `logStatus`, so a drag/remove could otherwise land mid-flight.
+  const releaseLogLock = useCallback(() => {
+    setLogStatus((prev) => (prev === 'logging' ? prev : 'idle'))
+  }, [])
+
   // Tap- or drag-back-removal both land here: pulls `itemId` out of whichever
   // slot holds it (a no-op if it somehow isn't placed) so it reappears in
   // `AssembleSource`'s exclusion-filtered list on the next render.
-  const handleRemove = useCallback((itemId: string) => {
-    setPlacement((prev) => removeItem(prev, itemId))
-  }, [])
+  const handleRemove = useCallback(
+    (itemId: string) => {
+      setPlacement((prev) => removeItem(prev, itemId))
+      releaseLogLock()
+    },
+    [releaseLogLock],
+  )
 
   // Renders a placed item's tile inside its mannequin zone as a draggable
   // `PlacedTile` (photo + "×"), reusing the same `drawer-tile` look as the
@@ -148,19 +164,24 @@ export default function Assemble() {
   // mannequin zone, its `data.slot` is always populated (see `Mannequin.tsx`),
   // so this becomes the manual-override path; passing `undefined` instead
   // would fall back to the item's category default in `placeItem`.
-  const onDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over) {
-      return
-    }
-    if (over.id === SOURCE_DROPPABLE_ID) {
-      setPlacement((prev) => removeItem(prev, String(active.id)))
-      return
-    }
-    const category = (active.data.current as DraggableData | undefined)?.category ?? null
-    const targetSlot = (over.data.current as DroppableData | undefined)?.slot
-    setPlacement((prev) => placeItem(prev, String(active.id), category, targetSlot))
-  }, [])
+  const onDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event
+      if (!over) {
+        return
+      }
+      if (over.id === SOURCE_DROPPABLE_ID) {
+        setPlacement((prev) => removeItem(prev, String(active.id)))
+        releaseLogLock()
+        return
+      }
+      const category = (active.data.current as DraggableData | undefined)?.category ?? null
+      const targetSlot = (over.data.current as DroppableData | undefined)?.slot
+      setPlacement((prev) => placeItem(prev, String(active.id), category, targetSlot))
+      releaseLogLock()
+    },
+    [releaseLogLock],
+  )
 
   const pointerSensor = useSensor(pointerSensorConfig.sensor, pointerSensorConfig.options)
   const touchSensor = useSensor(touchSensorConfig.sensor, touchSensorConfig.options)
@@ -179,6 +200,13 @@ export default function Assemble() {
       return
     }
     setLogStatus('logging')
+    // Retry path: on `error` the same "Wear today" button re-invokes this
+    // callback, which re-sends `markWorn` for every currently placed id —
+    // including ones that already succeeded in the prior attempt, so a
+    // partial-failure retry can re-increment `wornCount` for those. This is a
+    // known, accepted non-idempotent retry that intentionally mirrors
+    // `Stylist.tsx`'s `logLook` / `OutfitResult.tsx`'s "Wear today" fan-out;
+    // not fixed here.
     Promise.allSettled(currentlyPlacedIds.map((itemId) => markWorn(itemId))).then((results) => {
       const anyFailed = results.some((result) => result.status === 'rejected')
       setLogStatus(anyFailed ? 'error' : 'logged')
