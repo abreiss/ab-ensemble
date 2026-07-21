@@ -1,0 +1,24 @@
+# TEMPORARY diagnostic (Spec 09 Task 6.3): decode the GitHub OIDC token's
+# iss/sub/aud claims to see the exact subject AWS receives, because
+# sts:AssumeRoleWithWebIdentity is rejecting a trust policy that matches the
+# documented default sub format. Prints decoded claims only -- never the
+# token itself. Delete this workflow once the trust policy is fixed.
+name: Debug OIDC claims
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  show-claims:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decode OIDC token claims (iss, sub, aud only)
+        run: |
+          token=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
+          payload=$(echo "$token" | cut -d. -f2 | tr '_-' '/+' | { p=$(cat); pad=$(( (4 - ${#p} % 4) % 4 )); printf '%s' "$p"; printf '=%.0s' $(seq 1 $pad 2>/dev/null); } | base64 -d 2>/dev/null)
+          echo "$payload" | jq '{iss, sub, aud}'
