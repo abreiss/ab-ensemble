@@ -6,12 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AddItem from './AddItem'
 import type { Item, TagSuggestion } from '../types/item'
 
-vi.mock('../api/items', () => ({
-  tagPreview: vi.fn(),
-  createItem: vi.fn(),
-}))
+// Mock only the network functions; keep the real `ApiError` so the screen's
+// `instanceof ApiError` 429 detection is exercised against the production class.
+vi.mock('../api/items', async () => {
+  const actual = await vi.importActual<typeof import('../api/items')>('../api/items')
+  return { ...actual, tagPreview: vi.fn(), createItem: vi.fn() }
+})
 
-import { createItem, tagPreview } from '../api/items'
+import { ApiError, createItem, tagPreview } from '../api/items'
 
 const tagPreviewMock = vi.mocked(tagPreview)
 const createItemMock = vi.mocked(createItem)
@@ -344,5 +346,94 @@ describe('AddItem review queue', () => {
 
     expect(await screen.findByText('wardrobe grid')).toBeInTheDocument()
     expect(createItemMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('throttles auto-tag fan-out to at most 3 tag-preview calls at once for a large batch', async () => {
+    // The concurrency limit is structural, so the observed peak can never exceed 3;
+    // with more files than the limit it must also reach it. Each preview stays in
+    // flight briefly so overlapping calls are observable.
+    let live = 0
+    let peak = 0
+    tagPreviewMock.mockImplementation(async () => {
+      live += 1
+      peak = Math.max(peak, live)
+      await new Promise((resolve) => setTimeout(resolve, 1))
+      live -= 1
+      return suggestion
+    })
+    const user = userEvent.setup()
+
+    renderAddItem()
+    const input = screen.getByLabelText(/choose a garment photo/i)
+    await user.upload(
+      input,
+      Array.from({ length: 7 }, (_, i) => photoFile(`f${i}.jpg`)),
+    )
+
+    // Every one of the 7 tiles eventually tags, but never more than 3 at a time.
+    await waitFor(() => expect(tagPreviewMock).toHaveBeenCalledTimes(7))
+    expect(peak).toBe(3)
+  })
+
+  it('on a mid-batch 429 stops further auto-tagging, keeps every tile editable, and shows the cap banner', async () => {
+    // The first preview hits the daily cap; not-yet-started previews must not fire,
+    // and every tile must remain on the blank editable seed (nothing lost).
+    tagPreviewMock
+      .mockRejectedValueOnce(new ApiError(429, 'Tag preview'))
+      .mockResolvedValue(suggestion)
+    const user = userEvent.setup()
+
+    renderAddItem()
+    const input = screen.getByLabelText(/choose a garment photo/i)
+    await user.upload(input, [
+      photoFile('a.jpg'),
+      photoFile('b.jpg'),
+      photoFile('c.jpg'),
+      photoFile('d.jpg'),
+    ])
+
+    // The persistent, non-blocking cap banner appears...
+    expect(await screen.findByText(/daily ai limit reached/i)).toBeInTheDocument()
+    // ...all four tiles are present and editable (none crashed)...
+    const categories = await screen.findAllByLabelText(/^category/i)
+    expect(categories).toHaveLength(4)
+    // ...and auto-tag stopped after the cap, so the 4th preview never fired.
+    expect(tagPreviewMock.mock.calls.length).toBeLessThan(4)
+  })
+
+  it('does not show the cap banner for a non-429 tag-preview failure (Unit 1 degraded fallback only)', async () => {
+    tagPreviewMock.mockRejectedValue(new Error('vision unavailable'))
+    const user = userEvent.setup()
+
+    renderAddItem()
+    await user.upload(screen.getByLabelText(/choose a garment photo/i), photoFile())
+
+    // The tile still falls back to a blank editable form, but with no cap banner.
+    const category = await screen.findByLabelText(/^category/i)
+    expect(category).toHaveValue('')
+    expect(screen.queryByText(/daily ai limit reached/i)).not.toBeInTheDocument()
+  })
+
+  it('still saves the preserved tiles after a 429 (the cap blocks only auto-tagging)', async () => {
+    tagPreviewMock.mockRejectedValue(new ApiError(429, 'Tag preview'))
+    createItemMock.mockResolvedValue(createdItem)
+    const user = userEvent.setup()
+
+    renderAddItem()
+    await user.upload(screen.getByLabelText(/choose a garment photo/i), photoFile())
+
+    // Cap banner shows; the tile is on the blank editable seed.
+    expect(await screen.findByText(/daily ai limit reached/i)).toBeInTheDocument()
+    const category = await screen.findByLabelText(/^category/i)
+    expect(category).toHaveValue('')
+
+    // Manual tagging + "Save all" still persists via the create endpoint.
+    await user.type(category, 'scarf')
+    await user.selectOptions(screen.getByLabelText(/formality/i), '2')
+    await user.selectOptions(screen.getByLabelText(/warmth/i), '3')
+    await user.click(screen.getByRole('button', { name: /save all/i }))
+
+    await waitFor(() => expect(createItemMock).toHaveBeenCalledTimes(1))
+    expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'scarf' })
   })
 })

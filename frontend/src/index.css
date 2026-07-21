@@ -300,6 +300,14 @@ a {
   border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
 }
 
+/* Persistent, non-blocking notice (e.g. the daily-AI-cap banner): neutral, not an
+   error — the batch is still fully tag-and-saveable by hand. */
+.banner-warn {
+  background: var(--paper-sunk);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+}
+
 /* ---- Photo picker + preview --------------------------------------------- */
 
 .photo-picker {

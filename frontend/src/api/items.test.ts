@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { login } from './auth'
 import {
+  ApiError,
   createItem,
   deleteItem,
   getItem,
@@ -159,6 +160,28 @@ describe('items API client', () => {
       fetchMock.mockResolvedValue(jsonResponse({}, 400))
       const photo = new File([new Uint8Array([1])], 'p.jpg', { type: 'image/jpeg' })
       await expect(tagPreview(photo)).rejects.toThrow()
+    })
+
+    it('rejects with a typed ApiError carrying status 429 on the daily cap', async () => {
+      // The batch queue detects a mid-batch daily-cap 429 via the typed status, not
+      // by string-matching the message — so `tagPreview` must surface the code.
+      fetchMock.mockResolvedValue(jsonResponse({}, 429))
+      const photo = new File([new Uint8Array([1])], 'p.jpg', { type: 'image/jpeg' })
+
+      const error = await tagPreview(photo).catch((e: unknown) => e)
+
+      expect(error).toBeInstanceOf(ApiError)
+      expect((error as ApiError).status).toBe(429)
+    })
+
+    it('rejects with an ApiError carrying the status for other non-2xx responses', async () => {
+      fetchMock.mockResolvedValue(jsonResponse({}, 400))
+      const photo = new File([new Uint8Array([1])], 'p.jpg', { type: 'image/jpeg' })
+
+      const error = await tagPreview(photo).catch((e: unknown) => e)
+
+      expect(error).toBeInstanceOf(ApiError)
+      expect((error as ApiError).status).toBe(400)
     })
   })
 

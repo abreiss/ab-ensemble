@@ -170,7 +170,7 @@ independent per-item save, drained-queue completion, preserved `accept="image/*"
 - [x] 2.6 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
   `npm run lint` (clean).
 
-### [ ] 3.0 Tag-preview concurrency throttle + graceful daily-cap (429) handling
+### [x] 3.0 Tag-preview concurrency throttle + graceful daily-cap (429) handling
 
 Add a pure, React-independent promise-pool helper in `frontend/src/lib/` that caps
 concurrent `tagPreview` calls to a small limit (default **3**); a large batch fans
@@ -208,32 +208,32 @@ failure isolation.)
 
 #### 3.0 Tasks
 
-- [ ] 3.1 (RED) Write `frontend/src/lib/promisePool.test.ts`: a pool with limit 3
+- [x] 3.1 (RED) Write `frontend/src/lib/promisePool.test.ts`: a pool with limit 3
   never runs more than 3 tasks concurrently (assert observed peak concurrency),
   runs all tasks to completion, and surfaces each task's result/rejection. Confirm
   RED.
-- [ ] 3.2 (GREEN) Implement `frontend/src/lib/promisePool.ts` — a minimal
+- [x] 3.2 (GREEN) Implement `frontend/src/lib/promisePool.ts` — a minimal
   `runWithConcurrency(tasks, limit = 3)` (or equivalent pool), pure and independent
   of React.
-- [ ] 3.3 (RED) In `items.test.ts`, add a test that a `429` makes `tagPreview`
+- [x] 3.3 (RED) In `items.test.ts`, add a test that a `429` makes `tagPreview`
   reject with an `ApiError` exposing `status === 429`, and that other non-2xx still
   reject. Confirm RED (current `ensureOk` throws a plain `Error`).
-- [ ] 3.4 (GREEN) Add `class ApiError extends Error { status: number }` to
+- [x] 3.4 (GREEN) Add `class ApiError extends Error { status: number }` to
   `items.ts` and have `ensureOk` throw it with `response.status`; keep the existing
   messages and leave `http.ts`'s `401` handling untouched. Confirm `http.test.ts`
   stays green.
-- [ ] 3.5 (RED) In `AddItem.test.tsx`, add tests: enqueuing many files never runs
+- [~] 3.5 (RED) In `AddItem.test.tsx`, add tests: enqueuing many files never runs
   more than 3 `tagPreview` calls at once; a `429` mid-batch stops further auto-tag
   calls, leaves remaining tiles on the editable blank seed, and shows the cap
   banner; a non-429 tag failure does not show the cap banner; after a `429`, a
   manual edit + "Save all" still persists. Confirm RED.
-- [ ] 3.6 (GREEN) Route `enqueue`'s per-item `tagPreview` fan-out through the
+- [~] 3.6 (GREEN) Route `enqueue`'s per-item `tagPreview` fan-out through the
   promise-pool (limit 3). On an `ApiError` with `status === 429`: set a
   `capReached` flag that skips not-yet-started auto-tags (leaving those tiles on the
   editable `EMPTY_SUGGESTION` seed) and renders the persistent cap banner; a non-429
   rejection remains the per-item degraded fallback (no banner). Ensure "Save all" is
   unaffected by the cap.
-- [ ] 3.7 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
+- [x] 3.7 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
   `npm run lint` (clean).
 
 ### [ ] 4.0 Clipboard paste — `paste` event + capability-gated "Paste image" button

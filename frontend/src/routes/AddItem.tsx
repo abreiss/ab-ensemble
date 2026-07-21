@@ -2,8 +2,13 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import TagForm from '../components/TagForm'
-import { createItem, tagPreview } from '../api/items'
+import { ApiError, createItem, tagPreview } from '../api/items'
+import { runWithConcurrency } from '../lib/promisePool'
 import type { TagInput, TagSuggestion } from '../types/item'
+
+// Cap concurrent tag-preview (vision) calls so a large batch fans out a bounded
+// number of simultaneous requests against the server-side daily call cap.
+const TAG_CONCURRENCY = 3
 
 type ItemPhase = 'tagging' | 'ready'
 
@@ -55,6 +60,12 @@ export default function AddItem() {
   const [savingBatch, setSavingBatch] = useState(false)
   const [savedCount, setSavedCount] = useState(0)
   const [saveTotal, setSaveTotal] = useState(0)
+  // Once a tag-preview returns the daily-cap 429, auto-tagging stops for the rest
+  // of the session and a persistent banner explains that items can still be tagged
+  // and saved manually. The ref mirrors the state so in-flight pool tasks read the
+  // latest value synchronously (state closes over a stale value).
+  const [capReached, setCapReached] = useState(false)
+  const capReachedRef = useRef(false)
   // Monotonic id source so each queued tile is uniquely addressable — the id is
   // also the request identity, so an out-of-order tag response can only seed its
   // own tile (never another item's).
@@ -85,23 +96,36 @@ export default function AddItem() {
     }
   }
 
+  // Seed a tile with the blank-but-editable fallback — the normal state for a
+  // degraded/failed or cap-skipped tag-preview (never an error, never a crash).
+  const seedFallback = (id: string) => {
+    setItems((prev) =>
+      prev.map((it) => (it.id === id ? { ...it, suggestion: EMPTY_SUGGESTION, phase: 'ready' } : it)),
+    )
+  }
+
   // Auto-fire tag-preview for one queued item. The functional updates match by id
-  // so a response only ever seeds its own tile, and a rejected/degraded call
-  // falls back to the blank editable seed for that item alone.
-  const tagItem = (id: string, file: File) => {
-    tagPreview(file)
-      .then((result) => {
-        setItems((prev) =>
-          prev.map((it) => (it.id === id ? { ...it, suggestion: result, phase: 'ready' } : it)),
-        )
-      })
-      .catch(() => {
-        setItems((prev) =>
-          prev.map((it) =>
-            it.id === id ? { ...it, suggestion: EMPTY_SUGGESTION, phase: 'ready' } : it,
-          ),
-        )
-      })
+  // so a response only ever seeds its own tile. Once the daily cap (429) is hit we
+  // stop calling the endpoint and leave the tile on the blank editable seed, so a
+  // large batch preserves every photo for manual tagging; a non-429 failure is the
+  // per-item degraded fallback and never trips the cap banner.
+  const tagItem = async (id: string, file: File): Promise<void> => {
+    if (capReachedRef.current) {
+      seedFallback(id)
+      return
+    }
+    try {
+      const result = await tagPreview(file)
+      setItems((prev) =>
+        prev.map((it) => (it.id === id ? { ...it, suggestion: result, phase: 'ready' } : it)),
+      )
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 429) {
+        capReachedRef.current = true
+        setCapReached(true)
+      }
+      seedFallback(id)
+    }
   }
 
   // The single shared acquisition seam: every source (file, paste, camera) hands
@@ -127,9 +151,12 @@ export default function AddItem() {
       }
     })
     setItems((prev) => [...prev, ...created])
-    for (const item of created) {
-      tagItem(item.id, item.file)
-    }
+    // Throttle the vision fan-out so a large batch issues at most TAG_CONCURRENCY
+    // simultaneous requests; each item's success/failure is handled in `tagItem`.
+    void runWithConcurrency(
+      created.map((item) => () => tagItem(item.id, item.file)),
+      TAG_CONCURRENCY,
+    )
   }
 
   const onSelectPhotos = (event: ChangeEvent<HTMLInputElement>) => {
@@ -215,6 +242,12 @@ export default function AddItem() {
           onChange={onSelectPhotos}
         />
       </label>
+
+      {capReached && (
+        <p className="banner banner-warn" role="status">
+          Daily AI limit reached — you can still tag and save these manually.
+        </p>
+      )}
 
       <ul className="review-queue">
         {items.map((item) => (
