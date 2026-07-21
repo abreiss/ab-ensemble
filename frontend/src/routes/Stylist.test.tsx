@@ -224,6 +224,15 @@ describe('Stylist route', () => {
     expect(screen.queryByRole('button', { name: /logged/i })).not.toBeInTheDocument()
   })
 
+  it('exposes an entry-point link to the manual assembly screen', () => {
+    renderStylist()
+
+    expect(screen.getByRole('link', { name: /build it yourself/i })).toHaveAttribute(
+      'href',
+      '/assemble',
+    )
+  })
+
   it('reveals the adjust chips and "Show me another" once a look renders', async () => {
     const user = userEvent.setup()
     await renderLook(user)

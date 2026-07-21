@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useState } from 'react'
 import { ArrowUp } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 import OutfitResult from '../components/OutfitResult'
 import WardrobeDrawer from '../components/WardrobeDrawer'
@@ -161,6 +162,10 @@ export default function Stylist() {
               Tell me the occasion and I’ll pull a look from your closet.
             </p>
           </div>
+
+          <Link to="/assemble" className="chip chip-ghost assemble-entry">
+            Build it yourself
+          </Link>
 
           {messages.length === 0 && (
             <div className="chips chips-quick-start">

@@ -86,6 +86,15 @@ describe('WardrobeGrid', () => {
     expect(await screen.findByText('detail for b')).toBeInTheDocument()
   })
 
+  it('exposes an entry-point link to the manual assembly screen in the populated grid', async () => {
+    listItemsMock.mockResolvedValue([item('a')])
+
+    renderGrid()
+
+    const link = await screen.findByRole('link', { name: /build it yourself/i })
+    expect(link).toHaveAttribute('href', '/assemble')
+  })
+
   it('shows an empty state inviting a first add when the wardrobe is empty', async () => {
     listItemsMock.mockResolvedValue([])
 

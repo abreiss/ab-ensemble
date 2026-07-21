@@ -39,6 +39,7 @@ out/
 ### Frontend ###
 node_modules/
 frontend/dist/
+frontend/coverage/
 *.tsbuildinfo
 
 ### Generated frontend build output (populated by the Gradle/Docker build) ###

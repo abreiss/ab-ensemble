@@ -1238,6 +1238,221 @@ select.input {
   text-align: left;
 }
 
+/* ---- Manual assembly: mannequin + drop zones ----------------------------- */
+
+.assemble-entry {
+  align-self: flex-start;
+}
+
+.mannequin {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.mannequin-figure-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 220px;
+}
+
+.mannequin-figure {
+  display: block;
+  width: 100%;
+  height: auto;
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Generous, possibly-overlapping hit-boxes over the silhouette's body regions —
+   deliberately not pixel-perfect, so a thumb reliably lands a drop (spec's
+   "forgiving hit-boxes" design note). */
+.mannequin-zone {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--paper-sunk) 70%, transparent);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.mannequin-zone-top {
+  top: 0%;
+  left: 12%;
+  right: 12%;
+  height: 44%;
+}
+
+.mannequin-zone-bottom {
+  top: 40%;
+  left: 12%;
+  right: 12%;
+  height: 40%;
+}
+
+.mannequin-zone-shoes {
+  top: 78%;
+  left: 8%;
+  right: 8%;
+  bottom: 0%;
+}
+
+/* The extras tray sits beside the figure (not overlaid on it) since it holds
+   multiple accumulating items rather than a single body region. `relative`
+   (not `static`) keeps it in the outer flex flow while anchoring its corner
+   label + fill-the-zone items box below. */
+.mannequin-zone-extras {
+  position: relative;
+  flex: 1;
+  min-height: 220px;
+  align-self: stretch;
+}
+
+/* The zone name sits as a small chip in the top-left corner so the placed
+   photo can fill the whole zone underneath it, rather than sharing the row
+   with the item and pushing it off-center. */
+.mannequin-zone-label {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--paper-raised) 88%, transparent);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+
+/* Drop-target highlight while a dragged tile is over the zone. Animates via
+   the `border-color`/`background` transition already declared on
+   `.mannequin-zone` above, so it is covered by the global
+   `prefers-reduced-motion: reduce` rule below without a further override. */
+.mannequin-zone.is-drop-target {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--paper-sunk));
+}
+
+/* The items box fills the whole zone (inset a hair so the dashed frame still
+   reads) so a single placed garment sizes to the zone instead of floating as
+   a small card in the middle of it. */
+.mannequin-zone-items {
+  position: absolute;
+  inset: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+/* A placed item's tile inside a body zone reuses `.drawer-tile` for the
+   frame/photo look and fills its zone (photo `object-fit: cover` from
+   `.drawer-tile-img` then covers the region). `position: relative` anchors
+   the `.placed-remove` "×" button below. */
+.placed-tile {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* The extras tray holds multiple accumulating items, so it lays them out as a
+   scrollable 2-column grid of 3:4 thumbnails rather than one zone-filling tile,
+   with room at the top for the corner label chip. */
+.mannequin-zone-extras .mannequin-zone-items {
+  inset: 4px;
+  padding-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  align-content: start;
+  gap: var(--space-2);
+  overflow-y: auto;
+}
+
+.mannequin-zone-extras .placed-tile {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+}
+
+/* The tap "×" that removes a placed item without a drag (spec Unit 3). The
+   transparent button is the ≥44px touch target (min-width/height, also
+   asserted inline in `Assemble.test.tsx` since jsdom skips this stylesheet)
+   anchored to the tile's top-right corner; the small visible chip is a nested
+   span, so the control is thumb-sized without a 44px disc covering a third of
+   the photo. */
+.placed-remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.placed-remove > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.assemble-source {
+  margin-top: var(--space-4);
+  border: 1.5px dashed transparent;
+  border-radius: var(--radius);
+  transition: border-color 0.15s ease;
+}
+
+.assemble-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* Highlighted while a placed tile is dragged back over the source list — the
+   drag-back-to-source removal path. Mirrors `.mannequin-zone.is-drop-target`
+   so both drop-target affordances read the same way; the transition above is
+   covered by the global reduced-motion rule below. */
+.assemble-source.is-drop-target {
+  border-color: var(--accent);
+}
+
+/* Faded while a source tile is the active drag; the opacity transition is
+   likewise covered by the reduced-motion rule below. */
+.drawer-tile.is-dragging {
+  transition: opacity 0.15s ease;
+  opacity: 0.4;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

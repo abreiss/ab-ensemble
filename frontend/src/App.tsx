@@ -2,6 +2,7 @@ import { Link, Navigate, Route, Routes } from 'react-router-dom'
 
 import AuthGate from './components/AuthGate'
 import AddItem from './routes/AddItem'
+import Assemble from './routes/Assemble'
 import ItemDetail from './routes/ItemDetail'
 import Stylist from './routes/Stylist'
 import WardrobeGrid from './routes/WardrobeGrid'
@@ -9,10 +10,11 @@ import WardrobeGrid from './routes/WardrobeGrid'
 /**
  * App shell: a persistent header (home link + wardrobe/add affordances) wrapping
  * the routed screens. The stylist is now the landing screen: the routes are the
- * stylist (`/`), the wardrobe grid (`/wardrobe`), add-item (`/add`), and item
- * detail (`/item/:id`). The legacy `/style` path redirects to the landing `/` so
- * old bookmarks keep working. The whole shell sits behind `AuthGate`, which
- * renders the passcode screen until a valid session token is stored.
+ * stylist (`/`), the wardrobe grid (`/wardrobe`), add-item (`/add`), item
+ * detail (`/item/:id`), and the manual outfit-assembly screen (`/assemble`).
+ * The legacy `/style` path redirects to the landing `/` so old bookmarks keep
+ * working. The whole shell sits behind `AuthGate`, which renders the passcode
+ * screen until a valid session token is stored.
  */
 export default function App() {
   return (
@@ -23,6 +25,9 @@ export default function App() {
             Ensemble
           </Link>
           <nav className="app-nav">
+            <Link to="/assemble" className="btn">
+              Build
+            </Link>
             <Link to="/wardrobe" className="btn">
               Wardrobe
             </Link>
@@ -38,6 +43,7 @@ export default function App() {
             <Route path="/style" element={<Navigate to="/" replace />} />
             <Route path="/add" element={<AddItem />} />
             <Route path="/item/:id" element={<ItemDetail />} />
+            <Route path="/assemble" element={<Assemble />} />
           </Routes>
         </main>
       </div>
