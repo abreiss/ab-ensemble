@@ -7,6 +7,11 @@
 > **6.6** (the deploy runbook — artifact below). Evidence for **6.3–6.4**
 > (CI-driven deploy log, golden path on the public URL) will be appended after
 > the #9 PR merges to `main`, which is what triggers the deploy pipeline.
+> **6.3 evidence is now appended below** (the push-to-deploy pipeline run,
+> including the OIDC trust-policy fix it surfaced). **6.4's API-level golden
+> path is also appended** — every backend behavior proven against the public
+> URL with data landing in real S3/DynamoDB; only the browser/iPhone UI
+> screenshots remain (operator capture).
 > **Account id redacted** to `123456789012` throughout, matching
 > `terraform/bootstrap/policies/README.md` convention.
 
@@ -290,6 +295,180 @@ one-person-can-do-it memory instead of a reviewable procedure.
 mutually cross-referenced; secret handling instructions keep values out of
 shell history, state, and git.
 
+## Artifact: Push-to-deploy pipeline run — OIDC → ECR → App Runner `RUNNING` (6.3)
+
+**What it proves:** A push to `main` alone drives the whole Unit 3 pipeline:
+GitHub OIDC role assumption (no stored AWS keys), image build, push to ECR
+under the immutable `sha-<git-sha>` tag, App Runner repoint via
+`update-service`, and a polled rollout ending in `RUNNING` — Success Metric 3.
+
+**Why it matters:** This is the first fully CI-driven deploy; everything
+before it was operator-run. It also proves the repo-variables runbook step and
+the CI role's trust policy actually work together end-to-end.
+
+**Command (operator):** `git push origin main` → workflow run `29792951440`
+(commit `00eff1f`, job time 3m52s), watched via `gh run watch`.
+
+**Result summary:** Every step green. Redacted log excerpt (account id →
+`123456789012`, matching this file's convention):
+
+~~~text
+Configure AWS credentials (OIDC, no static keys)
+  Authenticated as assumedRoleId AROAUBLSSSPJTAXCA3NF4:GitHubActions
+Build image
+  IMAGE: 123456789012.dkr.ecr.us-east-1.amazonaws.com/abreiss-ensemble-app:sha-00eff1f2b56ebdd878a68966152c10454239fd36
+Push image (immutable git-SHA tag)
+  sha-00eff1f...: digest: sha256:480668096f3c... size: 1993
+Deploy to App Runner (repoint at the new image tag)
+  "ImageIdentifier": "123456789012.dkr.ecr.us-east-1.amazonaws.com/abreiss-ensemble-app:sha-00eff1f..."
+Verify rollout
+  App Runner service status: OPERATION_IN_PROGRESS   (polled ~10s apart)
+  ...
+  App Runner service status: RUNNING
+  Deployment succeeded.
+~~~
+
+The accompanying CI workflow run (`29792951459`) on the same push was green,
+and its policy-lint job **assumed the CI role successfully** — its lint steps
+then exited `254` (`AccessDeniedException` on `access-analyzer:ValidatePolicy`,
+the documented structural gap absorbed by `continue-on-error`), versus exit
+`253` (“no credentials at all”) before the fixes below.
+
+## Artifact: Post-deploy public health check (6.3)
+
+**What it proves:** The pipeline-deployed image (not the operator seed) is
+serving traffic on the public URL.
+
+**Command:**
+
+~~~bash
+curl -s -w "\nHTTP %{http_code}\n" https://<app-runner-url>/api/health
+~~~
+
+**Result summary:** `{"status":"ok"}` with `HTTP 200`, immediately after the
+rollout completed.
+
+## Artifact: The two failures 6.3 surfaced, and their fixes
+
+**What it proves:** The pipeline's first live run failed for two independent,
+diagnosable reasons; both fixes are committed, and the #16 no-widening posture
+survived (the trust-policy change pins the *same* repo + ref, just in the
+subject format AWS actually receives).
+
+**Why it matters:** These are exactly the classes of failure the spec's
+"operator-run proof" phase exists to catch — neither is visible to
+`fmt`/`validate`/`plan` or to unit tests.
+
+1. **Missing repo variables (runbook step skipped).** The first CI run (PR
+   #22) failed at `configure-aws-credentials` with *"Could not load
+   credentials"* — `role-to-assume` was empty because none of the three
+   repository variables existed. Fixed by setting them from the module
+   outputs (`gh variable set AWS_CI_ROLE_ARN / AWS_ECR_REPOSITORY_URL /
+   AWS_APPRUNNER_SERVICE_ARN`). A side fix landed with it: the policy-lint
+   job's credentials step now carries `continue-on-error: true`, since
+   pull_request-event tokens can never match a trust policy pinned to
+   `refs/heads/main` — by design, not misconfiguration (commit `e6de487`).
+2. **Enterprise ID-stamped OIDC subject.** With variables set, the push-event
+   deploy still failed at STS: *"Not authorized to perform
+   sts:AssumeRoleWithWebIdentity"*. A temporary diagnostic workflow (commit
+   `b39f537`, deleted again in `00eff1f`) decoded the live token's claims:
+
+   ~~~json
+   {
+     "iss": "https://token.actions.githubusercontent.com",
+     "sub": "repo:abreiss@45674553/ab-ensemble@1306743058:ref:refs/heads/main",
+     "aud": "sts.amazonaws.com"
+   }
+   ~~~
+
+   The enterprise stamps owner/repo IDs into the subject (GitHub's
+   "immutable sub" format; the repo-level API still reports
+   `use_default: true`, so this is enforced upstream and invisible until you
+   inspect a real token). The trust condition matched only the documented
+   default `repo:abreiss/ab-ensemble:ref:refs/heads/main`, so STS correctly
+   refused. Fix: `iam.tf`/`variables.tf` now pin **both** subject forms of
+   the same repo + ref (stamped = what tokens carry today; plain = guard
+   against the enterprise toggling stamping off). One in-place
+   `terraform apply` to `aws_iam_role.ci` under the scoped identity, plan
+   converging to *No changes* afterwards; the committed review copy
+   `terraform/deploy/policies/abreiss-ensemble-ci-trust.json` matches.
+
+**Result summary:** Root causes fixed at the right layer (runbook variable
+step + trust policy), no permission widening, and the very next push deployed
+cleanly end-to-end.
+
+## Artifact: Golden path against the public URL — API level (6.4)
+
+**What it proves:** Every golden-path behavior works on the deployed service
+with real cloud data stores: passcode auth, Haiku vision tagging, the
+editable-fallback path, item creation with photos landing in S3, a grounded
+Sonnet outfit over text tags, a pushback re-pick that avoids the prior look,
+and the wear-history write — Success Metric 4 (backend half; UI screenshots
+are captured separately below).
+
+**Why it matters:** This exercises the exact request path the PWA uses
+(`/api/auth` → `/api/items/tag` → `/api/items` → `/api/style` →
+`/api/items/{id}/worn`), so the UI screenshots only add the rendering layer.
+
+**Flow and results** (session token + passcode never shown; full JSON
+responses retained in the operator's scratchpad, not committed):
+
+1. **Auth:** `POST /api/auth` with the out-of-band passcode → `200` with a
+   session token — the Secrets-Manager-sourced passcode + session secret work.
+2. **Vision tagging (×4):** `POST /api/items/tag` with four garment photos →
+   Haiku returned structured suggestions, e.g. the navy tee:
+
+   ~~~json
+   {"category":"shirt","primaryColor":"navy blue","formality":2,
+    "pattern":"solid","warmth":3,
+    "descriptors":["short-sleeved","crew neck","casual","lightweight"]}
+   ~~~
+
+   Three suggestions came back with `null` `formality`/`warmth` — the
+   designed editable-fallback: submitting them as-is was rejected with a
+   sanitized `400 {"error":"bad_request"}` (validation guardrail live in the
+   cloud), and creation succeeded once the "user review" filled the blanks.
+3. **Items persist:** `GET /api/items` lists all four; each photo `GET`
+   returns `200 image/jpeg` served through `S3PhotoStorage`.
+4. **Grounded outfit:** `POST /api/style` with
+   `"casual streetwear for running errands today"` → three **real** item ids
+   (tee + joggers + hoodie) and a reason that cites the palette and the
+   untouched wear history — the stylist saw text tags only.
+5. **Pushback re-pick:** resending the thread as `history` plus
+   `"too plain — make it sharper, less cozy"` → the hoodie is swapped for the
+   structured jacket, other picks retained, reason directly addressing the
+   pushback: *"Ditching the heavy oversized hoodie for a structured,
+   minimalist jacket instantly sharpens the look…"* — a different look, no
+   repeat of the last one.
+6. **Wear history:** `POST /api/items/{tee}/worn` →
+   `{"wornCount":1,"lastWorn":"2026-07-21T01:34:23Z"}`.
+
+## Artifact: Photos in S3 + item in DynamoDB (6.4)
+
+**What it proves:** The golden path's data actually lands in the Terraform-
+declared cloud stores — not a local disk or DynamoDB Local.
+
+**Commands** (scoped identity):
+
+~~~bash
+aws s3api list-objects-v2 --bucket abreiss-ensemble-photos \
+  --query 'Contents[].{Key:Key,Size:Size}'
+aws dynamodb get-item --table-name abreiss-ensemble-items \
+  --key '{"itemId":{"S":"a7c68bee-…"}}'
+~~~
+
+**Result summary:** The bucket holds exactly four compressed JPEGs, one per
+item, keyed `<itemId>.jpg`. The DynamoDB item shows the full single-item
+model round-tripped through the live app — vision tags (`category` "shirt",
+`primaryColor` "navy blue", `formality` 2, `warmth` 3, `descriptors`) plus
+wear-history (`wornCount` 1, `lastWorn` matching step 6) and the `photoKey`
+pointing at its S3 object.
+
+~~~json
+[{"Key":"25e8991e-….jpg","Size":13666},{"Key":"29f5784f-….jpg","Size":16427},
+ {"Key":"a7c68bee-….jpg","Size":15979},{"Key":"e9df82e8-….jpg","Size":16281}]
+~~~
+
 ## Reviewer Conclusion
 
 Sub-tasks 6.1, 6.2, 6.5, and 6.6 are done: the full `terraform/deploy/` estate
@@ -301,6 +480,13 @@ three root causes that had made this step "fail over and over" (arm64 seed
 image, the never-matching `iam:PassedToService` PassRole condition, and App
 Runner dropping empty-string env vars) are each fixed at the right layer,
 regression-guarded (`CloudProfileConfigTest`, README seed-image section), and
-written up in `docs/AWS_ACCESS.md`. Remaining for parent 6.0, both gated on
-the #9 PR merging to `main` (the deploy pipeline's trigger): the CI-driven
-deploy proof (6.3) and the golden path on the public URL (6.4).
+written up in `docs/AWS_ACCESS.md`. Sub-task 6.3 is now also done: the #9
+work merged to `main`, and after two surfaced-and-fixed failures (missing repo
+variables; the enterprise's ID-stamped OIDC subject) a push to `main` drives
+the pipeline end-to-end — OIDC role assumption, SHA-tagged ECR push,
+`update-service` repoint, rollout to `RUNNING`, public health check `200`.
+The 6.4 golden path is proven at the API level against the public URL — auth,
+Haiku tagging (including the editable-fallback `400` guardrail), items + photos
+in real DynamoDB/S3, a grounded outfit, a pushback re-pick, and the
+wear-history write. The only evidence still outstanding for parent 6.0 is the
+operator-captured browser/iPhone screenshots of the same flow in the PWA.
