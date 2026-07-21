@@ -268,6 +268,91 @@ docker run --rm -p 8080:8080 ensemble:skeleton
 # open http://localhost:8080 ; curl localhost:8080/api/health -> {"status":"ok"}
 ```
 
+## Deploy to AWS (App Runner)
+
+The same container deploys to AWS: Terraform provisions the cloud footprint
+(S3 photos bucket, DynamoDB table, ECR, App Runner, Secrets Manager, IAM
+roles) and GitHub Actions turns every push to `main` into a deployment.
+Terraform runs locally as the scoped `abreiss-ensemble-terraform` identity —
+never as admin, never in CI. Identity/credential setup is in
+[docs/AWS_ACCESS.md](docs/AWS_ACCESS.md); module internals in
+[`terraform/deploy/README.md`](terraform/deploy/README.md).
+
+**Prerequisites:** the scoped identity's AWS profile configured locally (see
+[docs/AWS_ACCESS.md](docs/AWS_ACCESS.md)), Terraform ≥ 1.11, Docker.
+
+**1. One-time — create the Terraform state bucket.** The module keeps its own
+remote state in S3 (`abreiss-ensemble-tfstate`, S3-native locking), and
+Terraform can't create the bucket its backend needs, so it's created once out
+of band:
+
+```bash
+cd terraform/deploy
+AWS_PROFILE=abreiss-ensemble-terraform ./create-state-bucket.sh
+```
+
+**2. Provision the footprint** (review the plan before applying):
+
+```bash
+AWS_PROFILE=abreiss-ensemble-terraform terraform init
+AWS_PROFILE=abreiss-ensemble-terraform terraform plan
+AWS_PROFILE=abreiss-ensemble-terraform terraform apply
+```
+
+**3. Populate the three secret values out-of-band.** Terraform declares only
+empty Secrets Manager containers, so no plaintext ever enters state or git.
+Paste each value in the AWS console (Secrets Manager → secret → *Set secret
+value*), or use the CLI with a git-ignored file so the value stays out of
+shell history:
+
+```bash
+# for each of: abreiss-ensemble-anthropic-key, -passcode, -session-secret
+AWS_PROFILE=abreiss-ensemble-terraform aws secretsmanager put-secret-value \
+  --secret-id abreiss-ensemble-anthropic-key --secret-string file://secret.txt
+rm secret.txt
+```
+
+**4. One-time — push the `linux/amd64` seed image.** The service is pinned to
+`:latest` exactly once before CI takes over; App Runner only runs amd64
+images. Follow the "Seed image" section in
+[`terraform/deploy/README.md`](terraform/deploy/README.md) (an arm64 seed
+built on Apple Silicon fails the deploy with no application logs).
+
+**5. Wire CI to the provisioned resources.** Set three GitHub **repository
+variables** (not secrets — they're resource identifiers, not credentials)
+from the module outputs: `AWS_CI_ROLE_ARN`, `AWS_ECR_REPOSITORY_URL`,
+`AWS_APPRUNNER_SERVICE_ARN`. The mapping table is in
+[`terraform/deploy/README.md`](terraform/deploy/README.md).
+
+**6. Push to deploy.** Every push to `main` runs
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): assume the CI
+role via OIDC (no stored AWS keys) → build the image → push to ECR under an
+immutable `sha-<git-sha>` tag → `aws apprunner update-service` repoints the
+service at the new tag → poll `describe-service` until `RUNNING`.
+
+**Read the public URL** (and verify health):
+
+```bash
+URL=$(terraform -chdir=terraform/deploy output -raw app_runner_service_url)
+curl -s "https://$URL/api/health"        # -> {"status":"ok"}
+```
+
+Open `https://$URL` in Safari on an iPhone and **Share → Add to Home Screen**
+for the standalone PWA.
+
+**Rollback.** Every deploy is an immutable git-SHA tag, so rolling back is
+repointing the service at an earlier tag — the same call CI makes:
+
+```bash
+AWS_PROFILE=abreiss-ensemble-terraform aws apprunner update-service \
+  --service-arn "$(terraform -chdir=terraform/deploy output -raw app_runner_service_arn)" \
+  --source-configuration '{"ImageRepository":{"ImageIdentifier":"<ecr-repo-url>:sha-<earlier-git-sha>","ImageRepositoryType":"ECR"}}'
+```
+
+Then poll `aws apprunner describe-service` until the status returns to
+`RUNNING`. (Re-running the old commit's Deploy workflow won't work — ECR's
+immutable tags reject re-pushing an existing tag.)
+
 ## Tests
 
 **Backend** (JUnit 5, MockMvc):

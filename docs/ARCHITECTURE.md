@@ -50,12 +50,15 @@ Photos are compressed/resized (≤800px JPEG) on save. Code depends only on the 
 - **MVP:** perception + grounded reasoning + wear-history.
 - **Stretch (not MVP):** weather, color-as-code, occasion.
 
-## Deployment (later)
+## Deployment (shipped — issue #9)
 
-- **Compute:** AWS App Runner (one container). No VPC.
-- **Data:** S3 (photos) + DynamoDB (items) — reached by the App Runner instance role via IAM, no VPC connector.
-- **Secrets:** Claude API key + passcode in AWS Secrets Manager.
-- **Pipeline:** Terraform (ECR, App Runner, S3, DynamoDB, IAM, Secrets Manager, OIDC) + GitHub Actions (build → push ECR → deploy). GitHub→AWS auth via OIDC.
+The operator runbook is in `README.md` ("Deploy to AWS"); operator steps are cross-referenced from [DEVELOPMENT.md](DEVELOPMENT.md).
+
+- **Compute:** AWS App Runner (one container, port 8080, health-checking `/api/health`, min 1 / max 2 instances). No VPC. The service runs with `SPRING_PROFILES_ACTIVE=cloud` — a Spring profile that blanks the DynamoDB endpoint override (default credential chain → instance role) and disables table auto-create (the cloud table is Terraform-owned; the instance role deliberately has item-level DynamoDB permissions only).
+- **Data:** S3 (photos — `S3PhotoStorage` selected by `ENSEMBLE_PHOTOS_BACKEND=s3` behind the same `PhotoStorage` interface) + DynamoDB (items) — reached by the boundary-capped App Runner instance role via IAM, no VPC connector.
+- **Secrets:** Claude key, passcode, and session secret in AWS Secrets Manager. Terraform declares only empty containers; values are populated out-of-band and injected at runtime **by ARN** as the same `ENSEMBLE_*` env vars the app already reads — no plaintext in Terraform state, git, or service config.
+- **IaC:** [`terraform/deploy/`](../terraform/deploy/) — a self-contained root module (S3, DynamoDB, ECR, App Runner, Secrets Manager, instance + ECR-access + CI roles, all `abreiss-ensemble-*`), with remote S3 state and S3-native locking (`use_lockfile`, Terraform ≥ 1.11). Applied only by the operator as the scoped identity — never by CI.
+- **Pipeline:** [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) on push to `main`: assume the `abreiss-ensemble-ci` role via OIDC → build the multi-stage image → push to ECR under an immutable `sha-<git-sha>` tag → `aws apprunner update-service` repoints the service → poll to `RUNNING`. Rollback = repoint at an earlier SHA tag. [`ci.yml`](../.github/workflows/ci.yml) runs backend + frontend tests, `terraform fmt -check`/`validate`, and the Access Analyzer policy lint on every PR/push.
 - **Terraform identity:** in the shared AWS account, Terraform runs as a dedicated, prefix-scoped IAM user (`abreiss-ensemble-terraform`) created by a one-time bootstrap in [`terraform/bootstrap/`](../terraform/bootstrap/) — it can only touch `abreiss-ensemble-*` resources. See [AWS_ACCESS.md](AWS_ACCESS.md).
 - **Frontend:** vite-plugin-pwa generates the manifest + service worker for iPhone home-screen install.
 
@@ -65,3 +68,4 @@ Photos are compressed/resized (≤800px JPEG) on save. Code depends only on the 
 - A **daily call cap** (~100/day → 429) is the app-side backstop, since no key-level spend cap is available.
 - No secrets committed; keys via env (dev) / Secrets Manager (deploy).
 - **Blast-radius containment in the shared AWS account:** Terraform runs as a scoped IAM identity limited to `abreiss-ensemble-*` resources, with a permissions boundary capping every role it creates to the same box. Full narrative + the enumerated `Resource: "*"` exceptions in [AWS_ACCESS.md](AWS_ACCESS.md).
+- **CI auth:** GitHub Actions assumes the boundary-capped `abreiss-ensemble-ci` role via OIDC (trust policy conditioned to this repo/ref) — no long-lived AWS keys in GitHub. Its permissions are exactly ECR push + App Runner deploy + one scoped `iam:PassRole`. Access Analyzer policy lint runs as a standing CI check (see [AWS_ACCESS.md](AWS_ACCESS.md) for the lint's known permission gap and its resolution).

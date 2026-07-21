@@ -1,11 +1,14 @@
-# Task 06 Proofs - Live deploy under the scoped identity (6.1–6.2; parent 6.0 in progress)
+# Task 06 Proofs - Live deploy under the scoped identity (6.1–6.2, 6.5–6.6; parent 6.0 in progress)
 
-> Parent task 6.0 spans 6.1–6.6. This file currently proves **6.1** (live
+> Parent task 6.0 spans 6.1–6.6. This file proves **6.1** (live
 > `terraform apply` as `abreiss-ensemble-terraform` → App Runner `RUNNING` +
-> public `/api/health` 200) and **6.2** (secret values populated out-of-band).
-> Evidence for 6.3–6.6 (CI deploy, golden path, runbook) will be appended when
-> those sub-tasks run. **Account id redacted** to `123456789012` throughout,
-> matching `terraform/bootstrap/policies/README.md` convention.
+> public `/api/health` 200), **6.2** (secret values populated out-of-band),
+> **6.5** (the deferred #16 scoped-identity gate — write-up below), and
+> **6.6** (the deploy runbook — artifact below). Evidence for **6.3–6.4**
+> (CI-driven deploy log, golden path on the public URL) will be appended after
+> the #9 PR merges to `main`, which is what triggers the deploy pipeline.
+> **Account id redacted** to `123456789012` throughout, matching
+> `terraform/bootstrap/policies/README.md` convention.
 
 ## Task Summary
 
@@ -216,16 +219,88 @@ env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
 No changes. Your infrastructure matches the configuration.
 ~~~
 
+## Artifact: The deferred #16 scoped-identity gate is satisfied (6.5)
+
+**What it proves:** `terraform apply` of the full deploy module succeeds using
+**only** the `abreiss-ensemble-terraform` identity, and every permission gap
+found on the way was closed as a narrowly-scoped `abreiss-ensemble-*` addition
+— never a widening to `*`, never by falling back to broader credentials.
+
+**Why it matters:** This is the cross-issue gate #16 deferred to #9: the
+scoped-identity model only counts as proven once a real, non-trivial apply has
+run entirely inside the box.
+
+**Evidence (all captured above or in `docs/AWS_ACCESS.md`):**
+
+- The final apply ran under the scoped user (see the caller-identity artifact:
+  `arn:aws:iam::123456789012:user/abreiss-ensemble-terraform`) with admin env
+  credentials explicitly stripped, and a follow-up `plan` reports
+  **No changes** — the estate converges inside the box.
+- The temporary no-condition diagnostic policy used to isolate the PassRole
+  failure was detached and **deleted before** that final apply, so the run
+  proves the canonical policies alone suffice.
+- Two permission gaps were hit and closed per the gate's own rules, both
+  documented in `docs/AWS_ACCESS.md`:
+  1. Post-create read/waiter actions (`s3:GetAccelerateConfiguration`,
+     `s3:GetReplicationConfiguration`, `secretsmanager:GetResourcePolicy`,
+     `apprunner:DescribeAutoScalingConfiguration` + siblings) → added as the
+     **second managed policy** `abreiss-ensemble-terraform-ext` (~943 chars,
+     all resource-scoped to `abreiss-ensemble-*`), because folding them into
+     the primary policy would exceed IAM's 6,144-char limit — exactly the
+     "second managed policy, never widen" fallback the gate prescribes.
+  2. The `iam:PassedToService` PassRole condition that can never match App
+     Runner's live evaluation context → **removed**, shrinking the policy;
+     resource scope (`abreiss-ensemble-*` roles only) and each role's trust
+     policy remain the guardrails ("PassRole condition removed" in
+     `docs/AWS_ACCESS.md`).
+
+**Result summary:** Gate satisfied — Success Metric 5. No `Resource: "*"`
+additions, no boundary weakening, no admin-credential fallback; the two
+`terraform/bootstrap/` changes are themselves reviewable rendered-policy diffs.
+
+## Artifact: Deploy runbook (6.6)
+
+**What it proves:** The operator run is documented and repeatable — the FR's
+required flow (state-bucket bootstrap → `apply` → secret population →
+push-to-deploy → reading the public URL → rollback) is written down where an
+operator will actually look, cross-referenced in the `docs/AWS_ACCESS.md`
+style.
+
+**Why it matters:** Without the runbook, the live deploy stays a
+one-person-can-do-it memory instead of a reviewable procedure.
+
+**Artifact paths:**
+
+- `README.md` — new **"Deploy to AWS (App Runner)"** section: the six-step
+  runbook (state bucket → `terraform apply` → out-of-band secret population →
+  amd64 seed image → GitHub repo variables → push-to-deploy), reading the
+  public URL, and rollback by repointing App Runner at an earlier immutable
+  `sha-<git-sha>` tag (with the explicit note that re-running an old Deploy
+  workflow cannot work against IMMUTABLE tags).
+- `docs/DEVELOPMENT.md` — new **"Deploying (operator-run)"** section
+  cross-referencing the runbook, `AWS_ACCESS.md`, `terraform/deploy/README.md`,
+  and `ARCHITECTURE.md`.
+- `docs/ARCHITECTURE.md` — "Deployment (later)" rewritten to
+  **"Deployment (shipped — issue #9)"** describing the as-built module and
+  pipeline (cloud Spring profile, secret-by-ARN injection, S3-native state
+  locking, `update-service` repoint deploy, rollback), plus a Security bullet
+  for the OIDC CI role and the standing Access Analyzer lint.
+
+**Result summary:** All six FR-required runbook elements are present and
+mutually cross-referenced; secret handling instructions keep values out of
+shell history, state, and git.
+
 ## Reviewer Conclusion
 
-Sub-tasks 6.1 and 6.2 are done: the full `terraform/deploy/` estate exists and
-converges under only the scoped `abreiss-ensemble-terraform` identity, the App
-Runner service is `RUNNING` with secrets wired by ARN, and the public
-`/api/health` answers `200`. The three root causes that had made this step
-"fail over and over" (arm64 seed image, the never-matching
-`iam:PassedToService` PassRole condition, and App Runner dropping empty-string
-env vars) are each fixed at the right layer, regression-guarded
-(`CloudProfileConfigTest`, README seed-image section), and written up in
-`docs/AWS_ACCESS.md`. Remaining for parent 6.0: CI-driven deploy proof (6.3),
-golden path on the public URL (6.4), the 6.5 gate write-up, and the runbook
-(6.6).
+Sub-tasks 6.1, 6.2, 6.5, and 6.6 are done: the full `terraform/deploy/` estate
+exists and converges under only the scoped `abreiss-ensemble-terraform`
+identity, the App Runner service is `RUNNING` with secrets wired by ARN, the
+public `/api/health` answers `200`, the #16 gate is satisfied without any
+scope widening, and the deploy runbook is written and cross-referenced. The
+three root causes that had made this step "fail over and over" (arm64 seed
+image, the never-matching `iam:PassedToService` PassRole condition, and App
+Runner dropping empty-string env vars) are each fixed at the right layer,
+regression-guarded (`CloudProfileConfigTest`, README seed-image section), and
+written up in `docs/AWS_ACCESS.md`. Remaining for parent 6.0, both gated on
+the #9 PR merging to `main` (the deploy pipeline's trigger): the CI-driven
+deploy proof (6.3) and the golden path on the public URL (6.4).

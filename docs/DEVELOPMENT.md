@@ -33,6 +33,19 @@ Backend + frontend run together in dev; a single container serves both in prod.
 
 Verify the skeleton: `curl -s localhost:8080/api/health` returns `200` with `{"status":"ok"}`.
 
+## Deploying (operator-run)
+
+Deployment is operator-run Terraform plus push-to-deploy CI; CI never runs
+`terraform apply` and holds no static AWS keys (OIDC only). Follow the
+[deploy runbook in `README.md`](../README.md#deploy-to-aws-app-runner) for the
+full sequence: state-bucket bootstrap → `terraform apply` as the scoped
+identity → secret population (out-of-band, no plaintext in state or git) →
+one-time amd64 seed image → GitHub repo variables → push to `main` → reading
+the public URL → rollback by redeploying an earlier SHA tag. The identity and
+its credentials are documented in [AWS_ACCESS.md](AWS_ACCESS.md); the module
+itself in [`terraform/deploy/README.md`](../terraform/deploy/README.md); the
+architecture/security narrative in [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## TDD Workflow
 
 Every feature follows Red-Green-Refactor (see [AGENTS.md](../AGENTS.md) and [TESTING.md](TESTING.md)):
