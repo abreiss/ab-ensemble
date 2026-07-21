@@ -48,7 +48,7 @@ Technical Considerations). Conventional commits, roughly one per demoable unit.
 
 ## Tasks
 
-### [ ] 1.0 `/assemble` route, mannequin scaffold, and entry points
+### [x] 1.0 `/assemble` route, mannequin scaffold, and entry points
 
 Stand up the reachable, `AuthGate`-gated screen: a static hand-authored SVG
 mannequin with four `Slot`-keyed, labeled drop regions (TOP head-to-torso,
@@ -82,38 +82,40 @@ entry-point links from the Stylist screen (`/`) and the wardrobe grid
 
 #### 1.0 Tasks
 
-- [ ] 1.1 [RED] In `App.test.tsx`, add a routing case: `<App>` at `/assemble`
+- [x] 1.1 [RED] In `App.test.tsx`, add a routing case: `<App>` at `/assemble`
   (token pre-seeded) finds the assemble screen by `data-testid="assemble"`; and
   a gated case with no token asserts the passcode screen shows instead. Run to
   confirm it fails (screen not yet created).
-- [ ] 1.2 [GREEN] Create `frontend/src/routes/Assemble.tsx` as a minimal
+- [x] 1.2 [GREEN] Create `frontend/src/routes/Assemble.tsx` as a minimal
   `<section data-testid="assemble" className="screen">` that fetches items with
   the `listItems()` + `settle()` loading/error pattern (mirror `WardrobeGrid`).
   Register `<Route path="/assemble" element={<Assemble />} />` inside `AuthGate`
   in `App.tsx`. Make 1.1 pass.
-- [ ] 1.3 [RED] In `Assemble.test.tsx`, add tests for the empty state
+- [x] 1.3 [RED] In `Assemble.test.tsx`, add tests for the empty state
   (`listItems → []` renders `state-block empty-state`, `empty-title`, and a
   `btn btn-primary` link to `/add`) and the list-failure state (`listItems`
   rejects → non-crashing error note + retry control).
-- [ ] 1.4 [GREEN] Implement the loading / list-failure / empty-wardrobe states in
+- [x] 1.4 [GREEN] Implement the loading / list-failure / empty-wardrobe states in
   `Assemble.tsx`, reusing the `WardrobeGrid.tsx` markup and class names. Make 1.3
   pass.
-- [ ] 1.5 [RED→GREEN] Add an `Assemble.test.tsx` test asserting the four labeled
+- [x] 1.5 [RED→GREEN] Add an `Assemble.test.tsx` test asserting the four labeled
   drop zones render (query by their visible labels). Create
   `frontend/src/components/Mannequin.tsx` — a static hand-authored SVG line-art
   silhouette with four labeled droppable regions each carrying a stable `Slot`
   identifier (`data-slot` / id) and generous, possibly-overlapping hit-boxes;
   render it in `Assemble.tsx`'s populated state (no drag wiring yet). Make the
   test pass.
-- [ ] 1.6 [RED→GREEN] Add link tests to `Stylist.test.tsx` and
+- [x] 1.6 [RED→GREEN] Add link tests to `Stylist.test.tsx` and
   `WardrobeGrid.test.tsx` (a link with `href="/assemble"`), then add a
   "Build it yourself" link near the Stylist chat entry point and a link in the
   populated `WardrobeGrid` view. Make both pass.
-- [ ] 1.7 [REFACTOR] Add mannequin + zone base styles to `index.css` using
+- [x] 1.7 [REFACTOR] Add mannequin + zone base styles to `index.css` using
   existing tokens (`--paper-sunk`, `--border`, `--radius*`, `--placeholder`);
   keep labels legible and zone hit areas ≥44px. Verify `npm test -- --run` and
   `npm run lint` are green. Capture the two scaffold screenshots (populated +
   empty). Commit (`feat(frontend): /assemble route + mannequin scaffold`).
+  Screenshots deferred to manual verification (headless run, no browser) —
+  see `21-proofs/21-task-01-proofs.md`.
 
 ### [ ] 2.0 Placement model + drag-and-drop with dnd-kit
 

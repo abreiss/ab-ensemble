@@ -74,6 +74,9 @@ export default function WardrobeGrid() {
 
   return (
     <section data-testid="wardrobe-grid" className="screen">
+      <Link to="/assemble" className="btn assemble-entry">
+        Build it yourself
+      </Link>
       <ul className="grid">
         {items.map((it) => (
           <li key={it.itemId} className="grid-cell">

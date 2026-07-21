@@ -67,6 +67,11 @@ describe('App shell + routing', () => {
     expect(await screen.findByTestId('item-detail')).toBeInTheDocument()
   })
 
+  it('mounts the assemble screen at /assemble', async () => {
+    renderAt('/assemble')
+    expect(await screen.findByTestId('assemble')).toBeInTheDocument()
+  })
+
   it('redirects the legacy /style route to the stylist landing at /', async () => {
     renderAt('/style')
     expect(await screen.findByTestId('stylist')).toBeInTheDocument()
@@ -80,5 +85,17 @@ describe('App shell + routing', () => {
   it('exposes a persistent wardrobe navigation control', () => {
     renderAt('/')
     expect(screen.getByRole('link', { name: /wardrobe/i })).toHaveAttribute('href', '/wardrobe')
+  })
+})
+
+describe('App shell — /assemble is gated', () => {
+  afterEach(() => {
+    sessionStorage.clear()
+  })
+
+  it('shows the passcode screen instead of /assemble when no session token is stored', async () => {
+    renderAt('/assemble')
+    expect(await screen.findByLabelText(/passcode/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('assemble')).not.toBeInTheDocument()
   })
 })

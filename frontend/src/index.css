@@ -1238,6 +1238,91 @@ select.input {
   text-align: left;
 }
 
+/* ---- Manual assembly: mannequin + drop zones ----------------------------- */
+
+.assemble-entry {
+  align-self: flex-start;
+}
+
+.mannequin {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.mannequin-figure-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 220px;
+}
+
+.mannequin-figure {
+  display: block;
+  width: 100%;
+  height: auto;
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Generous, possibly-overlapping hit-boxes over the silhouette's body regions —
+   deliberately not pixel-perfect, so a thumb reliably lands a drop (spec's
+   "forgiving hit-boxes" design note). */
+.mannequin-zone {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--paper-sunk) 70%, transparent);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.mannequin-zone-top {
+  top: 0%;
+  left: 12%;
+  right: 12%;
+  height: 44%;
+}
+
+.mannequin-zone-bottom {
+  top: 40%;
+  left: 12%;
+  right: 12%;
+  height: 40%;
+}
+
+.mannequin-zone-shoes {
+  top: 78%;
+  left: 8%;
+  right: 8%;
+  bottom: 0%;
+}
+
+/* The extras tray sits beside the figure (not overlaid on it) since it holds
+   multiple accumulating items rather than a single body region. */
+.mannequin-zone-extras {
+  position: static;
+  flex: 1;
+  min-height: 220px;
+  align-self: stretch;
+}
+
+.mannequin-zone-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
