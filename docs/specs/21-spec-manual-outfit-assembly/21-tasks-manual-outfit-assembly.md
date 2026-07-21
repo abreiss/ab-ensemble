@@ -117,7 +117,7 @@ entry-point links from the Stylist screen (`/`) and the wardrobe grid
   Screenshots deferred to manual verification (headless run, no browser) —
   see `21-proofs/21-task-01-proofs.md`.
 
-### [ ] 2.0 Placement model + drag-and-drop with dnd-kit
+### [x] 2.0 Placement model + drag-and-drop with dnd-kit
 
 Introduce a pure, fully-unit-tested placement reducer/helper (in-memory `Slot` →
 placed item id(s) state), then wire `@dnd-kit/core` (pointer + touch sensors) so
@@ -154,40 +154,66 @@ spec Unit 2 and Success Metric 2.
 
 #### 2.0 Tasks
 
-- [ ] 2.1 [SETUP] Add `@dnd-kit/core` to `frontend/package.json` dependencies
+- [x] 2.1 [SETUP] Add `@dnd-kit/core` to `frontend/package.json` dependencies
   (add `@dnd-kit/modifiers` only if used for snap/constraint). Run `npm install`
   to update `package-lock.json`. Verify `grep -n "@dnd-kit/core" package.json`.
-- [ ] 2.2 [RED] Write `frontend/src/lib/placement.test.ts` defining the pure
+- [x] 2.2 [RED] Write `frontend/src/lib/placement.test.ts` defining the pure
   model contract and every branch: initial place via `slotForCategory`; explicit
   target-slot override; single-occupancy replace for TOP/BOTTOM/SHOES returning
   the displaced id to available; multi-occupancy accumulation for CARRY/PIECE;
   `removeItem`; `placedIds` selector; unknown/null category → PIECE. Run to
   confirm failure.
-- [ ] 2.3 [GREEN] Implement `frontend/src/lib/placement.ts` as a pure module (no
+- [x] 2.3 [GREEN] Implement `frontend/src/lib/placement.ts` as a pure module (no
   React) importing `slotForCategory` from `lib/specSheet.ts`. Make 2.2 pass and
   confirm **100% branch coverage** on `placement.ts` via the Vitest coverage run.
-- [ ] 2.4 [RED→GREEN] Write `frontend/src/lib/dndConfig.test.ts` asserting a
+- [x] 2.4 [RED→GREEN] Write `frontend/src/lib/dndConfig.test.ts` asserting a
   pointer + a touch sensor with activation constraints (pointer distance; touch
   delay + tolerance). Implement `frontend/src/lib/dndConfig.ts` exporting the
   sensor descriptors/constants with a comment noting on-device tuning is a
   documented deferred item (A1.5). Make it pass.
-- [ ] 2.5 [GREEN] Wire dnd-kit into `Assemble.tsx`: wrap in `<DndContext>` using
+- [x] 2.5 [GREEN] Wire dnd-kit into `Assemble.tsx`: wrap in `<DndContext>` using
   the `dndConfig` sensors; make `AssembleSource` tiles `useDraggable` and the
   `Mannequin` zones `useDroppable` keyed by `Slot`; hold placement state via
   `useState` seeded from `placement.ts`; `onDragEnd` calls `placeItem(state,
   active.id, category, over?.data.slot)`. Render placed items (photo via
   `photoUrl(id)`) in their zones reusing the `drawer-tile` look.
-- [ ] 2.6 [RED→GREEN] Add the `Assemble.test.tsx` wiring test: invoke `onDragEnd`
+
+  Implementation note: `AssembleSource.tsx` does not exist yet — it is created
+  in task 3.1/3.2. This sub-task renders the draggable source tiles inline in
+  `Assemble.tsx` (an unexcluded placeholder list reusing `drawer-tile` markup),
+  which task 3.2 will swap for the real `AssembleSource` component. `Mannequin`
+  gained a `MannequinZone` sub-component so each zone's `useDroppable` call is
+  unconditional per rules-of-hooks (previously the zones were built in a
+  `.map()` inside the parent).
+- [x] 2.6 [RED→GREEN] Add the `Assemble.test.tsx` wiring test: invoke `onDragEnd`
   with a synthetic payload **typed as dnd-kit's `DragEndEvent`** (imported from
   `@dnd-kit/core`) — so a library upgrade that changes the payload shape breaks
   this test at compile time (FLAG-1 hardening) — and assert the item routes to
   the expected zone and replaces an occupant. Guard any drop/return animation
   inside the existing `@media (prefers-reduced-motion: reduce)` block in
   `index.css`.
-- [ ] 2.7 [REFACTOR] Verify `npm test -- --run` + `npm run lint` green. Capture
+
+  Implementation note: `@dnd-kit/core` is mocked in `Assemble.test.tsx` (jsdom
+  cannot simulate a real drag) so `DndContext` captures the component's actual
+  `onDragEnd` prop via `vi.hoisted`; the test then calls that captured handler
+  directly with a fully-typed synthetic `DragEndEvent`. Added a third wiring
+  test (multi-occupancy tray accumulation) and a fourth (no-op on a drag that
+  ends without a valid drop target) beyond the minimum required test. The
+  drop-target highlight reuses `.mannequin-zone`'s existing `transition`
+  declaration and the dragging-tile fade uses a new `transition` on
+  `.drawer-tile.is-dragging` — both are covered by the pre-existing global
+  `@media (prefers-reduced-motion: reduce) { * { ... } }` rule, so no
+  per-selector override was needed in that block.
+- [x] 2.7 [REFACTOR] Verify `npm test -- --run` + `npm run lint` green. Capture
   the interaction screenshot/recording (auto-slot, replace-on-drop, multi-item
   tray) — doubling as the on-device touch proof. Commit
   (`feat(frontend): drag-and-drop placement onto the mannequin`).
+
+  Screenshot/recording deferred to manual verification (headless run, no
+  browser/device available) — see `21-proofs/21-task-02-proofs.md`. The
+  placement unit tests + the synthetic-`onDragEnd` wiring tests are the
+  machine-verifiable evidence for this run; the on-device touch proof remains
+  the one open, non-blocking item from assumption A1.5.
 
 ### [ ] 3.0 Remove/undo affordance + real wardrobe-drawer source
 

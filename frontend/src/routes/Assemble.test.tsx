@@ -1,9 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DndContextProps, DragEndEvent } from '@dnd-kit/core'
 
 import Assemble from './Assemble'
+import type { Slot } from '../lib/specSheet'
 import type { Item } from '../types/item'
 
 // The screen must never touch the network in tests; mock the items API module.
@@ -15,6 +17,36 @@ vi.mock('../api/items', () => ({
 import { listItems } from '../api/items'
 
 const listItemsMock = vi.mocked(listItems)
+
+// jsdom cannot simulate a real dnd-kit drag (PointerSensor needs real pointer
+// events + layout measurement it doesn't implement — see the spec's Technical
+// Considerations). So `@dnd-kit/core` is mocked here: `useDraggable` /
+// `useDroppable` become inert (the tiles/zones still render, they just don't
+// need a live DndContext), and `DndContext` is replaced with a stand-in that
+// captures the real `onDragEnd` callback the component wires up, so a test can
+// invoke it directly with a synthetic drop — this is the "component test
+// exercising the drop handler" the spec's Unit 2 proof artifacts call for.
+const dragEndRef = vi.hoisted(() => ({
+  current: undefined as ((event: DragEndEvent) => void) | undefined,
+}))
+
+vi.mock('@dnd-kit/core', async () => {
+  const actual = await vi.importActual<typeof import('@dnd-kit/core')>('@dnd-kit/core')
+  return {
+    ...actual,
+    useDraggable: () => ({
+      attributes: {},
+      listeners: {},
+      setNodeRef: () => {},
+      isDragging: false,
+    }),
+    useDroppable: () => ({ setNodeRef: () => {}, isOver: false }),
+    DndContext: ({ onDragEnd, children }: DndContextProps) => {
+      dragEndRef.current = onDragEnd
+      return <>{children}</>
+    },
+  }
+})
 
 function item(id: string, category = 'top'): Item {
   return {
@@ -41,8 +73,39 @@ function renderAssemble() {
   )
 }
 
+/**
+ * Builds a synthetic dnd-kit `DragEndEvent` for the wiring tests below. Typed
+ * against the real `DragEndEvent` (imported from `@dnd-kit/core`) rather than
+ * a hand-rolled `{active, over}` shape, so a future dnd-kit upgrade that
+ * changes the event shape fails this test at *compile* time instead of
+ * silently passing a stale synthetic payload (approved FLAG-1 hardening from
+ * the planning audit).
+ */
+function dragEndEvent(activeId: string, category: string | null, overSlot: Slot | null): DragEndEvent {
+  return {
+    activatorEvent: new Event('pointerup'),
+    active: {
+      id: activeId,
+      data: { current: { category } },
+      rect: { current: { initial: null, translated: null } },
+    },
+    collisions: null,
+    delta: { x: 0, y: 0 },
+    over:
+      overSlot === null
+        ? null
+        : {
+            id: overSlot,
+            data: { current: { slot: overSlot } },
+            disabled: false,
+            rect: { width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 },
+          },
+  }
+}
+
 beforeEach(() => {
   listItemsMock.mockReset()
+  dragEndRef.current = undefined
 })
 
 afterEach(() => {
@@ -86,5 +149,61 @@ describe('Assemble route', () => {
     expect(screen.getByText(/^bottom$/i)).toBeInTheDocument()
     expect(screen.getByText(/^shoes$/i)).toBeInTheDocument()
     expect(screen.getByText(/^extras$/i)).toBeInTheDocument()
+  })
+})
+
+describe('Assemble drag-and-drop wiring', () => {
+  it('routes a dropped item to its target zone and replaces the prior occupant', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt'), item('shirt-2', 'shirt')])
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+
+    const topZone = document.querySelector('[data-slot="TOP"]') as HTMLElement
+    expect(topZone).not.toBeNull()
+    expect(within(topZone).getByRole('img')).toHaveAttribute('src', '/api/items/shirt-1/photo')
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-2', 'shirt', 'TOP'))
+    })
+
+    // shirt-2 replaced shirt-1 in the single-occupancy TOP zone — exactly one
+    // placed tile remains there, and it is the new occupant.
+    expect(within(topZone).getByRole('img')).toHaveAttribute('src', '/api/items/shirt-2/photo')
+  })
+
+  it('accumulates multiple items in the CARRY/PIECE extras tray instead of replacing', async () => {
+    listItemsMock.mockResolvedValue([item('bag-1', 'bag'), item('hat-1', 'hat')])
+
+    renderAssemble()
+    await screen.findByText(/^extras$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('bag-1', 'bag', 'CARRY'))
+    })
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('hat-1', 'hat', 'CARRY'))
+    })
+
+    const extrasZone = document.querySelector('[data-slot="CARRY"]') as HTMLElement
+    expect(within(extrasZone).getAllByRole('img')).toHaveLength(2)
+  })
+
+  it('ignores a drag that ends without a valid drop target', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt')])
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', null))
+    })
+
+    const topZone = document.querySelector('[data-slot="TOP"]') as HTMLElement
+    expect(within(topZone).queryByRole('img')).not.toBeInTheDocument()
   })
 })

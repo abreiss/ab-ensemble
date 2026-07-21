@@ -1323,6 +1323,41 @@ select.input {
   pointer-events: none;
 }
 
+/* Drop-target highlight while a dragged tile is over the zone. Animates via
+   the `border-color`/`background` transition already declared on
+   `.mannequin-zone` above, so it is covered by the global
+   `prefers-reduced-motion: reduce` rule below without a further override. */
+.mannequin-zone.is-drop-target {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--paper-sunk));
+}
+
+.mannequin-zone-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+/* A placed item's tile inside a zone; reuses `.drawer-tile` for the frame/
+   photo look and just adds a fixed width so `aspect-ratio` has something to
+   size the height against outside the drawer's grid columns. */
+.placed-tile {
+  width: 56px;
+  flex: none;
+}
+
+.assemble-source {
+  margin-top: var(--space-4);
+}
+
+/* Faded while a source tile is the active drag; the opacity transition is
+   likewise covered by the reduced-motion rule below. */
+.drawer-tile.is-dragging {
+  transition: opacity 0.15s ease;
+  opacity: 0.4;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
