@@ -1,4 +1,4 @@
-# Task 06 Proofs - Live deploy under the scoped identity (6.1–6.2, 6.5–6.6; parent 6.0 in progress)
+# Task 06 Proofs - Live deploy under the scoped identity (parent 6.0 complete)
 
 > Parent task 6.0 spans 6.1–6.6. This file proves **6.1** (live
 > `terraform apply` as `abreiss-ensemble-terraform` → App Runner `RUNNING` +
@@ -7,11 +7,10 @@
 > **6.6** (the deploy runbook — artifact below). Evidence for **6.3–6.4**
 > (CI-driven deploy log, golden path on the public URL) will be appended after
 > the #9 PR merges to `main`, which is what triggers the deploy pipeline.
-> **6.3 evidence is now appended below** (the push-to-deploy pipeline run,
-> including the OIDC trust-policy fix it surfaced). **6.4's API-level golden
-> path is also appended** — every backend behavior proven against the public
-> URL with data landing in real S3/DynamoDB; only the browser/iPhone UI
-> screenshots remain (operator capture).
+> **6.3 evidence is appended below** (the push-to-deploy pipeline run,
+> including the OIDC trust-policy fix it surfaced). **6.4 is complete**: the
+> API-level golden path with data landing in real S3/DynamoDB, plus the
+> operator-captured browser screenshot of the stylist flow on the public URL.
 > **Account id redacted** to `123456789012` throughout, matching
 > `terraform/bootstrap/policies/README.md` convention.
 
@@ -469,6 +468,30 @@ pointing at its S3 object.
  {"Key":"a7c68bee-….jpg","Size":15979},{"Key":"e9df82e8-….jpg","Size":16281}]
 ~~~
 
+## Artifact: Stylist flow in the browser on the public URL (6.4, operator-captured)
+
+**What it proves:** The deployed PWA's judgment loop working end-to-end in a
+real browser against the public App Runner URL — a "Date night" vibe answered
+with a grounded outfit ("YOUR WARDROBE" thread), a reason that names the
+actual wardrobe pieces, and the numbered look cards built from the user's own
+items.
+
+**Why it matters:** This is the user-facing rendering layer on top of the
+API-level evidence above — the same grounded ids drawn as outfit cards in the
+UI, with the stylist's reasoning shown in the conversation thread.
+
+**Artifact path:** `assets/09-task-06-stylist-datenight.png`
+
+**Result summary:** The screenshot shows the stylist screen mid-conversation:
+the "Date night" prompt bubble, the reply reasoning over the real tagged items
+("structured gray jacket with the solid navy shirt … black joggers keep the
+look comfortable … brings in the never-worn jacket and joggers to freshen up
+the rotation" — wear-history-aware), and the flat-lay look cards labeled with
+the picked items ("Navy blue short-sleeved shirt", "Gray button-front
+jacket").
+
+![Deployed stylist screen: Date night vibe, grounded reason referencing the tagged wardrobe, and numbered outfit look cards](assets/09-task-06-stylist-datenight.png)
+
 ## Reviewer Conclusion
 
 Sub-tasks 6.1, 6.2, 6.5, and 6.6 are done: the full `terraform/deploy/` estate
@@ -488,5 +511,7 @@ the pipeline end-to-end — OIDC role assumption, SHA-tagged ECR push,
 The 6.4 golden path is proven at the API level against the public URL — auth,
 Haiku tagging (including the editable-fallback `400` guardrail), items + photos
 in real DynamoDB/S3, a grounded outfit, a pushback re-pick, and the
-wear-history write. The only evidence still outstanding for parent 6.0 is the
-operator-captured browser/iPhone screenshots of the same flow in the PWA.
+wear-history write — and the operator-captured browser screenshot shows the
+same grounded stylist flow rendered in the deployed PWA. **Parent task 6.0 is
+complete**, and with it the full spec: local-first code, validated IaC,
+push-to-deploy CI, and a live, publicly-served, secret-wired golden path.
