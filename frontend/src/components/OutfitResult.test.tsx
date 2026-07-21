@@ -1,8 +1,9 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import OutfitResult from './OutfitResult'
+import { SESSION_TOKEN_STORAGE_KEY } from '../api/auth'
 import type { Outfit, OutfitItem } from '../api/style'
 
 /** Builds an enriched OutfitItem with renderable defaults (overridable). */
@@ -58,15 +59,29 @@ function renderResult(over: Partial<Parameters<typeof OutfitResult>[0]> = {}) {
 }
 
 describe('OutfitResult', () => {
+  // The seeded token below must not leak into the other tests — the shared
+  // setupTests.ts only runs RTL cleanup(), not a storage clear.
+  beforeEach(() => sessionStorage.clear())
+
   it('renders a numbered flat-lay tile per piece with its real photo', () => {
     renderResult()
 
     const tray = screen.getByTestId('flat-lay-tray')
     const photos = within(tray).getAllByRole('img')
     expect(photos).toHaveLength(2)
+    // No token seeded → the builder falls back to the token-less URL.
     expect(photos[0]).toHaveAttribute('src', '/api/items/a/photo')
     expect(within(tray).getByText('1')).toBeInTheDocument()
     expect(within(tray).getByText('2')).toBeInTheDocument()
+  })
+
+  it('builds each flat-lay tile src with the session token so the gated <img> loads', () => {
+    sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, 'tok-xyz')
+    renderResult()
+    const tray = screen.getByTestId('flat-lay-tray')
+    const photos = within(tray).getAllByRole('img')
+    expect(photos[0]).toHaveAttribute('src', '/api/items/a/photo?token=tok-xyz')
+    expect(photos[1]).toHaveAttribute('src', '/api/items/b/photo?token=tok-xyz')
   })
 
   it('renders a spec card per piece: derived name, slot, color, pips, rationale', () => {
