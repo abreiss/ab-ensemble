@@ -67,3 +67,13 @@ mannequin. GitHub issue #20. Branch: `feature/21-manual-outfit-assembly`.
 - **A2.3 — Stale README label noted, not fixed.** Root README still calls `/` "the wardrobe
   grid" (stale since spec-20; `/` is now the Stylist screen). Out of scope for this issue;
   code + spec win. No task touches it.
+
+## Phase 3 — Implementation (mid-run adjustments)
+
+- **A3.1 — Per-task backup reviewers dropped (user instruction).** After task 1.0 (which did
+  get a background backup review — PASS), the user directed: "stop the extra validation for the
+  next few phases. just leave validation to the final stage." Accordingly, tasks 2.0–4.0 are
+  implemented WITHOUT the per-task background review agents; correctness is gated by (a) each
+  worker's own TDD + test/lint/typecheck gates, (b) the manager's lightweight blocking check
+  (commit + proof file + `[x]` present), and (c) the final Phase-4 validation. Task 1.0's
+  review verdict (PASS) still stands and is carried to the push gate.
