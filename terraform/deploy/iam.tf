@@ -157,10 +157,21 @@ data "aws_iam_policy_document" "ci_trust" {
 
     # StringLike (not StringEquals) so var.github_ref can express a
     # branch/tag/PR pattern; the default pins to exactly refs/heads/main.
+    #
+    # Two accepted sub forms, both pinning this exact repository: this
+    # enterprise stamps owner/repo IDs into the OIDC subject (the
+    # "immutable sub" format -- verified from a live token, see
+    # var.github_repository_immutable), so the stamped form is what AWS
+    # actually receives today; the plain owner/repo form stays listed so a
+    # future upstream toggle back to default subjects cannot silently break
+    # every deploy.
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:ref:${var.github_ref}"]
+      values = [
+        "repo:${var.github_repository}:ref:${var.github_ref}",
+        "repo:${var.github_repository_immutable}:ref:${var.github_ref}",
+      ]
     }
   }
 }

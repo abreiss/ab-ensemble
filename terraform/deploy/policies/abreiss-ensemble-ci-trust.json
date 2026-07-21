@@ -7,7 +7,10 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:abreiss/ab-ensemble:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:abreiss/ab-ensemble:ref:refs/heads/main",
+            "repo:abreiss@45674553/ab-ensemble@1306743058:ref:refs/heads/main"
+          ]
         }
       },
       "Effect": "Allow",
