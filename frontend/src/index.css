@@ -327,6 +327,53 @@ a {
   background: var(--paper-raised);
 }
 
+/* ---- Review queue (batch add) ------------------------------------------- */
+
+/* An ordered list of pending tiles, each a photo + editable tag form, saved
+   together by the sticky "Save all". Reuses .photo-preview / .banner / .btn. */
+.review-queue {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.queue-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+}
+
+/* Sits over the tile's photo, top-right, so a mis-picked shot is one tap to drop. */
+.queue-tile-remove {
+  align-self: flex-end;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs);
+}
+
+/* Sticky footer so "Save all" (and its running progress) stays reachable while
+   scrolling a long batch on mobile. */
+.queue-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0 calc(env(safe-area-inset-bottom) + var(--space-2));
+  background: linear-gradient(to top, var(--paper) 70%, transparent);
+}
+
+.queue-actions .state-note {
+  text-align: center;
+}
+
 /* ---- Tag form ----------------------------------------------------------- */
 
 .tag-form {

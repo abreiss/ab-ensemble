@@ -104,7 +104,7 @@ parity.)
 - [x] 1.6 (REFACTOR) Confirm the N=1 render reads identically to today; run
   `cd frontend && npm run test -- --run` (all green) and `npm run lint` (clean).
 
-### [ ] 2.0 Batch library multi-select + "Save all" fan-out with independent per-item save
+### [~] 2.0 Batch library multi-select + "Save all" fan-out with independent per-item save
 
 Add `multiple` to the file input so `onSelect` reads the whole `FileList` and calls
 `enqueue([...files])`; render each queued item as a thumbnail + compact tag summary
@@ -141,28 +141,33 @@ independent per-item save, drained-queue completion, preserved `accept="image/*"
 
 #### 2.0 Tasks
 
-- [ ] 2.1 (RED) In `AddItem.test.tsx`, add tests: a multi-file `FileList` enqueues
+- [x] 2.1 (RED) In `AddItem.test.tsx`, add tests: a multi-file `FileList` enqueues
   `N` editable, auto-tagged tiles; "Save all" with one `createItem` rejection keeps
   the failed tile (edited tags intact, retryable) and removes the successes with a
   surfaced error; an all-success "Save all" navigates to `/wardrobe`; the per-item
   remove control drops a tile and revokes only its URL. Confirm RED.
-- [ ] 2.2 (GREEN) Add `multiple` to the `<input type="file">`; `onSelect` reads the
+- [x] 2.2 (GREEN) Add `multiple` to the `<input type="file">`; `onSelect` reads the
   whole `FileList` and calls `enqueue([...files])`. Keep `accept="image/*"`, no
   `capture`, and the "Change photo"/"Add more" affordance.
-- [ ] 2.3 (GREEN) Render each tile: thumbnail + a compact tag summary that expands
+- [x] 2.3 (GREEN) Render each tile: thumbnail + a compact tag summary that expands
   to the shared `TagForm`, plus a per-item remove control that removes the tile and
   revokes its object URL. Add minimal review-queue classes to `index.css`, reusing
   existing styles.
-- [ ] 2.4 (GREEN) Surface each tile's validated `TagInput` up to the queue (e.g.
+- [x] 2.4 (GREEN) Surface each tile's validated `TagInput` up to the queue (e.g.
   `TagForm` reports its valid tags on change/commit) so "Save all" can read them.
   Implement "Save all": loop `createItem(file, tags)` per tile with running progress
   ("N of M saved"); on success remove the tile; on failure mark it failed, keep its
   edited tags, and surface a retryable error. Navigate to `/wardrobe` only when the
   queue is fully drained.
-- [ ] 2.5 (GREEN) Run the app locally, add a small batch, and capture
+- [~] 2.5 (GREEN) Run the app locally, add a small batch, and capture
   `proof/batch-review-queue.png` (multiple tiles + "Save all" progress; demo
-  content only, no secrets).
-- [ ] 2.6 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
+  content only, no secrets). **Pending manual capture** — needs the running
+  backend + frontend (ideally a Claude key for live auto-tags); this session has
+  no headless browser and won't fabricate the image. Exact repro steps are in
+  `13-proofs/13-task-02-proofs.md`; target path
+  `13-proofs/assets/batch-review-queue.png` (repo convention; the `proof/` path
+  above is shorthand).
+- [x] 2.6 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
   `npm run lint` (clean).
 
 ### [ ] 3.0 Tag-preview concurrency throttle + graceful daily-cap (429) handling

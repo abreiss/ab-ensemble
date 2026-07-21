@@ -109,7 +109,7 @@ describe('AddItem review queue', () => {
 
     await user.clear(categories[0])
     await user.type(categories[0], 'trucker jacket')
-    await user.click(screen.getByRole('button', { name: /save item/i }))
+    await user.click(screen.getByRole('button', { name: /save all/i }))
 
     await waitFor(() => expect(createItemMock).toHaveBeenCalledTimes(1))
     const [photoArg, tagsArg] = createItemMock.mock.calls[0]
@@ -134,13 +134,13 @@ describe('AddItem review queue', () => {
     await user.type(category, 'scarf')
     await user.selectOptions(screen.getByLabelText(/formality/i), '2')
     await user.selectOptions(screen.getByLabelText(/warmth/i), '3')
-    await user.click(screen.getByRole('button', { name: /save item/i }))
+    await user.click(screen.getByRole('button', { name: /save all/i }))
 
     await waitFor(() => expect(createItemMock).toHaveBeenCalledTimes(1))
     expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'scarf', formality: 2, warmth: 3 })
   })
 
-  it('blocks a tile save until its required fields are valid', async () => {
+  it('keeps "Save all" disabled until every tile has its required fields', async () => {
     tagPreviewMock.mockResolvedValue(allNull)
     const user = userEvent.setup()
 
@@ -148,13 +148,13 @@ describe('AddItem review queue', () => {
     await user.upload(screen.getByLabelText(/choose a garment photo/i), photoFile())
 
     await screen.findByLabelText(/^category/i)
-    const save = screen.getByRole('button', { name: /save item/i })
-    expect(save).toBeDisabled()
+    const saveAll = screen.getByRole('button', { name: /save all/i })
+    expect(saveAll).toBeDisabled()
 
     await user.type(screen.getByLabelText(/^category/i), 'hat')
     await user.selectOptions(screen.getByLabelText(/formality/i), '1')
     await user.selectOptions(screen.getByLabelText(/warmth/i), '1')
-    expect(save).toBeEnabled()
+    expect(saveAll).toBeEnabled()
   })
 
   it('keeps the tile, its photo, and its edited tags when its create fails', async () => {
@@ -168,7 +168,7 @@ describe('AddItem review queue', () => {
     const category = await screen.findByLabelText(/^category/i)
     await user.clear(category)
     await user.type(category, 'trucker jacket')
-    await user.click(screen.getByRole('button', { name: /save item/i }))
+    await user.click(screen.getByRole('button', { name: /save all/i }))
 
     // A per-item error surfaces without navigating away or clearing that tile's work.
     expect(await screen.findByText(/couldn.t save|failed|try again/i)).toBeInTheDocument()
@@ -193,7 +193,7 @@ describe('AddItem review queue', () => {
     await user.type(category, 'scarf')
     await user.selectOptions(screen.getByLabelText(/formality/i), '2')
     await user.selectOptions(screen.getByLabelText(/warmth/i), '3')
-    await user.click(screen.getByRole('button', { name: /save item/i }))
+    await user.click(screen.getByRole('button', { name: /save all/i }))
 
     await waitFor(() => expect(createItemMock).toHaveBeenCalledTimes(1))
     expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'scarf' })
@@ -255,7 +255,7 @@ describe('AddItem review queue', () => {
     await user.upload(screen.getByLabelText(/choose a garment photo/i), photoFile()) // blob:preview-0
 
     await screen.findByLabelText(/^category/i)
-    await user.click(screen.getByRole('button', { name: /save item/i }))
+    await user.click(screen.getByRole('button', { name: /save all/i }))
 
     await waitFor(() => expect(revokeSpy).toHaveBeenCalledWith('blob:preview-0'))
   })
@@ -275,11 +275,74 @@ describe('AddItem review queue', () => {
     expect(revokeSpy).toHaveBeenCalledWith('blob:preview-1')
   })
 
-  it('does not force the camera, so an existing photo can be chosen', () => {
+  it('offers a plain library picker: multi-select, image-only, and no forced camera', () => {
     tagPreviewMock.mockResolvedValue(allNull)
 
     renderAddItem()
 
-    expect(screen.getByLabelText(/choose a garment photo/i)).not.toHaveAttribute('capture')
+    const input = screen.getByLabelText(/choose a garment photo/i)
+    // A batch multi-select that never forces the camera, so an existing library
+    // photo (or several) can be chosen.
+    expect(input).not.toHaveAttribute('capture')
+    expect(input).toHaveAttribute('accept', 'image/*')
+    expect(input).toHaveAttribute('multiple')
+  })
+
+  it('enqueues one editable, auto-tagged tile per file from a multi-select', async () => {
+    tagPreviewMock.mockResolvedValue(suggestion)
+    const user = userEvent.setup()
+
+    renderAddItem()
+    const input = screen.getByLabelText(/choose a garment photo/i)
+    await user.upload(input, [photoFile('a.jpg'), photoFile('b.jpg'), photoFile('c.jpg')])
+
+    // Every picked file becomes its own queue tile and auto-tags like the N=1 path.
+    await waitFor(() => expect(tagPreviewMock).toHaveBeenCalledTimes(3))
+    const categories = await screen.findAllByLabelText(/^category/i)
+    expect(categories).toHaveLength(3)
+    categories.forEach((c) => expect(c).toHaveValue('denim jacket'))
+  })
+
+  it('saves independently: a per-item failure keeps that tile (edited tags) while successes are removed', async () => {
+    tagPreviewMock.mockResolvedValue(suggestion)
+    // First save succeeds (tile A), second is rejected (tile B) — independent saves.
+    createItemMock.mockResolvedValueOnce(createdItem).mockRejectedValueOnce(new Error('nope'))
+    const user = userEvent.setup()
+
+    renderAddItem()
+    const input = screen.getByLabelText(/choose a garment photo/i)
+    await user.upload(input, [photoFile('a.jpg'), photoFile('b.jpg')])
+
+    const categories = await screen.findAllByLabelText(/^category/i)
+    expect(categories).toHaveLength(2)
+    // Edit the second tile so we can prove its edits survive its save failure.
+    await user.clear(categories[1])
+    await user.type(categories[1], 'edited jacket')
+
+    await user.click(screen.getByRole('button', { name: /save all/i }))
+
+    // The failed tile stays in the queue with its edited tags; the saved one is gone.
+    expect(await screen.findByText(/couldn.t save|try again/i)).toBeInTheDocument()
+    const remaining = screen.getAllByLabelText(/^category/i)
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0]).toHaveValue('edited jacket')
+    expect(screen.queryByText('wardrobe grid')).not.toBeInTheDocument()
+    expect(createItemMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('navigates to the wardrobe once "Save all" drains the whole queue', async () => {
+    tagPreviewMock.mockResolvedValue(suggestion)
+    createItemMock.mockResolvedValue(createdItem)
+    const user = userEvent.setup()
+
+    renderAddItem()
+    const input = screen.getByLabelText(/choose a garment photo/i)
+    await user.upload(input, [photoFile('a.jpg'), photoFile('b.jpg')])
+
+    await screen.findAllByLabelText(/^category/i)
+    await user.click(screen.getByRole('button', { name: /save all/i }))
+
+    expect(await screen.findByText('wardrobe grid')).toBeInTheDocument()
+    expect(createItemMock).toHaveBeenCalledTimes(2)
   })
 })
