@@ -1305,17 +1305,29 @@ select.input {
 }
 
 /* The extras tray sits beside the figure (not overlaid on it) since it holds
-   multiple accumulating items rather than a single body region. */
+   multiple accumulating items rather than a single body region. `relative`
+   (not `static`) keeps it in the outer flex flow while anchoring its corner
+   label + fill-the-zone items box below. */
 .mannequin-zone-extras {
-  position: static;
+  position: relative;
   flex: 1;
   min-height: 220px;
   align-self: stretch;
 }
 
+/* The zone name sits as a small chip in the top-left corner so the placed
+   photo can fill the whole zone underneath it, rather than sharing the row
+   with the item and pushing it off-center. */
 .mannequin-zone-label {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--paper-raised) 88%, transparent);
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1332,47 +1344,83 @@ select.input {
   background: color-mix(in srgb, var(--accent) 14%, var(--paper-sunk));
 }
 
+/* The items box fills the whole zone (inset a hair so the dashed frame still
+   reads) so a single placed garment sizes to the zone instead of floating as
+   a small card in the middle of it. */
 .mannequin-zone-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  width: 100%;
-}
-
-/* A placed item's tile inside a zone; reuses `.drawer-tile` for the frame/
-   photo look and just adds a fixed width so `aspect-ratio` has something to
-   size the height against outside the drawer's grid columns. `position:
-   relative` anchors the `.placed-remove` "×" button below. */
-.placed-tile {
-  position: relative;
-  width: 56px;
-  flex: none;
-}
-
-/* The ≥44px tap "×" that removes a placed item without a drag (spec Unit 3).
-   Sized to the touch-target floor via `min-width`/`min-height` (also asserted
-   directly in `Assemble.test.tsx`, since jsdom does not apply this
-   stylesheet) and positioned so it overlaps the tile's corner rather than
-   shrinking the 56px thumbnail to fit a 44px control inside it — consistent
-   with the "generous, possibly-overlapping hit area" convention already used
-   for the mannequin drop zones above. */
-.placed-remove {
   position: absolute;
-  top: -10px;
-  right: -10px;
+  inset: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: var(--space-1);
+}
+
+/* A placed item's tile inside a body zone reuses `.drawer-tile` for the
+   frame/photo look and fills its zone (photo `object-fit: cover` from
+   `.drawer-tile-img` then covers the region). `position: relative` anchors
+   the `.placed-remove` "×" button below. */
+.placed-tile {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* The extras tray holds multiple accumulating items, so it lays them out as a
+   scrollable 2-column grid of 3:4 thumbnails rather than one zone-filling tile,
+   with room at the top for the corner label chip. */
+.mannequin-zone-extras .mannequin-zone-items {
+  inset: 4px;
+  padding-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  align-content: start;
+  gap: var(--space-2);
+  overflow-y: auto;
+}
+
+.mannequin-zone-extras .placed-tile {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+}
+
+/* The tap "×" that removes a placed item without a drag (spec Unit 3). The
+   transparent button is the ≥44px touch target (min-width/height, also
+   asserted inline in `Assemble.test.tsx` since jsdom skips this stylesheet)
+   anchored to the tile's top-right corner; the small visible chip is a nested
+   span, so the control is thumb-sized without a 44px disc covering a third of
+   the photo. */
+.placed-remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
   min-width: 44px;
   min-height: 44px;
-  border: 1px solid var(--border);
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.placed-remove > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
+  border: 1px solid var(--border);
   background: var(--paper-raised);
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1;
-  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 .assemble-source {
