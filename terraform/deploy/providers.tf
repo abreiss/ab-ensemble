@@ -37,12 +37,4 @@ locals {
   # policies.tf) denies iam:CreateRole.
   boundary_policy_arn = "arn:${local.partition}:iam::${local.account_id}:policy/${local.prefix}-boundary"
 
-  # Service principals iam:PassRole may target, mirroring bootstrap's
-  # apprunner_pass_principals so the CI role's PassRole condition matches
-  # exactly what the #16 boundary already allows.
-  apprunner_pass_principals = [
-    "apprunner.amazonaws.com",
-    "build.apprunner.amazonaws.com",
-    "tasks.apprunner.amazonaws.com",
-  ]
 }

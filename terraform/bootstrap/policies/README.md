@@ -1,6 +1,6 @@
 # Rendered policy JSON — review copies
 
-These two files are the **rendered** output of the `aws_iam_policy_document` data
+These files are the **rendered** output of the `aws_iam_policy_document` data
 sources in [`../policies.tf`](../policies.tf), captured for human review and for
 `aws accessanalyzer validate-policy`. `policies.tf` is the source of truth; these
 JSON copies are regenerated from it (see "How these were rendered" below).
@@ -8,7 +8,11 @@ JSON copies are regenerated from it (see "How these were rendered" below).
 | File | Managed policy | Role |
 | --- | --- | --- |
 | `abreiss-ensemble-terraform.json` | `abreiss-ensemble-terraform` | Scoped permissions — what Claude/Terraform may do |
+| `abreiss-ensemble-terraform-ext.json` | `abreiss-ensemble-terraform-ext` | Second scoped-permissions policy — read-only gap-fix grants that would push the first policy over IAM's size limit (see "Size note") |
 | `abreiss-ensemble-boundary.json` | `abreiss-ensemble-boundary` | Permissions boundary — the ceiling for roles the identity creates |
+
+Both scoped-permissions policies are attached to the `abreiss-ensemble-terraform`
+user (`../identity.tf`); the identity's effective permissions are their union.
 
 **Account id is redacted.** Every ARN uses the placeholder account `123456789012`;
 the live values come from `data.aws_caller_identity` at apply time. Do not treat
@@ -48,23 +52,50 @@ The boundary policy likewise scopes to `abreiss-ensemble-*` except for the singl
 
 ## Size note
 
-The scoped policy renders to ~6,038 characters (excluding whitespace), under IAM's
-**6,144-character managed-policy limit**. `s3:GetBucket*`/`s3:PutBucket*` are
-wildcarded over the bucket's config sub-resources (still fully contained to the
-`abreiss-ensemble-*` bucket ARN) partly to stay within that limit. If issue #9
-needs additional actions, prefer splitting into a second `abreiss-ensemble-*`
-managed policy over widening scope.
+The scoped policy (`abreiss-ensemble-terraform`) renders to ~5,959 characters
+(after #9's PassRole-condition removal bought back ~200), under IAM's
+**6,144-character managed-policy limit**. `s3:GetBucket*`/
+`s3:PutBucket*` are wildcarded over the bucket's config sub-resources (still
+fully contained to the `abreiss-ensemble-*` bucket ARN) partly to stay within
+that limit.
+
+Issue #9 (the deploy pipeline) hit exactly this limit: read-only,
+resource-scoped grants the AWS provider needs post-create
+(`s3:GetAccelerateConfiguration`, `s3:GetReplicationConfiguration`,
+`secretsmanager:GetResourcePolicy`, `apprunner:DescribeAutoScalingConfiguration`
++ its Delete/tag siblings) would have pushed the single policy well over
+6,144 characters. Per this note's own guidance, they were split into the
+second managed policy (`abreiss-ensemble-terraform-ext`, ~968 characters)
+instead of widening scope or trimming existing statements. The two S3 actions
+exist because the IAM action name doesn't match the S3 API operation name it
+guards (`GetBucketAccelerateConfiguration`/`GetBucketReplication` are the API
+ops; `GetAccelerateConfiguration`/`GetReplicationConfiguration` are the IAM
+actions) — they are real gaps in `terraform_scoped`'s `s3:GetBucket*`
+wildcard, not redundant with it. If a future issue needs still more, keep
+splitting into additional `abreiss-ensemble-*` managed policies rather than
+reaching for a broader action.
 
 ## How these were rendered
 
+The identity's own `DenySelfModification` statement blocks it from reading its
+own managed policies (`iam:GetPolicy`/`GetPolicyVersion` on its own ARNs), so a
+normal `terraform plan` under the scoped identity fails outright. Every ARN
+these documents depend on (`account_id`, `partition`, `region`, `resource_prefix`)
+is a local/data value, not a managed-resource attribute, so `-refresh=false`
+renders them without ever touching the denied resources:
+
 ```bash
-terraform -chdir=terraform/bootstrap plan -out=plan.tfplan
+terraform -chdir=terraform/bootstrap plan -refresh=false -out=plan.tfplan
 terraform -chdir=terraform/bootstrap show -json plan.tfplan \
-  | jq -r '.planned_values.root_module.resources[]
-           | select(.address=="aws_iam_policy.boundary") | .values.policy' \
+  | jq -r '.resource_changes[] | select(.address=="aws_iam_policy.boundary") | .change.after.policy' \
   | jq '.' | sed 's/<ACCOUNT_ID>/123456789012/g' > policies/abreiss-ensemble-boundary.json
 # ...same for aws_iam_policy.terraform_scoped -> abreiss-ensemble-terraform.json
+# ...same for aws_iam_policy.terraform_scoped_ext -> abreiss-ensemble-terraform-ext.json
 
 aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY \
   --policy-document file://policies/abreiss-ensemble-boundary.json
 ```
+
+An account admin applying a fresh (never-yet-applied) bootstrap can use a plain
+`terraform plan -out=plan.tfplan` instead — `-refresh=false` is only needed to
+render these from an *already-applied* state under the scoped identity itself.

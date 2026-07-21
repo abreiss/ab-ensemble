@@ -39,11 +39,15 @@ resource "aws_apprunner_service" "app" {
 
         # Non-secret runtime config -- literals only, matching the app's
         # existing ensemble.* / ENSEMBLE_* keys (Unit 1). No code change to how
-        # these are read.
+        # these are read. The cloud Spring profile (application-cloud.yml)
+        # blanks the DynamoDB endpoint + disables table auto-create; it exists
+        # because App Runner silently DROPS empty-string env values, so the
+        # earlier ENSEMBLE_DYNAMODB_ENDPOINT = "" never reached the container
+        # and the app dialed DynamoDB Local in the cloud (task 6.1 crash).
         runtime_environment_variables = {
+          SPRING_PROFILES_ACTIVE       = "cloud"
           ENSEMBLE_PHOTOS_BACKEND      = "s3"
           ENSEMBLE_PHOTOS_S3_BUCKET    = aws_s3_bucket.photos.bucket
-          ENSEMBLE_DYNAMODB_ENDPOINT   = ""
           ENSEMBLE_DYNAMODB_TABLE_NAME = aws_dynamodb_table.items.name
         }
 

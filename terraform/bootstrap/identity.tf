@@ -31,6 +31,13 @@ resource "aws_iam_user_policy_attachment" "terraform_runner_scoped" {
   policy_arn = aws_iam_policy.terraform_scoped.arn
 }
 
+# Second policy attachment — terraform_scoped_ext (policies.tf) exists only
+# because terraform_scoped alone would exceed IAM's managed-policy size limit.
+resource "aws_iam_user_policy_attachment" "terraform_runner_scoped_ext" {
+  user       = aws_iam_user.terraform_runner.name
+  policy_arn = aws_iam_policy.terraform_scoped_ext.arn
+}
+
 # Programmatic access key for local `terraform apply`. The secret is surfaced only
 # through the sensitive outputs in outputs.tf and is written into local
 # terraform.tfstate (git-ignored) — see the "state is local" warning in the module

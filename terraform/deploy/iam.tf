@@ -211,16 +211,19 @@ data "aws_iam_policy_document" "ci_permissions" {
     resources = [local.apprunner_arn]
   }
 
+  # No iam:PassedToService condition: App Runner evaluates PassRole with an
+  # undocumented context that fails every operator form of that condition
+  # (StringEquals / IfExists / ForAllValues all proven dead live in #9 Task
+  # 6.1 — see docs/AWS_ACCESS.md "PassRole condition"). UpdateService passes
+  # the same instance/ECR-access roles on every CI deploy, so a conditioned
+  # statement here would break the pipeline identically. The guardrails are
+  # the resource scope (abreiss-ensemble-* roles only) and each role's trust
+  # policy (App Runner service principals only).
   statement {
     sid       = "CiPassRole"
     effect    = "Allow"
     actions   = ["iam:PassRole"]
     resources = [local.iam_role_arn]
-    condition {
-      test     = "StringEquals"
-      variable = "iam:PassedToService"
-      values   = local.apprunner_pass_principals
-    }
   }
 }
 

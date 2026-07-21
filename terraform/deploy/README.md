@@ -34,6 +34,29 @@ terraform plan       # review before applying
 terraform apply       # as the abreiss-ensemble-terraform identity
 ```
 
+## Seed image (one-time, before the first successful `apply`)
+
+`apprunner.tf` pins the service to `<ecr-repo>:latest`, pushed exactly once as
+the bootstrap seed before CI ever runs (every later deploy repoints the service
+at an immutable `sha-<git-sha>` tag instead). **App Runner only runs
+`linux/amd64` images** — a seed built on an Apple Silicon Mac without a
+platform flag is `arm64`, pulls fine, and then fails the deploy with a bare
+`Failed to deploy your application image` and no application logs (this
+exact failure cost a full debugging round in Task 6.1). Always build the seed
+as:
+
+```bash
+aws ecr get-login-password --region us-east-1 \
+  | docker login --username AWS --password-stdin <account>.dkr.ecr.us-east-1.amazonaws.com
+docker buildx build --platform linux/amd64 --provenance=false \
+  -t <account>.dkr.ecr.us-east-1.amazonaws.com/abreiss-ensemble-app:latest --load .
+docker push <account>.dkr.ecr.us-east-1.amazonaws.com/abreiss-ensemble-app:latest
+```
+
+The repo's tags are IMMUTABLE: a wrong `:latest` cannot be overwritten — delete
+the image (`aws ecr batch-delete-image --image-ids imageTag=latest`) and push
+again.
+
 ## What it creates
 
 | File | Resources |

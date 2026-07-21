@@ -186,7 +186,7 @@ CI; no long-lived AWS key or app secret anywhere in the workflows.
 - [x] 5.4 Add `.github/workflows/ci.yml` (PR + push) running backend tests (`./gradlew test -PskipFrontend`), frontend tests (`cd frontend && npm ci && npm run test -- --run`), `terraform -chdir=terraform/deploy fmt -check` + `validate`, and IAM Access Analyzer `validate-policy` on the rendered role policies (the #16-deferred standing gate). (The lint steps are `continue-on-error: true`, resolving the gap `docs/AWS_ACCESS.md`/Task 4.5 left open: no `abreiss-ensemble-*` role can be granted `access-analyzer:ValidatePolicy` without widening the `abreiss-ensemble-boundary` itself, a `terraform/bootstrap/` change out of scope for this module -- see the updated "Standing policy checks" section for the full resolution.)
 - [x] 5.5 Confirm no secrets in CI: no `terraform apply`, no static AWS keys, no app-secret values in either workflow; run the pre-commit secret scan + grep `.github/workflows/*`; capture as proof (the operator later attaches a redacted real CI run log per 6.3).
 
-### [ ] 6.0 Live deploy + golden-path verification + deploy runbook (Unit 4 — operator-run)
+### [~] 6.0 Live deploy + golden-path verification + deploy runbook (Unit 4 — operator-run)
 
 The operator performs the documented one-time sequence (create state bucket, `terraform init`
 S3 backend + `use_lockfile`, `terraform apply` as `abreiss-ensemble-terraform`, populate the
@@ -206,8 +206,8 @@ deferred #16 gate and add a deploy runbook.
 
 #### 6.0 Tasks
 
-- [ ] 6.1 Operator: create the `abreiss-ensemble-tfstate` bucket (2.3), `terraform init` with the S3 backend + `use_lockfile`, and `terraform apply` as the `abreiss-ensemble-terraform` identity; capture a redacted apply transcript.
-- [ ] 6.2 Operator: populate the three Secrets Manager values out-of-band (console/CLI) — Claude key, passcode, session secret — with no plaintext committed.
+- [x] 6.1 Operator: create the `abreiss-ensemble-tfstate` bucket (2.3), `terraform init` with the S3 backend + `use_lockfile`, and `terraform apply` as the `abreiss-ensemble-terraform` identity; capture a redacted apply transcript. (Required three live fixes: an amd64 seed-image rebuild, removing the never-matching `iam:PassedToService` PassRole condition, and a `cloud` Spring profile — see `09-proofs/09-task-06-proofs.md` + `docs/AWS_ACCESS.md`.)
+- [x] 6.2 Operator: populate the three Secrets Manager values out-of-band (console/CLI) — Claude key, passcode, session secret — with no plaintext committed. (Verified: all three secrets carry an `AWSCURRENT` version; values never surfaced.)
 - [ ] 6.3 Operator: push to `main`; confirm the pipeline builds/pushes the SHA-tagged image and triggers the App Runner deployment; capture a redacted CI run log; `curl https://<url>/api/health` → `200`.
 - [ ] 6.4 Operator: run the golden path on the public URL from a browser/iPhone (add garment → Haiku tags → vibe → grounded outfit rendering own S3 photos → pushback re-pick); capture screenshots; verify an S3 object listing + a DynamoDB item read (redacted).
 - [ ] 6.5 Operator: confirm the deferred #16 gate — `apply` succeeds under only the scoped identity; if a permission gap is hit, close it as a narrowly-scoped `abreiss-ensemble-*` addition to the #16 policy (never `*`; a second managed policy if the size limit is hit) and note it in `docs/AWS_ACCESS.md`.

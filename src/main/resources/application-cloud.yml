@@ -1,0 +1,16 @@
+# Cloud profile — activated by App Runner via SPRING_PROFILES_ACTIVE=cloud
+# (terraform/deploy/apprunner.tf). Exists because App Runner silently drops
+# empty-string runtime environment variables, so ENSEMBLE_DYNAMODB_ENDPOINT=""
+# never reaches the container and the base application.yml default (DynamoDB
+# Local at localhost:8000) would win in the cloud. Pinned by
+# CloudProfileConfigTest.
+ensemble:
+  dynamodb:
+    # Blank = real AWS DynamoDB: DynamoDbConfig skips the endpoint override and
+    # uses the default credential provider chain (the App Runner instance role).
+    endpoint: ""
+    # The cloud table is created and owned by Terraform (terraform/deploy/
+    # data_stores.tf); the instance role deliberately has item-level DynamoDB
+    # permissions only, so the startup DescribeTable/CreateTable of the
+    # auto-create runner would crash with AccessDenied. Keep it off.
+    auto-create-table: false

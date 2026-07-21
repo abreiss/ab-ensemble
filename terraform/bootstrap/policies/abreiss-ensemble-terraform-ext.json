@@ -1,0 +1,48 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "s3:GetReplicationConfiguration",
+        "s3:GetAccelerateConfiguration"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::abreiss-ensemble-*",
+      "Sid": "S3BucketReadScoped"
+    },
+    {
+      "Action": "secretsmanager:GetResourcePolicy",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1",
+          "aws:ResourceAccount": "123456789012"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:secretsmanager:us-east-1:123456789012:secret:abreiss-ensemble-*",
+      "Sid": "SecretsManagerResourcePolicyReadScoped"
+    },
+    {
+      "Action": [
+        "apprunner:UntagResource",
+        "apprunner:TagResource",
+        "apprunner:ListTagsForResource",
+        "apprunner:DescribeAutoScalingConfiguration",
+        "apprunner:DeleteAutoScalingConfiguration"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:apprunner:us-east-1:123456789012:autoscalingconfiguration/abreiss-ensemble-*",
+      "Sid": "AppRunnerAutoScalingScoped"
+    }
+  ],
+  "Version": "2012-10-17"
+}

@@ -289,17 +289,25 @@ data "aws_iam_policy_document" "terraform_scoped" {
     resources = [local.iam_policy_arn]
   }
 
-  # === 2.3 IAM — PassRole limited to abreiss-ensemble-* roles, App Runner only ==
+  # === 2.3 IAM — PassRole limited to abreiss-ensemble-* roles =================
+  # Deliberately NO iam:PassedToService condition. App Runner's CreateService
+  # PassRole check fails an implicit deny against every operator form of that
+  # condition — StringEquals, StringEqualsIfExists, AND ForAllValues:StringEquals
+  # over the three App Runner service principals were each proven dead live in
+  # #9 Task 6.1 (retried well past IAM propagation; the IAM policy simulator
+  # allowed every one of them, so the real FAS evaluation context must populate
+  # the key with something undocumented). A temporary no-condition diagnostic
+  # policy flipped CreateService from AccessDenied to success with no other
+  # change, isolating the condition as the culprit. The enforced guardrails are
+  # (1) this statement's resource scope — only abreiss-ensemble-* roles can be
+  # passed — and (2) each such role's own trust policy (App Runner service
+  # principals only; GitHub OIDC for the CI role), which alone decides who can
+  # actually assume it. Full narrative: docs/AWS_ACCESS.md "PassRole condition".
   statement {
-    sid       = "IamPassRoleToAppRunnerOnly"
+    sid       = "IamPassRoleScopedRolesOnly"
     effect    = "Allow"
     actions   = ["iam:PassRole"]
     resources = [local.iam_role_arn]
-    condition {
-      test     = "StringEquals"
-      variable = "iam:PassedToService"
-      values   = local.apprunner_pass_principals
-    }
   }
 
   # === 2.3 IAM — OIDC provider is read-only (created/owned by the account admin) =
@@ -350,12 +358,15 @@ data "aws_iam_policy_document" "terraform_scoped" {
     resources = [local.boundary_policy_arn]
   }
 
-  # Never modify the runner user or its own scoped policy (no self-escalation).
+  # Never modify the runner user or either of its own scoped policies (no self-escalation).
+  # scoped_policy_ext_arn exists purely because a single managed policy hit IAM's
+  # 6,144-char limit (see the terraform_scoped_ext data source below) — it is
+  # self-managed exactly like the first and must be denied the same way.
   statement {
     sid       = "DenySelfModification"
     effect    = "Deny"
     actions   = ["iam:*"]
-    resources = [local.iam_user_arn, local.scoped_policy_arn]
+    resources = [local.iam_user_arn, local.scoped_policy_arn, local.scoped_policy_ext_arn]
   }
 
   # Never create/alter/delete the account's OIDC provider (Non-Goal 3).
@@ -372,6 +383,86 @@ data "aws_iam_policy_document" "terraform_scoped" {
       "iam:UntagOpenIDConnectProvider",
     ]
     resources = ["*"]
+  }
+}
+
+# -----------------------------------------------------------------------------
+# 2.4b Second scoped-policy fragment (abreiss-ensemble-terraform-ext)
+#
+# Issue #9's App Runner + S3 + Secrets Manager resources surfaced several
+# read-only, resource-scoped gaps the AWS provider needs right after creating
+# a resource (populating computed attributes / waiting for ACTIVE) that
+# terraform_scoped above never anticipated. Two of the S3 ones exist because
+# the IAM action name doesn't match the S3 API operation name it guards
+# (GetBucketAccelerateConfiguration/GetBucketReplication are the API ops;
+# GetAccelerateConfiguration/GetReplicationConfiguration are the IAM actions),
+# so they are NOT covered by terraform_scoped's "s3:GetBucket*" wildcard:
+#   - s3:GetAccelerateConfiguration       (aws_s3_bucket read, post-create)
+#   - s3:GetReplicationConfiguration      (aws_s3_bucket read, post-create)
+#   - secretsmanager:GetResourcePolicy    (aws_secretsmanager_secret read, post-create)
+#   - apprunner:DescribeAutoScalingConfiguration (create waiter; blocks the
+#     App Runner service and its auto-scaling config from ever finishing)
+# Folding these into terraform_scoped pushes it past IAM's 6,144-char managed
+# policy limit (measured ~6,503 chars for just the first three), so per this
+# module's own size-note in policies/README.md ("prefer splitting into a
+# second abreiss-ensemble-* managed policy over widening scope"), they live in
+# a second policy instead. None of these actions can read or mutate a
+# resource's actual contents.
+# -----------------------------------------------------------------------------
+data "aws_iam_policy_document" "terraform_scoped_ext" {
+  statement {
+    sid    = "S3BucketReadScoped"
+    effect = "Allow"
+    actions = [
+      "s3:GetAccelerateConfiguration",
+      "s3:GetReplicationConfiguration",
+    ]
+    resources = [local.s3_bucket_arn]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceAccount"
+      values   = [local.account_id]
+    }
+  }
+
+  statement {
+    sid       = "SecretsManagerResourcePolicyReadScoped"
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetResourcePolicy"]
+    resources = [local.secrets_arn]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.aws_region]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceAccount"
+      values   = [local.account_id]
+    }
+  }
+
+  # Auto-scaling-configuration ARNs are a distinct App Runner resource type,
+  # not covered by apprunner_arn's service/* pattern above. Delete/tag ops are
+  # included (not just Describe) so this identity can fully manage the
+  # resource's lifecycle (replace/destroy), matching AppRunnerServiceScoped's
+  # shape for the sibling service resource.
+  statement {
+    sid    = "AppRunnerAutoScalingScoped"
+    effect = "Allow"
+    actions = [
+      "apprunner:DescribeAutoScalingConfiguration",
+      "apprunner:DeleteAutoScalingConfiguration",
+      "apprunner:ListTagsForResource",
+      "apprunner:TagResource",
+      "apprunner:UntagResource",
+    ]
+    resources = [local.apprunner_autoscaling_arn]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.aws_region]
+    }
   }
 }
 
@@ -492,16 +583,18 @@ data "aws_iam_policy_document" "boundary" {
     actions   = ["apprunner:ListServices"] # account-level list, no ARN
     resources = ["*"]
   }
+  # No iam:PassedToService condition here either: App Runner populates that key
+  # with an undocumented context that fails every operator form (see the
+  # IamPassRoleScopedRolesOnly comment above + docs/AWS_ACCESS.md) — and the CI
+  # role passes the same instance/ECR-access roles on apprunner:UpdateService
+  # every deploy, so a conditioned boundary ceiling would break task 6.3 the
+  # same way CreateService broke in 6.1. Resource scope + role trust policies
+  # remain the enforced guardrails.
   statement {
     sid       = "CiPassRole"
     effect    = "Allow"
     actions   = ["iam:PassRole"]
     resources = [local.iam_role_arn]
-    condition {
-      test     = "StringEquals"
-      variable = "iam:PassedToService"
-      values   = local.apprunner_pass_principals
-    }
   }
 
   # --- Boundary self-protection: a role carrying this boundary can never remove,
@@ -543,4 +636,13 @@ resource "aws_iam_policy" "terraform_scoped" {
   # must exist first. (The ARN is computed as a local for renderability; this edge
   # keeps apply-time ordering correct.)
   depends_on = [aws_iam_policy.boundary]
+}
+
+# Second managed policy, attached alongside terraform_scoped (identity.tf) —
+# exists solely because folding terraform_scoped_ext's grants into
+# terraform_scoped would exceed IAM's 6,144-char managed-policy limit.
+resource "aws_iam_policy" "terraform_scoped_ext" {
+  name        = "${var.resource_prefix}-terraform-ext"
+  description = "Read-only, resource-scoped gap-fix permissions for the ${var.resource_prefix}-terraform identity (S3 accelerate config, Secrets Manager resource policy, App Runner auto-scaling describe/delete) — split out to stay under IAM's managed-policy size limit."
+  policy      = data.aws_iam_policy_document.terraform_scoped_ext.json
 }

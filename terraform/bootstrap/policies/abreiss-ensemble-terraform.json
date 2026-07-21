@@ -215,18 +215,9 @@
     },
     {
       "Action": "iam:PassRole",
-      "Condition": {
-        "StringEquals": {
-          "iam:PassedToService": [
-            "apprunner.amazonaws.com",
-            "build.apprunner.amazonaws.com",
-            "tasks.apprunner.amazonaws.com"
-          ]
-        }
-      },
       "Effect": "Allow",
       "Resource": "arn:aws:iam::123456789012:role/abreiss-ensemble-*",
-      "Sid": "IamPassRoleToAppRunnerOnly"
+      "Sid": "IamPassRoleScopedRolesOnly"
     },
     {
       "Action": [
@@ -272,6 +263,7 @@
       "Effect": "Deny",
       "Resource": [
         "arn:aws:iam::123456789012:user/abreiss-ensemble-terraform",
+        "arn:aws:iam::123456789012:policy/abreiss-ensemble-terraform-ext",
         "arn:aws:iam::123456789012:policy/abreiss-ensemble-terraform"
       ],
       "Sid": "DenySelfModification"

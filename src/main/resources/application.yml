@@ -16,9 +16,11 @@ spring:
 
 ensemble:
   dynamodb:
-    # Local dev points at DynamoDB Local (docker compose up -d dynamodb); deploy
-    # sets ENSEMBLE_DYNAMODB_ENDPOINT to blank so DynamoDbConfig falls back to
-    # the default credential provider chain against real DynamoDB (no override).
+    # Local dev points at DynamoDB Local (docker compose up -d dynamodb); the
+    # deploy activates the `cloud` profile (application-cloud.yml), which blanks
+    # this so DynamoDbConfig falls back to the default credential provider chain
+    # against real DynamoDB. (An empty ENSEMBLE_DYNAMODB_ENDPOINT env var cannot
+    # do that job: App Runner drops empty-string env values.)
     endpoint: ${ENSEMBLE_DYNAMODB_ENDPOINT:http://localhost:8000}
     region: us-east-1
     table-name: ${ENSEMBLE_DYNAMODB_TABLE_NAME:ensemble-items}

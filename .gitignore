@@ -74,6 +74,9 @@ crash.*.log
 # tfvars may hold secrets/account-specific values; the committed module needs none.
 *.tfvars
 *.tfvars.json
+# Saved plan files embed resolved values (incl. anything sensitive a plan reads).
+*.tfplan
+tfplan*.out
 # Keep the provider lock file committable for reproducible plans.
 !.terraform.lock.hcl
 

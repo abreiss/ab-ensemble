@@ -220,6 +220,95 @@ real means a deliberate, narrowly-scoped `access-analyzer:ValidatePolicy`
 addition to the boundary itself — a future, separate change to
 `terraform/bootstrap/`, not part of #9.
 
+## Post-bootstrap addition: `abreiss-ensemble-terraform-ext` (#9 Task 6.1)
+
+The live `terraform apply` of `terraform/deploy/` (Task 6.1) surfaced several
+read-only, resource-scoped permission gaps the AWS provider needs immediately
+after creating a resource — none can read or mutate a resource's actual
+contents, and none is `Resource: "*"`:
+
+| Action | Resource scope | Why it's needed |
+| --- | --- | --- |
+| `s3:GetAccelerateConfiguration` | `abreiss-ensemble-*` bucket | Provider reads this computed attribute right after `aws_s3_bucket` create. IAM action name doesn't match the `GetBucketAccelerateConfiguration` API op, so `terraform_scoped`'s `s3:GetBucket*` wildcard doesn't cover it. |
+| `s3:GetReplicationConfiguration` | `abreiss-ensemble-*` bucket | Same shape — API op is `GetBucketReplication`, IAM action is `GetReplicationConfiguration`, another `s3:GetBucket*` miss. Surfaced in a second round after the first fix, once the accelerate-config read succeeded and the provider moved to the next computed attribute. |
+| `secretsmanager:GetResourcePolicy` | `abreiss-ensemble-*` secret | Same — read right after `aws_secretsmanager_secret` create. |
+| `apprunner:DescribeAutoScalingConfiguration` (+ `Delete`/tag siblings) | `abreiss-ensemble-*` auto-scaling config | The **create waiter** for `aws_apprunner_auto_scaling_configuration_version` polls this until `ACTIVE`; without it, `terraform apply` cannot finish creating the App Runner service itself. |
+
+**Operational note:** the first, partial `apply` (before this fix) still
+*created* the S3 bucket, the auto-scaling config, and the 3 secrets
+successfully in AWS — only the post-create read failed, which Terraform
+records by marking the resource **tainted** (destroy-and-recreate on the next
+apply). For the 3 secrets this would have been actively harmful: none sets
+`recovery_window_in_days = 0`, so a destroy only schedules deletion, and
+recreating a secret with the same name within that window fails outright.
+The fix was `terraform untaint` on all 5 affected resources (not a replace)
+once the underlying permission gap was closed, confirmed safe here because
+each resource's actual AWS state was already correct — only Terraform's
+bookkeeping was wrong.
+
+Folding these into the existing `abreiss-ensemble-terraform` policy would have
+pushed it to ~6,503 characters, over IAM's 6,144-character managed-policy
+limit (that policy already runs close to the limit — see
+`terraform/bootstrap/policies/README.md`'s size note). Per that note's own
+guidance ("prefer splitting into a second `abreiss-ensemble-*` managed policy
+over widening scope"), the fix is a **second** managed policy,
+`abreiss-ensemble-terraform-ext` (~943 characters), attached to the same
+`abreiss-ensemble-terraform` user alongside the first — not a wider statement,
+not `Resource: "*"`. The identity's own `DenySelfModification` statement was
+extended to cover the new policy's ARN too, so the identity still cannot edit
+either of its own managed policies.
+
+This is a `terraform/bootstrap/` change (the module an account admin applies
+with elevated credentials — the scoped identity itself cannot touch its own
+policy, by design). See `data.aws_iam_policy_document.terraform_scoped_ext` in
+[`terraform/bootstrap/policies.tf`](../terraform/bootstrap/policies.tf) and the
+rendered review copy at
+[`terraform/bootstrap/policies/abreiss-ensemble-terraform-ext.json`](../terraform/bootstrap/policies/abreiss-ensemble-terraform-ext.json).
+
+## PassRole condition removed: `iam:PassedToService` never matches App Runner (#9 Task 6.1)
+
+The same live apply surfaced one more gap, of a different kind — not a missing
+action but a condition that can never match. The scoped policy's PassRole
+statement allowed `iam:PassRole` on `abreiss-ensemble-*` roles **only when**
+`iam:PassedToService` named one of the three App Runner service principals
+(`apprunner` / `build.apprunner` / `tasks.apprunner` `.amazonaws.com`) — the
+exact shape AWS's own `AWSAppRunnerFullAccess` managed policy documents. Live,
+App Runner's `CreateService` failed that check with an implicit deny
+(`... no identity-based policy allows the iam:PassRole action`) under **every**
+operator form of the condition:
+
+- `StringEquals` (original) — failed;
+- `StringEqualsIfExists` (absent-key hypothesis) — failed, retried well past
+  IAM propagation;
+- `ForAllValues:StringEquals` (multivalued-key hypothesis) — failed, retried
+  ~8 minutes after the policy version went live.
+
+Meanwhile `simulate-principal-policy` against the live principal **allowed**
+each of those variants, so the real service-side evaluation context must
+populate `iam:PassedToService` with something the simulator cannot reproduce
+and AWS does not document. A temporary no-condition diagnostic policy
+(`iam:PassRole` on `abreiss-ensemble-*` roles, nothing else, attached with
+admin credentials and deleted after the diagnosis) flipped `CreateService`
+from `AccessDeniedException` to success with no other change — isolating the
+condition itself as the culprit.
+
+The landed fix drops the `iam:PassedToService` condition from all three
+PassRole statements (the scoped identity's `IamPassRoleScopedRolesOnly`, the
+boundary's `CiPassRole` ceiling, and the CI role's own `CiPassRole` in
+`terraform/deploy/iam.tf` — the CI role passes the same roles on every
+`apprunner:UpdateService` deploy and would have failed identically at Task
+6.3). What still constrains PassRole, deliberately:
+
+1. **Resource scope** — only `abreiss-ensemble-*` roles can ever be passed;
+2. **Trust policies** — each passable role's own trust policy names the only
+   principals that can actually assume it (App Runner service principals for
+   the instance/ECR-access roles, the GitHub OIDC provider for the CI role),
+   so passing a role to a service that cannot assume it grants nothing.
+
+No new actions, no wider resources; the policy shrinks. If AWS ever documents
+the context App Runner supplies here, the condition can be reinstated in one
+place per policy.
+
 ## Related docs
 
 - [`terraform/bootstrap/README.md`](../terraform/bootstrap/README.md) — module usage quick-start.

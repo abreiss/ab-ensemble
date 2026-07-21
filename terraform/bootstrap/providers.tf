@@ -21,15 +21,19 @@ locals {
 
   # Reusable ARN fragments for the resource-scoped policy statements. Kept here so
   # every statement references one prefix and one account, never a literal.
-  s3_bucket_arn  = "arn:${local.partition}:s3:::${local.prefix}-*"
-  s3_object_arn  = "arn:${local.partition}:s3:::${local.prefix}-*/*"
-  dynamodb_arn   = "arn:${local.partition}:dynamodb:${var.aws_region}:${local.account_id}:table/${local.prefix}-*"
-  ecr_arn        = "arn:${local.partition}:ecr:${var.aws_region}:${local.account_id}:repository/${local.prefix}-*"
-  apprunner_arn  = "arn:${local.partition}:apprunner:${var.aws_region}:${local.account_id}:service/${local.prefix}-*/*"
-  secrets_arn    = "arn:${local.partition}:secretsmanager:${var.aws_region}:${local.account_id}:secret:${local.prefix}-*"
-  iam_role_arn   = "arn:${local.partition}:iam::${local.account_id}:role/${local.prefix}-*"
-  iam_policy_arn = "arn:${local.partition}:iam::${local.account_id}:policy/${local.prefix}-*"
-  iam_user_arn   = "arn:${local.partition}:iam::${local.account_id}:user/${local.prefix}-terraform"
+  s3_bucket_arn = "arn:${local.partition}:s3:::${local.prefix}-*"
+  s3_object_arn = "arn:${local.partition}:s3:::${local.prefix}-*/*"
+  dynamodb_arn  = "arn:${local.partition}:dynamodb:${var.aws_region}:${local.account_id}:table/${local.prefix}-*"
+  ecr_arn       = "arn:${local.partition}:ecr:${var.aws_region}:${local.account_id}:repository/${local.prefix}-*"
+  apprunner_arn = "arn:${local.partition}:apprunner:${var.aws_region}:${local.account_id}:service/${local.prefix}-*/*"
+  # Auto-scaling-configuration ARNs are a distinct App Runner resource type
+  # (not covered by apprunner_arn's service/* pattern) and need their own
+  # scoped statement — see AppRunnerAutoScalingScoped in policies.tf.
+  apprunner_autoscaling_arn = "arn:${local.partition}:apprunner:${var.aws_region}:${local.account_id}:autoscalingconfiguration/${local.prefix}-*"
+  secrets_arn               = "arn:${local.partition}:secretsmanager:${var.aws_region}:${local.account_id}:secret:${local.prefix}-*"
+  iam_role_arn              = "arn:${local.partition}:iam::${local.account_id}:role/${local.prefix}-*"
+  iam_policy_arn            = "arn:${local.partition}:iam::${local.account_id}:policy/${local.prefix}-*"
+  iam_user_arn              = "arn:${local.partition}:iam::${local.account_id}:user/${local.prefix}-terraform"
 
   # The two managed policies this module creates, addressed by their exact ARNs.
   # These are computed from name (not `aws_iam_policy.*.arn`) on purpose: the scoped
@@ -39,13 +43,8 @@ locals {
   # cycle. `depends_on` on the scoped policy preserves create-ordering.
   boundary_policy_arn = "arn:${local.partition}:iam::${local.account_id}:policy/${local.prefix}-boundary"
   scoped_policy_arn   = "arn:${local.partition}:iam::${local.account_id}:policy/${local.prefix}-terraform"
+  # Second managed policy (policies.tf's terraform_scoped_ext) — same self-managed,
+  # self-protected treatment as scoped_policy_arn, see DenySelfModification.
+  scoped_policy_ext_arn = "arn:${local.partition}:iam::${local.account_id}:policy/${local.prefix}-terraform-ext"
 
-  # App Runner service principals `iam:PassRole` may target. This identity can pass
-  # only `abreiss-ensemble-*` roles, and only to App Runner — never arbitrary roles
-  # to arbitrary services.
-  apprunner_pass_principals = [
-    "apprunner.amazonaws.com",
-    "build.apprunner.amazonaws.com",
-    "tasks.apprunner.amazonaws.com",
-  ]
 }
