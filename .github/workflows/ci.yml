@@ -81,7 +81,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # continue-on-error here too: the abreiss-ensemble-ci trust policy pins
+      # token.actions.githubusercontent.com:sub to refs/heads/main (see
+      # terraform/deploy/iam.tf), so a pull_request-event OIDC token can never
+      # assume the role -- by design, not a misconfiguration. Without this
+      # guard the job hard-fails on every PR at this step, defeating the
+      # "standing check that never red-blocks" intent described above. A
+      # genuine credential misconfiguration on main still surfaces loudly in
+      # deploy.yml, which assumes the same role without a guard.
       - name: Configure AWS credentials (OIDC, no static keys)
+        continue-on-error: true
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
