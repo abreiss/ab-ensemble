@@ -10,7 +10,9 @@ vi.mock('../api/items', () => ({
   getItem: vi.fn(),
   updateTags: vi.fn(),
   deleteItem: vi.fn(),
-  photoUrl: (id: string) => `/api/items/${id}/photo`,
+  // Token-bearing on purpose: it must differ from the raw `item.photoUrl` field
+  // below so a test can prove the component renders via the builder, not the field.
+  photoUrl: (id: string) => `/api/items/${id}/photo?token=stub`,
 }))
 
 // Deterministic relative label — the helper has its own unit test; here we only
@@ -80,6 +82,18 @@ describe('ItemDetail', () => {
     const [idArg, tagsArg] = updateTagsMock.mock.calls[0]
     expect(idArg).toBe('abc')
     expect(tagsArg).toMatchObject({ category: 'shirt', primaryColor: 'black', formality: 3, warmth: 2 })
+  })
+
+  it('renders the photo through the token-appending builder, not the raw field', async () => {
+    getItemMock.mockResolvedValue(sampleItem)
+
+    renderDetail()
+
+    // The gated <img> needs the session token; the builder appends it and the raw
+    // `item.photoUrl` field does not. Asserting the token proves the component calls
+    // photoUrl(item.itemId) — guarding against a regression back to `item.photoUrl`.
+    const photo = await screen.findByRole('img')
+    expect(photo).toHaveAttribute('src', '/api/items/abc/photo?token=stub')
   })
 
   it('shows the wear count and a relative last-worn label for a worn item', async () => {
