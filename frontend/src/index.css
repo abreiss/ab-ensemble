@@ -335,6 +335,12 @@ a {
   background: var(--paper-raised);
 }
 
+/* Secondary acquisition source under the library picker; only rendered where the
+   async clipboard-read API is available (the Cmd/Ctrl-V paste path needs no button). */
+.source-paste {
+  margin-top: var(--space-3);
+}
+
 /* ---- Review queue (batch add) ------------------------------------------- */
 
 /* An ordered list of pending tiles, each a photo + editable tag form, saved

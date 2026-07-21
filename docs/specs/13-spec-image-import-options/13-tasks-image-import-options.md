@@ -222,12 +222,12 @@ failure isolation.)
   `items.ts` and have `ensureOk` throw it with `response.status`; keep the existing
   messages and leave `http.ts`'s `401` handling untouched. Confirm `http.test.ts`
   stays green.
-- [~] 3.5 (RED) In `AddItem.test.tsx`, add tests: enqueuing many files never runs
+- [x] 3.5 (RED) In `AddItem.test.tsx`, add tests: enqueuing many files never runs
   more than 3 `tagPreview` calls at once; a `429` mid-batch stops further auto-tag
   calls, leaves remaining tiles on the editable blank seed, and shows the cap
   banner; a non-429 tag failure does not show the cap banner; after a `429`, a
   manual edit + "Save all" still persists. Confirm RED.
-- [~] 3.6 (GREEN) Route `enqueue`'s per-item `tagPreview` fan-out through the
+- [x] 3.6 (GREEN) Route `enqueue`'s per-item `tagPreview` fan-out through the
   promise-pool (limit 3). On an `ApiError` with `status === 429`: set a
   `capReached` flag that skips not-yet-started auto-tags (leaving those tiles on the
   editable `EMPTY_SUGGESTION` seed) and renders the persistent cap banner; a non-429
@@ -236,7 +236,7 @@ failure isolation.)
 - [x] 3.7 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
   `npm run lint` (clean).
 
-### [ ] 4.0 Clipboard paste — `paste` event + capability-gated "Paste image" button
+### [x] 4.0 Clipboard paste — `paste` event + capability-gated "Paste image" button
 
 Attach a `paste`-event handler on `/add` that reads
 `ClipboardEvent.clipboardData.items` for `image/*` entries, calls `getAsFile()`, and
@@ -272,28 +272,31 @@ button, Blob→File wrapping, multi-paste batch.)
 
 #### 4.0 Tasks
 
-- [ ] 4.1 (RED) Write `frontend/src/lib/imageFile.test.ts` (Blob→File name/type
+- [x] 4.1 (RED) Write `frontend/src/lib/imageFile.test.ts` (Blob→File name/type
   synthesis + MIME fallback) and `frontend/src/lib/clipboardImages.test.ts` (extract
   all image files from clipboard items, filter non-images, capability detection).
   Confirm RED.
-- [ ] 4.2 (GREEN) Implement `frontend/src/lib/imageFile.ts`:
+- [x] 4.2 (GREEN) Implement `frontend/src/lib/imageFile.ts`:
   `blobToImageFile(blob, namePrefix)` → a `File` with a synthesized name and the
   blob's `image/*` type (fallback `image/png`).
-- [ ] 4.3 (GREEN) Implement `frontend/src/lib/clipboardImages.ts`:
+- [x] 4.3 (GREEN) Implement `frontend/src/lib/clipboardImages.ts`:
   `imageFilesFromClipboardData(dataTransfer)` (reads `items` → `getAsFile`),
   `imageFilesFromClipboardItems(items)` (async `getType`), and
   `clipboardReadSupported()` capability check; wrap blobs via `imageFile.ts`.
-- [ ] 4.4 (RED) In `AddItem.test.tsx`, add tests: a `paste` event carrying an
+- [x] 4.4 (RED) In `AddItem.test.tsx`, add tests: a `paste` event carrying an
   `image/png` item enqueues one tile that tags; the "Paste image" button is
   hidden/disabled when `clipboardReadSupported()` is false and shown when true.
   Confirm RED.
-- [ ] 4.5 (GREEN) In `AddItem`, attach an `onPaste` handler (extract → `enqueue`)
+- [x] 4.5 (GREEN) In `AddItem`, attach an `onPaste` handler (extract → `enqueue`)
   and render the capability-gated "Paste image" button that calls
   `navigator.clipboard.read()` → extract → `enqueue`; hide/disable with a hint when
   unsupported. Reuse the tasks 2–3 throttle/cap/save path.
-- [ ] 4.6 (GREEN) Capture `proof/paste-import-queue.png` (pasted item in the queue
-  with tags; demo content only).
-- [ ] 4.7 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
+- [~] 4.6 (GREEN) Capture `proof/paste-import-queue.png` (pasted item in the queue
+  with tags; demo content only). **Pending manual capture** — needs the running
+  backend + frontend (ideally a Claude key for live auto-tags); this session has no
+  headless browser and won't fabricate the image. Exact repro steps + target path
+  (`13-proofs/assets/paste-import-queue.png`) are in `13-proofs/13-task-04-proofs.md`.
+- [x] 4.7 (REFACTOR) Run `cd frontend && npm run test -- --run` (all green) and
   `npm run lint` (clean).
 
 ### [ ] 5.0 In-app live camera with multi-shot capture and guaranteed stream teardown

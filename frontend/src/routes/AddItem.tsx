@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom'
 
 import TagForm from '../components/TagForm'
 import { ApiError, createItem, tagPreview } from '../api/items'
+import {
+  clipboardReadSupported,
+  imageFilesFromClipboardData,
+  imageFilesFromClipboardItems,
+} from '../lib/clipboardImages'
 import { runWithConcurrency } from '../lib/promisePool'
 import type { TagInput, TagSuggestion } from '../types/item'
 
@@ -66,6 +71,10 @@ export default function AddItem() {
   // latest value synchronously (state closes over a stale value).
   const [capReached, setCapReached] = useState(false)
   const capReachedRef = useRef(false)
+  // Whether the async clipboard-read path (the explicit "Paste image" button) is
+  // usable. Probed once at mount — capability doesn't change during a session; the
+  // Cmd/Ctrl-V paste-event path works regardless of this.
+  const [canPasteViaButton] = useState(clipboardReadSupported)
   // Monotonic id source so each queued tile is uniquely addressable — the id is
   // also the request identity, so an out-of-order tag response can only seed its
   // own tile (never another item's).
@@ -76,6 +85,10 @@ export default function AddItem() {
   // True once at least one file has been enqueued, so draining the queue after a
   // save returns to the grid without firing on the initial empty render.
   const enqueuedAny = useRef(false)
+  // A live handle to the latest `enqueue`, so the document-level paste listener can
+  // be registered once (on mount) yet always call the current closure without
+  // re-subscribing every render.
+  const enqueueRef = useRef<(files: File[]) => void>(() => {})
 
   // Release every remaining preview's object URL when leaving the screen.
   useEffect(() => {
@@ -168,6 +181,38 @@ export default function AddItem() {
     event.target.value = ''
   }
 
+  // Keep the paste listener's handle to `enqueue` current across renders.
+  useEffect(() => {
+    enqueueRef.current = enqueue
+  })
+
+  // Screen-wide clipboard paste: a Cmd/Ctrl-V anywhere on the Add screen extracts
+  // any image(s) from the event and funnels them through the shared queue. Bound to
+  // `document` (not a focused element) so it works without a focused paste target.
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const files = imageFilesFromClipboardData(event.clipboardData)
+      if (files.length > 0) {
+        event.preventDefault()
+        enqueueRef.current(files)
+      }
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [])
+
+  // The explicit "Paste image" button (shown only where async read is supported):
+  // read image `ClipboardItem`s under the user gesture and enqueue them. A rejected
+  // read (permission denied / empty clipboard) simply enqueues nothing.
+  const onPasteButton = async () => {
+    try {
+      const items = await navigator.clipboard.read()
+      enqueue(await imageFilesFromClipboardItems(items))
+    } catch {
+      // Nothing to paste — leave the queue untouched.
+    }
+  }
+
   // A tile's `TagForm` reports its validated tags (or null while incomplete) here,
   // so "Save all" can persist each tile without owning its draft state.
   const onTagsChange = (id: string, tags: TagInput | null) => {
@@ -242,6 +287,12 @@ export default function AddItem() {
           onChange={onSelectPhotos}
         />
       </label>
+
+      {canPasteViaButton && (
+        <button type="button" className="btn btn-block source-paste" onClick={onPasteButton}>
+          Paste image
+        </button>
+      )}
 
       {capReached && (
         <p className="banner banner-warn" role="status">

@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -13,10 +13,21 @@ vi.mock('../api/items', async () => {
   return { ...actual, tagPreview: vi.fn(), createItem: vi.fn() }
 })
 
+// Keep the real Blob→File wrapping and clipboard extractors (their own suites
+// cover them); mock only the capability gate so button visibility is controllable
+// without stubbing `navigator`/`ClipboardItem` per test.
+vi.mock('../lib/clipboardImages', async () => {
+  const actual =
+    await vi.importActual<typeof import('../lib/clipboardImages')>('../lib/clipboardImages')
+  return { ...actual, clipboardReadSupported: vi.fn(() => false) }
+})
+
 import { ApiError, createItem, tagPreview } from '../api/items'
+import { clipboardReadSupported } from '../lib/clipboardImages'
 
 const tagPreviewMock = vi.mocked(tagPreview)
 const createItemMock = vi.mocked(createItem)
+const clipboardReadSupportedMock = vi.mocked(clipboardReadSupported)
 
 const suggestion: TagSuggestion = {
   category: 'denim jacket',
@@ -73,6 +84,10 @@ let revokeSpy: ReturnType<typeof vi.fn>
 beforeEach(() => {
   tagPreviewMock.mockReset()
   createItemMock.mockReset()
+  // Default: async clipboard read unsupported, so the "Paste image" button is
+  // absent unless a test opts in (the paste-event path works regardless).
+  clipboardReadSupportedMock.mockReset()
+  clipboardReadSupportedMock.mockReturnValue(false)
   // jsdom has no object-URL support; stub it. Distinct URLs per call so each
   // queued item gets its own preview key (mirrors real browser behavior).
   revokeSpy = vi.fn()
@@ -435,5 +450,70 @@ describe('AddItem review queue', () => {
 
     await waitFor(() => expect(createItemMock).toHaveBeenCalledTimes(1))
     expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'scarf' })
+  })
+
+  it('enqueues a wrapped image File when an image is pasted onto the screen', async () => {
+    // A pasted image funnels through the same shared pipeline as any other source.
+    tagPreviewMock.mockResolvedValue(suggestion)
+
+    renderAddItem()
+    const pasted = new File([new Uint8Array([9, 9, 9])], 'screenshot.png', { type: 'image/png' })
+    fireEvent.paste(screen.getByTestId('add-item'), {
+      clipboardData: { items: [{ kind: 'file', type: 'image/png', getAsFile: () => pasted }] },
+    })
+
+    // One tile appears and auto-tags; the file sent is a wrapped image File.
+    await waitFor(() => expect(tagPreviewMock).toHaveBeenCalledTimes(1))
+    const sent = tagPreviewMock.mock.calls[0][0]
+    expect(sent).toBeInstanceOf(File)
+    expect(sent.type).toBe('image/png')
+    const categories = await screen.findAllByLabelText(/^category/i)
+    expect(categories).toHaveLength(1)
+  })
+
+  it('ignores a paste that carries no image (e.g. plain text)', () => {
+    // A text-only paste must not create a tile or fire a tag-preview.
+    renderAddItem()
+    fireEvent.paste(screen.getByTestId('add-item'), {
+      clipboardData: { items: [{ kind: 'string', type: 'text/plain', getAsFile: () => null }] },
+    })
+
+    expect(tagPreviewMock).not.toHaveBeenCalled()
+    expect(screen.queryByAltText(/selected garment/i)).not.toBeInTheDocument()
+  })
+
+  it('hides the "Paste image" button when async clipboard read is unsupported', () => {
+    clipboardReadSupportedMock.mockReturnValue(false)
+
+    renderAddItem()
+
+    expect(screen.queryByRole('button', { name: /paste image/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the "Paste image" button when async clipboard read is supported', () => {
+    clipboardReadSupportedMock.mockReturnValue(true)
+
+    renderAddItem()
+
+    expect(screen.getByRole('button', { name: /paste image/i })).toBeInTheDocument()
+  })
+
+  it('reads the clipboard and enqueues an image when "Paste image" is clicked', async () => {
+    // The gated button uses the async read API; a returned image ClipboardItem
+    // enqueues a tile that tags like any other source.
+    clipboardReadSupportedMock.mockReturnValue(true)
+    tagPreviewMock.mockResolvedValue(suggestion)
+    const pngBlob = new Blob([new Uint8Array([5, 5])], { type: 'image/png' })
+    const readMock = vi.fn(async () => [{ types: ['image/png'], getType: async () => pngBlob }])
+
+    renderAddItem()
+    // Stub the read API only for the click (after render, and without userEvent,
+    // which would install its own navigator.clipboard).
+    vi.stubGlobal('navigator', { clipboard: { read: readMock } })
+    fireEvent.click(screen.getByRole('button', { name: /paste image/i }))
+
+    await waitFor(() => expect(readMock).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(tagPreviewMock).toHaveBeenCalledTimes(1))
+    expect(await screen.findByLabelText(/^category/i)).toBeInTheDocument()
   })
 })
