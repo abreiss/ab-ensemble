@@ -25,6 +25,9 @@ export default function App() {
             Ensemble
           </Link>
           <nav className="app-nav">
+            <Link to="/assemble" className="btn">
+              Build
+            </Link>
             <Link to="/wardrobe" className="btn">
               Wardrobe
             </Link>
