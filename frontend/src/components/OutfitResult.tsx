@@ -3,6 +3,7 @@ import { Heart } from 'lucide-react'
 
 import RatingPips from './RatingPips'
 import { deriveName, slotForCategory, swatchColor } from '../lib/specSheet'
+import { photoUrl } from '../api/style'
 import type { Outfit } from '../api/style'
 
 interface OutfitResultProps {
@@ -40,7 +41,7 @@ export default function OutfitResult({ outfit, onWearToday, logStatus, busy }: O
               </span>
               <img
                 className="flat-lay-img"
-                src={piece.photoUrl}
+                src={photoUrl(piece.itemId)}
                 alt={deriveName(piece)}
                 loading="lazy"
               />

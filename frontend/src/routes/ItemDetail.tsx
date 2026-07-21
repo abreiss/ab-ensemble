@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import TagForm from '../components/TagForm'
-import { deleteItem, getItem, updateTags } from '../api/items'
+import { deleteItem, getItem, photoUrl, updateTags } from '../api/items'
 import { relativeTime } from '../lib/relativeTime'
 import type { Item, TagInput } from '../types/item'
 
@@ -92,7 +92,7 @@ export default function ItemDetail() {
 
   return (
     <section data-testid="item-detail" className="screen">
-      <img className="detail-photo" src={item.photoUrl} alt={item.category ?? 'garment'} />
+      <img className="detail-photo" src={photoUrl(item.itemId)} alt={item.category ?? 'garment'} />
 
       <p className="wear-history" data-testid="wear-history">
         <span className="eyebrow">Wear history</span>
