@@ -40,6 +40,10 @@ data "aws_iam_policy_document" "instance_permissions" {
     resources = [local.s3_object_arn]
   }
 
+  # local.dynamodb_arn is table/${local.prefix}-* -- a wildcard that already
+  # covers both the items table and the outfits table (spec #26), so adding
+  # saved outfits needs no statement/resource change here, only the description
+  # update below.
   statement {
     sid    = "RuntimeDynamoDb"
     effect = "Allow"
@@ -63,7 +67,13 @@ data "aws_iam_policy_document" "instance_permissions" {
 }
 
 resource "aws_iam_policy" "instance" {
-  name        = "${local.prefix}-instance-runtime"
+  name = "${local.prefix}-instance-runtime"
+  # NOTE: an aws_iam_policy `description` is immutable in AWS -- editing it forces
+  # a destroy+recreate of this live, attached policy (and its attachment). The
+  # outfits table (spec #26) is already covered by the table/${local.prefix}-*
+  # wildcard in the RuntimeDynamoDb statement above, so we document that coverage
+  # in the HCL comment there and deliberately leave this string unchanged to keep
+  # the deploy's "no IAM diff" guarantee (proof 2.0 / success metric #6).
   description = "Least-privilege runtime access for the App Runner instance role: the photos bucket, the items table, and the three secret ARNs."
   policy      = data.aws_iam_policy_document.instance_permissions.json
 }

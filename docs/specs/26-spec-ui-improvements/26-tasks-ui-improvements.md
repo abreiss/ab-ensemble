@@ -108,7 +108,7 @@ guard (all-ids-valid → save; any unknown id → whole-save `400`; empty `itemI
 - [x] 1.8 Add `outfitsTableName` to the `DynamoDbProperties` record; add `ensemble.dynamodb.outfits-table-name: ${ENSEMBLE_OUTFITS_TABLE_NAME:ensemble-outfits}` to `application.yml`. Refactor `DynamoDbTableInitializer.ensureTable()` to accept `(tableName, partitionKey)` and call it for **both** the items table (`itemId`) and the outfits table (`outfitId`) on startup. (Note: `outfits-table-name` lives in base `application.yml` only, inherited by the cloud profile — matching how `table-name` is handled today; `application-cloud.yml` overrides only `endpoint` + `auto-create-table`, so no outfits key is duplicated there. Spec-compliant and repo-consistent.)
 - [x] 1.9 **RED/verify:** extend the initializer test to assert both tables are ensured (idempotent). Run `./gradlew test` (all green) and generate the JaCoCo report; confirm ≥90% line on the new `com.ensemble.outfit` package and **100% branch** on `OutfitService`. (312 tests green; `com.ensemble.outfit.*` 100% line; `OutfitService` 100% branch.)
 
-### [ ] 2.0 Cloud provisioning for the outfits table (Terraform + App Runner env var, no IAM diff)
+### [x] 2.0 Cloud provisioning for the outfits table (Terraform + App Runner env var, no IAM diff)
 
 Add the minimal, pre-authorized cloud delta so a deploy after merge writes to a
 real table instead of a 5xx landmine: an `aws_dynamodb_table "outfits"`
@@ -126,10 +126,10 @@ mention the outfits table; make **no** IAM policy change (the grant is already
 
 #### 2.0 Tasks
 
-- [ ] 2.1 Add `resource "aws_dynamodb_table" "outfits"` to `terraform/deploy/data_stores.tf`: `name = "${local.prefix}-outfits"`, `billing_mode = "PAY_PER_REQUEST"`, `hash_key = "outfitId"`, and the matching `attribute { name = "outfitId"; type = "S" }` — mirroring the `items` table resource.
-- [ ] 2.2 Add `ENSEMBLE_OUTFITS_TABLE_NAME = aws_dynamodb_table.outfits.name` to `runtime_environment_variables` in `terraform/deploy/apprunner.tf`, alongside `ENSEMBLE_DYNAMODB_TABLE_NAME`.
-- [ ] 2.3 Update the instance-role DynamoDB policy **description/comment** in `terraform/deploy/iam.tf` to mention the outfits table; confirm the resource ARN pattern is already `table/${local.prefix}-*` so **no statement/resource change** is needed.
-- [ ] 2.4 Run `terraform -chdir=terraform/deploy fmt -check` and `validate`; capture a `plan` excerpt (ARNs redacted) proving the only outfit-related delta is the table + env var and that no `aws_iam_*` resource changes.
+- [x] 2.1 Add `resource "aws_dynamodb_table" "outfits"` to `terraform/deploy/data_stores.tf`: `name = "${local.prefix}-outfits"`, `billing_mode = "PAY_PER_REQUEST"`, `hash_key = "outfitId"`, and the matching `attribute { name = "outfitId"; type = "S" }` — mirroring the `items` table resource.
+- [x] 2.2 Add `ENSEMBLE_OUTFITS_TABLE_NAME = aws_dynamodb_table.outfits.name` to `runtime_environment_variables` in `terraform/deploy/apprunner.tf`, alongside `ENSEMBLE_DYNAMODB_TABLE_NAME`.
+- [x] 2.3 Update the instance-role DynamoDB policy **comment** in `terraform/deploy/iam.tf` to mention the outfits table; confirmed the resource ARN pattern is already `table/${local.prefix}-*` so **no statement/resource change** is needed. **Deviation:** the mention was carried in an HCL *comment*, not the live `description` string — an `aws_iam_policy` `description` is immutable in AWS, so editing it forces a destroy+recreate of the attached policy (plan proved `1 add/1 change` → `3 add/2 destroy` when the string changed). Keeping the string unchanged preserves proof 2.0 / success-metric-#6's "no IAM diff" guarantee.
+- [x] 2.4 Ran `terraform -chdir=terraform/deploy fmt -check` and `validate` (both pass); captured a `plan` excerpt (account id / SHA redacted) proving the only delta is `aws_dynamodb_table.outfits` (add) + the `ENSEMBLE_OUTFITS_TABLE_NAME` env var (in-place change) — `Plan: 1 to add, 1 to change, 0 to destroy` — and that **no `aws_iam_*` resource is added/changed/destroyed**. (The plan also shows a pre-existing, unrelated `image_identifier` drift `:sha-<git-sha>` → `:latest`, which is the accepted CI-vs-config drift noted in `apprunner.tf`, not part of this task and never applied via `terraform apply`.)
 
 ### [ ] 3.0 Real save wiring on Stylist (`/`) and Build (`/assemble`)
 
