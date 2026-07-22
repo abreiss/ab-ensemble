@@ -1482,13 +1482,15 @@ select.input {
 }
 
 /* The extras tray holds multiple accumulating items, so it lays them out as a
-   scrollable 2-column grid of 3:4 thumbnails rather than one zone-filling tile,
-   with room at the top for the corner label chip. */
+   scrollable grid of small 3:4 thumbnails rather than one zone-filling tile,
+   with room at the top for the corner label chip. A responsive auto-fill track
+   (matching the wardrobe source grid) keeps the thumbnails small on the
+   desktop-width shell instead of ballooning to a fixed 2-up. */
 .mannequin-zone-extras .mannequin-zone-items {
   inset: 4px;
   padding-top: 22px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
   align-content: start;
   gap: var(--space-2);
   overflow-y: auto;
@@ -1543,6 +1545,27 @@ select.input {
   border: 1.5px dashed transparent;
   border-radius: var(--radius);
   transition: border-color 0.15s ease;
+}
+
+/* One category bucket of source tiles: its header + grid. */
+.assemble-source-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.assemble-source-section + .assemble-source-section {
+  margin-top: var(--space-4);
+}
+
+/* Build-page source tiles are much smaller than the Stylist drawer's — the
+   drop targets are tiny and a full-width 2-up grid made them clumsy to drag.
+   Scoped to `.assemble-source` so the shared `.drawer-grid` used by
+   `WardrobeDrawer` (Stylist) keeps its own 2-column sizing. A responsive
+   auto-fill track packs many small tiles per row on wide screens and still
+   yields ~3 on a phone. */
+.assemble-source .drawer-grid {
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
 }
 
 .assemble-actions {

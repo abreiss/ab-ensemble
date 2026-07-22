@@ -71,4 +71,45 @@ describe('AssembleSource', () => {
     expect(tile).toHaveClass('drawer-tile')
     expect(tile).toHaveAttribute('aria-roledescription', 'draggable')
   })
+
+  it('groups the visible tiles into category sections in taxonomy order', () => {
+    render(
+      <AssembleSource
+        items={[
+          item('sh', { category: 'sneakers' }), // -> Shoes
+          item('tp', { category: 'shirt' }), // -> Top
+          item('bt', { category: 'jeans' }), // -> Bottom
+        ]}
+      />,
+    )
+
+    const headers = Array.from(
+      document.querySelectorAll('.assemble-source-section .section-header'),
+    ).map((el) => el.textContent)
+    // Taxonomy order (Top, Bottom, Shoes), not input order (Shoes, Top, Bottom).
+    expect(headers).toEqual(['Tops', 'Bottoms', 'Shoes'])
+  })
+
+  it('renders each item under its own category section', () => {
+    render(
+      <AssembleSource items={[item('tp', { category: 'shirt' }), item('bt', { category: 'jeans' })]} />,
+    )
+
+    const sections = Array.from(document.querySelectorAll('.assemble-source-section'))
+    const bottoms = sections.find(
+      (s) => s.querySelector('.section-header')?.textContent === 'Bottoms',
+    )
+    expect(bottoms?.querySelector('[data-item-id="bt"]')).not.toBeNull()
+    expect(bottoms?.querySelector('[data-item-id="tp"]')).toBeNull()
+  })
+
+  it('shows a no-match note when a search excludes every piece', async () => {
+    const user = userEvent.setup()
+    render(<AssembleSource items={[item('a', { category: 'shirt' })]} />)
+
+    await user.type(screen.getByRole('searchbox', { name: /search pieces/i }), 'zzz')
+
+    expect(document.querySelector('.assemble-source-section')).toBeNull()
+    expect(screen.getByText(/no pieces match/i)).toBeInTheDocument()
+  })
 })
