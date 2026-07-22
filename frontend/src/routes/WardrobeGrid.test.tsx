@@ -9,12 +9,14 @@ import type { Item } from '../types/item'
 // The grid must never touch the network in tests; mock the API module.
 vi.mock('../api/items', () => ({
   listItems: vi.fn(),
+  deleteItem: vi.fn(),
   photoUrl: (id: string) => `/api/items/${id}/photo`,
 }))
 
-import { listItems } from '../api/items'
+import { deleteItem, listItems } from '../api/items'
 
 const listItemsMock = vi.mocked(listItems)
+const deleteItemMock = vi.mocked(deleteItem)
 
 function item(id: string, category = 'top'): Item {
   return {
@@ -53,6 +55,7 @@ function DetailProbe() {
 
 beforeEach(() => {
   listItemsMock.mockReset()
+  deleteItemMock.mockReset()
 })
 
 afterEach(() => {
@@ -153,5 +156,26 @@ describe('WardrobeGrid', () => {
     await screen.findByRole('heading', { name: 'Jackets' })
     expect(screen.queryByRole('heading', { name: 'Tops' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Bottoms' })).not.toBeInTheDocument()
+  })
+
+  it('drops an item from the grid after its inline delete is confirmed', async () => {
+    listItemsMock.mockResolvedValue([item('a', 'Jacket'), item('b', 'Shoes'), item('c', 'Jewelry')])
+    deleteItemMock.mockResolvedValue(undefined)
+    const user = userEvent.setup()
+
+    renderGrid()
+    expect(await screen.findAllByRole('img')).toHaveLength(3)
+
+    // Arm + confirm delete on the Jacket cell only.
+    await user.click(screen.getByRole('button', { name: /delete jacket/i }))
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
+
+    await waitFor(() => expect(deleteItemMock).toHaveBeenCalledWith('a'))
+
+    // The deleted thumbnail is gone; the other two remain (no refetch).
+    await waitFor(() => expect(screen.getAllByRole('img')).toHaveLength(2))
+    const remaining = screen.getAllByRole('img').map((img) => img.getAttribute('src'))
+    expect(remaining).toEqual(['/api/items/b/photo', '/api/items/c/photo'])
+    expect(listItemsMock).toHaveBeenCalledTimes(1)
   })
 })

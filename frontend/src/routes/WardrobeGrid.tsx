@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { listItems, photoUrl } from '../api/items'
+import WardrobeCell from '../components/WardrobeCell'
+import { listItems } from '../api/items'
 import { groupByCategory } from '../lib/wardrobeSections'
 import type { Item } from '../types/item'
 
@@ -39,6 +40,13 @@ export default function WardrobeGrid() {
   const retry = () => {
     setStatus('loading')
     settle(listItems())
+  }
+
+  // Drop a deleted item from the local list — no refetch. `groupByCategory` and
+  // the empty-state branch both derive from `items`, so emptied sections and the
+  // empty wardrobe fall out automatically on re-render.
+  const handleDeleted = (id: string) => {
+    setItems((prev) => prev.filter((it) => it.itemId !== id))
   }
 
   if (status === 'loading') {
@@ -86,16 +94,7 @@ export default function WardrobeGrid() {
           <h2 className="section-header">{group.label}</h2>
           <ul className="grid">
             {group.items.map((it) => (
-              <li key={it.itemId} className="grid-cell">
-                <Link to={`/item/${it.itemId}`} className="thumb">
-                  <img
-                    className="thumb-img"
-                    src={photoUrl(it.itemId)}
-                    alt={it.category ?? 'garment'}
-                    loading="lazy"
-                  />
-                </Link>
-              </li>
+              <WardrobeCell key={it.itemId} item={it} onDeleted={handleDeleted} />
             ))}
           </ul>
         </section>
