@@ -32,6 +32,11 @@ resource "aws_apprunner_service" "app" {
       # tag exists). Every deploy after that repoints this service at a new
       # sha-<git-sha> tag via `aws apprunner update-service` (Task 5.0) -- never
       # a second push to :latest.
+      #
+      # After that one-time seed CI owns this tag, so the `lifecycle` block below
+      # tells Terraform to ignore drift on it. Without that guard a later
+      # `terraform apply` (which is operator-run, decoupled from CI) would revert
+      # the live service to the stale :latest seed, rolling back CI-deployed code.
       image_identifier = "${aws_ecr_repository.app.repository_url}:latest"
 
       image_configuration {
@@ -78,4 +83,13 @@ resource "aws_apprunner_service" "app" {
   }
 
   auto_scaling_configuration_arn = aws_apprunner_auto_scaling_configuration_version.app.arn
+
+  # CI owns the image tag after the one-time :latest seed (it repoints the
+  # service at each sha-<git-sha> via `aws apprunner update-service`). Ignore
+  # drift on that one attribute so operator-run `terraform apply` keeps the
+  # CI-deployed SHA and only applies the real diff -- Terraform owns everything
+  # else on this resource.
+  lifecycle {
+    ignore_changes = [source_configuration[0].image_repository[0].image_identifier]
+  }
 }
