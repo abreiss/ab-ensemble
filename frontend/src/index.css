@@ -271,6 +271,7 @@ a {
 
 .grid-cell {
   margin: 0;
+  position: relative; /* anchors the corner delete button + confirm overlay */
 }
 
 .thumb {
@@ -292,6 +293,58 @@ a {
 
 .thumb:active .thumb-img {
   transform: scale(0.98);
+}
+
+/* Inline delete on a grid cell (view plumbing). The idle control is a small
+   corner button overlaid on the thumbnail; arming swaps it for a confirm
+   overlay covering the cell so taps land on Cancel/Delete, not the Link. */
+.cell-delete {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: var(--text-sm);
+  line-height: 1;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--paper-raised) 85%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.cell-confirm {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger-soft) 92%, var(--ink));
+}
+
+.cell-confirm-error {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--danger);
+  text-align: center;
+}
+
+.cell-confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.cell-confirm-actions .btn {
+  min-height: 36px;
+  padding: 0 var(--space-3);
 }
 
 /* ---- Screen title + banners --------------------------------------------- */
