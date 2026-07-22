@@ -21,6 +21,7 @@ import com.anthropic.models.messages.Tool;
 import com.anthropic.models.messages.ToolChoiceTool;
 import com.anthropic.models.messages.ToolUseBlock;
 import com.ensemble.config.AnthropicProperties;
+import com.ensemble.wardrobe.CategoryTaxonomy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -88,12 +89,23 @@ public class AnthropicVisionModelClient implements VisionModelClient {
 					.build())));
 	}
 
-	/** Tool whose input schema is the tag shape; forcing it yields structured JSON. */
-	private static Tool tagTool() {
+	/**
+	 * Tool whose input schema is the tag shape; forcing it yields structured JSON.
+	 * The {@code category} property carries an {@code enum} of the taxonomy values
+	 * ({@link CategoryTaxonomy#values()}) as a strong hint to the model — an
+	 * advisory only, since Claude tool-use can still emit an off-taxonomy string.
+	 * The code-side guarantee is {@link CategoryTaxonomy#normalize(String)}, applied
+	 * on every save path regardless of what the model returns here.
+	 *
+	 * <p>Package-private so a test can inspect the built {@link Tool.InputSchema}
+	 * directly (an existing seam pattern in this class; see {@link #TAG_TOOL} and
+	 * {@link #firstToolUseJson(Message)}).
+	 */
+	static Tool tagTool() {
 		Tool.InputSchema schema = Tool.InputSchema.builder()
 			.type(JsonValue.from("object"))
 			.putAdditionalProperty("properties", JsonValue.from(Map.of(
-				"category", Map.of("type", "string"),
+				"category", Map.of("type", "string", "enum", CategoryTaxonomy.values()),
 				"primaryColor", Map.of("type", "string"),
 				"secondaryColor", Map.of("type", "string"),
 				"formality", Map.of("type", "integer"),

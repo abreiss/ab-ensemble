@@ -113,6 +113,24 @@ class WardrobeControllerTest {
 	}
 
 	@Test
+	void createItem_jewelryWithoutFormalityOrWarmth_returns201() throws Exception {
+		// Jewelry has no formality/warmth — TagRequest must accept a null for each
+		// (only category remains required), so the item still saves.
+		when(service.create(any(), any())).thenReturn(response("new-id"));
+
+		mockMvc.perform(multipart("/api/items")
+				.file(photoPart())
+				.param("category", "Jewelry")
+				.param("primaryColor", "gold"))
+			.andExpect(status().isCreated());
+
+		ArgumentCaptor<TagRequest> captor = ArgumentCaptor.forClass(TagRequest.class);
+		verify(service).create(captor.capture(), any());
+		assertThat(captor.getValue().formality()).isNull();
+		assertThat(captor.getValue().warmth()).isNull();
+	}
+
+	@Test
 	void createItem_formalityOutOfRange_returns400() throws Exception {
 		mockMvc.perform(multipart("/api/items")
 				.file(photoPart())

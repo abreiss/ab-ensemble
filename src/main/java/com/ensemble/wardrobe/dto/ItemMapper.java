@@ -1,5 +1,6 @@
 package com.ensemble.wardrobe.dto;
 
+import com.ensemble.wardrobe.CategoryTaxonomy;
 import com.ensemble.wardrobe.Item;
 
 /**
@@ -31,9 +32,15 @@ public final class ItemMapper {
 			item.getWornCount());
 	}
 
-	/** Copies the tag fields from a request onto an item (create or update). */
+	/**
+	 * Copies the tag fields from a request onto an item (create or update). This is
+	 * the single write choke point for both save paths (vision-populated and
+	 * manual), so {@code category} is normalized to a taxonomy value here —
+	 * unrecognized/off-taxonomy input buckets to {@code "Other"} rather than being
+	 * rejected or persisted verbatim.
+	 */
 	public static void applyTags(Item item, TagRequest tags) {
-		item.setCategory(tags.category());
+		item.setCategory(CategoryTaxonomy.normalize(tags.category()));
 		item.setPrimaryColor(tags.primaryColor());
 		item.setSecondaryColor(tags.secondaryColor());
 		item.setFormality(tags.formality());

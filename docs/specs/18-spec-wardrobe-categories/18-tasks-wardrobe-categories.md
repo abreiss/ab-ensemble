@@ -78,7 +78,7 @@ Conventional commits, roughly one per demoable unit. Branch: `wardrobe-grouping`
 
 ## Tasks
 
-### [ ] 1.0 Backend taxonomy foundation: constant + `normalize`, vision `enum`, nullable warmth/formality, save-path normalization
+### [x] 1.0 Backend taxonomy foundation: constant + `normalize`, vision `enum`, nullable warmth/formality, save-path normalization
 
 Establish the taxonomy as the single backend source of truth and make it
 authoritative on every save path. Add the ordered taxonomy constant + a pure
@@ -115,39 +115,39 @@ batch migration. Covers spec Unit 1 and Success Metrics 2, 3, 5, 6.
 
 #### 1.0 Tasks
 
-- [ ] 1.1 [RED] Write `CategoryTaxonomyTest`: assert an ordered `values()` list of
+- [x] 1.1 [RED] Write `CategoryTaxonomyTest`: assert an ordered `values()` list of
   the eight taxonomy values, and `normalize` cases — each canonical value maps to
   itself; legacy synonyms (`chinos`/`jeans`→`Bottom`, `shirt`/`T-Shirt`→`Top`,
   `necklace`→`Jewelry`, `blazer`→`Jacket`, `sneakers`→`Shoes`, `tote`→`Accessory`,
   `gown`→`Dress`); casing/whitespace (`"  T-SHIRT "`→`Top`); and
   unrecognized/blank/null → `"Other"` (never throws). Run to confirm failure.
-- [ ] 1.2 [GREEN] Create `com.ensemble.wardrobe.CategoryTaxonomy`: the ordered
+- [x] 1.2 [GREEN] Create `com.ensemble.wardrobe.CategoryTaxonomy`: the ordered
   taxonomy constant (source of truth), the case/whitespace-insensitive
   synonym→bucket map (assumption A1.12), and `normalize(String) → taxonomy value`
   returning `"Other"` for unrecognized/blank/null. Make 1.1 pass; confirm **100%
   branch coverage** on `CategoryTaxonomy` via `jacocoTestReport`.
-- [ ] 1.3 [RED→GREEN] In `WardrobeControllerTest`, add a create case:
+- [x] 1.3 [RED→GREEN] In `WardrobeControllerTest`, add a create case:
   `category=Jewelry` with `formality`/`warmth` params omitted → `201`. Run
   (fails with `400` today). Then in `TagRequest`, drop `@NotNull` from
   `formality`/`warmth` (keep `@Min`/`@Max`, keep `category` `@NotBlank`). Make it
   pass; confirm the existing range-rejection tests stay green (a supplied
   out-of-range value still `400`s).
-- [ ] 1.4 [RED→GREEN] In `AnthropicVisionModelClientTest`, add a test asserting the
+- [x] 1.4 [RED→GREEN] In `AnthropicVisionModelClientTest`, add a test asserting the
   `category` property of `tagTool()`'s input schema carries the taxonomy `enum`
   (values from `CategoryTaxonomy`). Make `tagTool()` package-private (assumption
   A2.1) so the test can read its `InputSchema`. Add `"enum"` to the `category`
   property in `tagTool()` derived from `CategoryTaxonomy`. Make it pass.
-- [ ] 1.5 [RED→GREEN] In `TaggingServiceTest`, add a test: a model tag JSON with an
+- [x] 1.5 [RED→GREEN] In `TaggingServiceTest`, add a test: a model tag JSON with an
   off-taxonomy `category` (`"sweatshirt"`) yields a `TagSuggestion` whose
   `category` is the normalized bucket (`Top`). Run (fails — raw value today). In
   `TaggingService.map`, wrap the category through `CategoryTaxonomy.normalize`.
   Make it pass; keep 100% branch on the mapping (existing null/blank/absent cases
   stay green).
-- [ ] 1.6 [RED→GREEN] In `ItemMapperTest`, add a test: `applyTags` with a legacy
+- [x] 1.6 [RED→GREEN] In `ItemMapperTest`, add a test: `applyTags` with a legacy
   `category` (`"chinos"`) sets the `Item.category` to `Bottom`. Run (fails). In
   `ItemMapper.applyTags`, set `category` via `CategoryTaxonomy.normalize(tags.category())`.
   Make it pass.
-- [ ] 1.7 [REFACTOR] In `WardrobeServiceTest`, confirm/add coverage that both
+- [x] 1.7 [REFACTOR] In `WardrobeServiceTest`, confirm/add coverage that both
   `create` and `updateTags` persist a normalized category (the choke point covers
   both). Verify `./gradlew test jacocoTestReport -PskipFrontend` is green and
   `git diff --stat src/main/java/com/ensemble/wardrobe/Item.java` is empty. Commit
