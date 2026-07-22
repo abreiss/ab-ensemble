@@ -347,6 +347,48 @@ a {
   padding: 0 var(--space-3);
 }
 
+/* ---- Saved outfits ------------------------------------------------------- */
+
+/* Each saved look is a raised card holding its pieces' thumbnails; the list
+   stacks the cards, reusing the wardrobe `.grid`/`.thumb` tiles inside. */
+.outfit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.outfit-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+}
+
+.outfit-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* The stored whole-look rationale (AI saves only); manual looks omit it. */
+.outfit-reason {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* Quiet caption for pieces deleted since the save — informative, not alarming. */
+.outfit-missing {
+  font-style: italic;
+}
+
 /* ---- Screen title + banners --------------------------------------------- */
 
 .screen-title {

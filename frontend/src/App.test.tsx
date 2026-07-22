@@ -27,6 +27,12 @@ vi.mock('./api/items', () => ({
   photoUrl: (id: string) => `/api/items/${id}/photo`,
 }))
 
+// The Saved Outfits screen fetches saved outfits on mount; keep it off the network.
+vi.mock('./api/outfits', () => ({
+  listOutfits: vi.fn().mockResolvedValue([]),
+  deleteOutfit: vi.fn().mockResolvedValue(undefined),
+}))
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -72,6 +78,11 @@ describe('App shell + routing', () => {
     expect(await screen.findByTestId('assemble')).toBeInTheDocument()
   })
 
+  it('mounts the saved-outfits screen at /saved', async () => {
+    renderAt('/saved')
+    expect(await screen.findByTestId('saved-outfits')).toBeInTheDocument()
+  })
+
   it('redirects the legacy /style route to the stylist landing at /', async () => {
     renderAt('/style')
     expect(await screen.findByTestId('stylist')).toBeInTheDocument()
@@ -101,6 +112,19 @@ describe('App shell + routing', () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
   })
+
+  it('exposes a persistent saved-outfits navigation control in the header, before Build', () => {
+    renderAt('/')
+    const header = screen.getByRole('banner')
+    const savedLink = within(header).getByRole('link', { name: /saved/i })
+    expect(savedLink).toHaveAttribute('href', '/saved')
+
+    // It must sit to the LEFT of (before) the Build control in DOM order.
+    const buildLink = within(header).getByRole('link', { name: /build/i })
+    expect(savedLink.compareDocumentPosition(buildLink)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+  })
 })
 
 describe('App shell — /assemble is gated', () => {
@@ -112,5 +136,11 @@ describe('App shell — /assemble is gated', () => {
     renderAt('/assemble')
     expect(await screen.findByLabelText(/passcode/i)).toBeInTheDocument()
     expect(screen.queryByTestId('assemble')).not.toBeInTheDocument()
+  })
+
+  it('shows the passcode screen instead of /saved when no session token is stored', async () => {
+    renderAt('/saved')
+    expect(await screen.findByLabelText(/passcode/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('saved-outfits')).not.toBeInTheDocument()
   })
 })
