@@ -3,6 +3,7 @@ import { Search } from 'lucide-react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 
 import { photoUrl } from '../api/items'
+import { groupByCategory } from '../lib/wardrobeSections'
 import type { Item } from '../types/item'
 
 /** The lowercased text a tile is matched against when searching. Kept in
@@ -84,6 +85,12 @@ export default function AssembleSource({ items, placedIds = [] }: AssembleSource
   const visible =
     needle === '' ? available : available.filter((it) => searchText(it).includes(needle))
 
+  // Group the (already search-/placed-filtered) tiles into category sections,
+  // reusing the same taxonomy + ordering the `/wardrobe` grid uses so the two
+  // views bucket identically. Smaller, sorted sections make the tiles far
+  // easier to scan and drag than one flat, oversized grid.
+  const sections = useMemo(() => groupByCategory(visible), [visible])
+
   return (
     <div
       ref={setNodeRef}
@@ -106,12 +113,19 @@ export default function AssembleSource({ items, placedIds = [] }: AssembleSource
 
       {available.length === 0 ? (
         <p className="state-note">Everything is on the mannequin.</p>
+      ) : sections.length === 0 ? (
+        <p className="state-note">No pieces match your search.</p>
       ) : (
-        <ul className="drawer-grid">
-          {visible.map((it) => (
-            <SourceTile key={it.itemId} item={it} />
-          ))}
-        </ul>
+        sections.map((group) => (
+          <section key={group.category} className="assemble-source-section">
+            <p className="section-header">{group.label}</p>
+            <ul className="drawer-grid">
+              {group.items.map((it) => (
+                <SourceTile key={it.itemId} item={it} />
+              ))}
+            </ul>
+          </section>
+        ))
       )}
     </div>
   )
