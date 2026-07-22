@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { CATEGORIES, type Category } from './categoryTaxonomy'
 import { NEUTRAL_SWATCH, deriveName, slotForCategory, swatchColor } from './specSheet'
 
 describe('specSheet helpers', () => {
@@ -10,6 +11,39 @@ describe('specSheet helpers', () => {
         expect(slotForCategory(category)).toBe('TOP')
       },
     )
+
+    // Binds `specSheet.ts`'s slot map to `categoryTaxonomy.ts`'s taxonomy as a
+    // test invariant (assumption A2.4): every taxonomy value must resolve to a
+    // slot so the outfit-result card never regresses to the generic PIECE
+    // label once vision emits taxonomy values. Grouping bucket (categoryTaxonomy)
+    // and card slot (specSheet) stay distinct mappings — this only asserts the
+    // slot side is complete for the full vocabulary.
+    it.each<[Category, ReturnType<typeof slotForCategory>]>([
+      ['Jacket', 'TOP'],
+      ['Top', 'TOP'],
+      ['Bottom', 'BOTTOM'],
+      ['Dress', 'TOP'],
+      ['Shoes', 'SHOES'],
+      ['Jewelry', 'CARRY'],
+      ['Accessory', 'CARRY'],
+      ['Other', 'PIECE'],
+    ])('maps taxonomy value %s to slot %s', (category, expectedSlot) => {
+      expect(slotForCategory(category)).toBe(expectedSlot)
+    })
+
+    it('covers every taxonomy value in the assertion above (no silent gaps)', () => {
+      const asserted: Category[] = [
+        'Jacket',
+        'Top',
+        'Bottom',
+        'Dress',
+        'Shoes',
+        'Jewelry',
+        'Accessory',
+        'Other',
+      ]
+      expect(new Set(asserted)).toEqual(new Set(CATEGORIES))
+    })
 
     it('maps the vision tagger casing (T-Shirt) to TOP', () => {
       expect(slotForCategory('T-Shirt')).toBe('TOP')

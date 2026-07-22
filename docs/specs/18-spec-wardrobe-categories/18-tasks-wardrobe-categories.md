@@ -274,7 +274,7 @@ existing loading/empty/error states. Covers spec Unit 3 and Success Metrics 1, 2
   lint` + `tsc -b` green. Capture the grouped-`/wardrobe` screenshot. Commit
   (`feat(frontend): group wardrobe grid into category sections`).
 
-### [ ] 4.0 `slotForCategory` map updated for the new taxonomy
+### [x] 4.0 `slotForCategory` map updated for the new taxonomy
 
 Prevent the outfit-result card regressing to the generic `PIECE` label once vision
 emits taxonomy values. Extend `slotForCategory`'s keyword map so every taxonomy
@@ -297,18 +297,18 @@ Unit 4 and Success Metric 4.
 
 #### 4.0 Tasks
 
-- [ ] 4.1 [RED] In `specSheet.test.ts`, add a test asserting each taxonomy value
+- [x] 4.1 [RED] In `specSheet.test.ts`, add a test asserting each taxonomy value
   (imported from `categoryTaxonomy.ts` to bind the two lists as a test invariant)
   maps to its expected slot, including `Jewelry`→`CARRY` (not `PIECE`) and
   `Other`→`PIECE`. Run to confirm failure (`Jacket`/`Dress`/`Jewelry`/`Other` not
   yet keyed, or cased differently).
-- [ ] 4.2 [GREEN] In `specSheet.ts`, extend `CATEGORY_SLOTS` with lower-cased keys
+- [x] 4.2 [GREEN] In `specSheet.ts`, extend `CATEGORY_SLOTS` with lower-cased keys
   for the taxonomy values (`jacket`/`top`/`dress`→`TOP`, `bottom`→`BOTTOM`,
   `shoes`→`SHOES`, `jewelry`/`accessory`→`CARRY`; `other` intentionally left
   unkeyed so it falls through to the `PIECE` fallback). Keep every existing legacy
   key and the trimmed/lower-cased lookup + `PIECE` fallback. Do **not** add a
   `Slot` value. Make 4.1 pass.
-- [ ] 4.3 [REFACTOR] Confirm all existing `specSheet.test.ts` cases (legacy keys,
+- [x] 4.3 [REFACTOR] Confirm all existing `specSheet.test.ts` cases (legacy keys,
   null/blank/unrecognized → `PIECE`) stay green and `placement.ts`/`placement.test.ts`
   are untouched. Verify `npm test -- --run` + `npm run lint` + `tsc -b` green.
   Commit (`fix(frontend): map new taxonomy values to outfit-card slots`).
