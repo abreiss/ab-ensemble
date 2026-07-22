@@ -24,7 +24,10 @@ ensemble:
     endpoint: ${ENSEMBLE_DYNAMODB_ENDPOINT:http://localhost:8000}
     region: us-east-1
     table-name: ${ENSEMBLE_DYNAMODB_TABLE_NAME:ensemble-items}
-    # Create the table on startup if absent. Disabled in tests (see
+    # Dedicated saved-outfits table (issue #26), separate from the items table.
+    # The cloud table is Terraform-owned; the env var is injected by App Runner.
+    outfits-table-name: ${ENSEMBLE_OUTFITS_TABLE_NAME:ensemble-outfits}
+    # Create the tables on startup if absent. Disabled in tests (see
     # src/test/resources/application.yml) so context tests need no live DynamoDB.
     auto-create-table: true
   photos:

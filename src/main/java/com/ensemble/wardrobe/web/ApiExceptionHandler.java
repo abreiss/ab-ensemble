@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+import com.ensemble.outfit.InvalidOutfitException;
+import com.ensemble.outfit.OutfitNotFoundException;
+import com.ensemble.outfit.web.OutfitController;
 import com.ensemble.security.InvalidPasscodeException;
 import com.ensemble.security.web.AuthController;
 import com.ensemble.storage.InvalidImageException;
@@ -26,14 +29,15 @@ import jakarta.validation.ConstraintViolationException;
  * stylist, and auth APIs: unknown ids → 404, invalid input (validation, bad range,
  * missing/invalid photo, malformed JSON) → 400, an unavailable/ungroundable
  * stylist → 503, a wrong/blank passcode → 401. Returns a small sanitized error body.
- * The tag-preview, style, and auth controllers are covered here too, so their
- * failures reuse the same sanitized error shape.
+ * The tag-preview, style, auth, and outfit controllers are covered here too, so
+ * their failures reuse the same sanitized error shape.
  */
 @RestControllerAdvice(assignableTypes = {
 	WardrobeController.class,
 	TaggingController.class,
 	StyleController.class,
-	AuthController.class
+	AuthController.class,
+	OutfitController.class
 })
 public class ApiExceptionHandler {
 
@@ -45,6 +49,25 @@ public class ApiExceptionHandler {
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ErrorResponse handleNotFound(ItemNotFoundException ex) {
 		return new ErrorResponse("not_found", ex.getMessage());
+	}
+
+	/** An operation targeted an {@code outfitId} that does not exist. */
+	@ExceptionHandler(OutfitNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponse handleOutfitNotFound(OutfitNotFoundException ex) {
+		return new ErrorResponse("not_found", ex.getMessage());
+	}
+
+	/**
+	 * The save-time grounding guard rejected the whole save (empty items, bad
+	 * source, or an unknown item id). The exception message is user-safe — it echoes
+	 * only client-supplied values, never internals — so it is passed through to drive
+	 * a friendly client message, mirroring the stylist-unavailable handler.
+	 */
+	@ExceptionHandler(InvalidOutfitException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ErrorResponse handleInvalidOutfit(InvalidOutfitException ex) {
+		return new ErrorResponse("bad_request", ex.getMessage());
 	}
 
 	/**
