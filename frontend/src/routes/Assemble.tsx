@@ -6,6 +6,7 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import AssembleSource, { SOURCE_DROPPABLE_ID } from '../components/AssembleSource'
 import Mannequin from '../components/Mannequin'
 import { listItems, markWorn, photoUrl } from '../api/items'
+import { saveOutfit } from '../api/outfits'
 import { pointerSensorConfig, touchSensorConfig } from '../lib/dndConfig'
 import { createPlacement, placeItem, placedIds, removeItem, type PlacementState } from '../lib/placement'
 import type { Slot } from '../lib/specSheet'
@@ -13,6 +14,7 @@ import type { Item } from '../types/item'
 
 type Status = 'loading' | 'ready' | 'error'
 type LogStatus = 'idle' | 'logging' | 'logged' | 'error'
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 /** The shape a draggable tile's dnd-kit `data` carries — both source tiles
  * (`AssembleSource`) and placed tiles (`PlacedTile` below) carry the same
@@ -99,6 +101,7 @@ export default function Assemble() {
   const [status, setStatus] = useState<Status>('loading')
   const [placement, setPlacement] = useState<PlacementState>(() => createPlacement())
   const [logStatus, setLogStatus] = useState<LogStatus>('idle')
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
 
   const settle = useCallback((request: Promise<Item[]>) => {
     request
@@ -118,16 +121,17 @@ export default function Assemble() {
     settle(listItems())
   }
 
-  // Editing the assembled look must release a prior "Logged ✓" lock so the
-  // revised outfit can be logged too, instead of staying stuck disabled
-  // forever. Called from every placement-changing handler below (not a
-  // `useEffect` keyed on `placement` — synchronous setState-in-effect is a
-  // derived-state smell the `react-hooks/set-state-in-effect` lint rule
-  // flags). The `prev === 'logging'` guard means it never yanks the lock out
-  // from under an in-progress `logWorn` fan-out: placement isn't gated on
-  // `logStatus`, so a drag/remove could otherwise land mid-flight.
-  const releaseLogLock = useCallback(() => {
+  // Editing the assembled look must release a prior "Logged ✓" / "Saved ✓"
+  // lock so the revised outfit can be logged and saved too, instead of staying
+  // stuck disabled forever. Called from every placement-changing handler below
+  // (not a `useEffect` keyed on `placement` — synchronous setState-in-effect is
+  // a derived-state smell the `react-hooks/set-state-in-effect` lint rule
+  // flags). The `prev === 'logging'`/`'saving'` guards mean it never yanks a
+  // lock out from under an in-progress fan-out/save: placement isn't gated on
+  // either status, so a drag/remove could otherwise land mid-flight.
+  const releaseActionLocks = useCallback(() => {
     setLogStatus((prev) => (prev === 'logging' ? prev : 'idle'))
+    setSaveStatus((prev) => (prev === 'saving' ? prev : 'idle'))
   }, [])
 
   // Tap- or drag-back-removal both land here: pulls `itemId` out of whichever
@@ -136,9 +140,9 @@ export default function Assemble() {
   const handleRemove = useCallback(
     (itemId: string) => {
       setPlacement((prev) => removeItem(prev, itemId))
-      releaseLogLock()
+      releaseActionLocks()
     },
-    [releaseLogLock],
+    [releaseActionLocks],
   )
 
   // Renders a placed item's tile inside its mannequin zone as a draggable
@@ -172,15 +176,15 @@ export default function Assemble() {
       }
       if (over.id === SOURCE_DROPPABLE_ID) {
         setPlacement((prev) => removeItem(prev, String(active.id)))
-        releaseLogLock()
+        releaseActionLocks()
         return
       }
       const category = (active.data.current as DraggableData | undefined)?.category ?? null
       const targetSlot = (over.data.current as DroppableData | undefined)?.slot
       setPlacement((prev) => placeItem(prev, String(active.id), category, targetSlot))
-      releaseLogLock()
+      releaseActionLocks()
     },
-    [releaseLogLock],
+    [releaseActionLocks],
   )
 
   const pointerSensor = useSensor(pointerSensorConfig.sensor, pointerSensorConfig.options)
@@ -211,6 +215,22 @@ export default function Assemble() {
       const anyFailed = results.some((result) => result.status === 'rejected')
       setLogStatus(anyFailed ? 'error' : 'logged')
     })
+  }, [currentlyPlacedIds])
+
+  // Persist the hand-built look as a manual save: one `POST /api/outfits` with
+  // the currently placed ids and `source: "manual"` (no `reason` — manual looks
+  // carry none). Mirrors the `logWorn` lifecycle: disabled while nothing is
+  // placed (no empty outfit) or a save is in flight, locks to "Saved ✓" on
+  // success, and surfaces a retryable banner on failure. The server owns the
+  // record; nothing is persisted client-side.
+  const saveLook = useCallback(() => {
+    if (currentlyPlacedIds.length === 0) {
+      return
+    }
+    setSaveStatus('saving')
+    saveOutfit({ itemIds: currentlyPlacedIds, source: 'manual' })
+      .then(() => setSaveStatus('saved'))
+      .catch(() => setSaveStatus('error'))
   }, [currentlyPlacedIds])
 
   if (status === 'loading') {
@@ -272,9 +292,30 @@ export default function Assemble() {
           </button>
         )}
 
+        {saveStatus === 'saved' ? (
+          <button type="button" className="btn btn-logged" disabled>
+            Saved ✓
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn"
+            onClick={saveLook}
+            disabled={currentlyPlacedIds.length === 0 || saveStatus === 'saving'}
+          >
+            Save outfit
+          </button>
+        )}
+
         {logStatus === 'error' && (
           <p className="banner banner-error" role="alert">
             We couldn’t log that look. Please try again.
+          </p>
+        )}
+
+        {saveStatus === 'error' && (
+          <p className="banner banner-error" role="alert">
+            We couldn’t save that look. Please try again.
           </p>
         )}
       </div>

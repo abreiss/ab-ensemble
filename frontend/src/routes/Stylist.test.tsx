@@ -12,6 +12,7 @@ import type { Outfit, OutfitItem } from '../api/style'
 vi.mock('../api/style', () => ({
   requestStyle: vi.fn(),
   markWorn: vi.fn(),
+  saveOutfit: vi.fn(),
   photoUrl: (id: string) => `/api/items/${id}/photo`,
 }))
 
@@ -20,10 +21,11 @@ vi.mock('../api/items', () => ({
   photoUrl: (id: string) => `/api/items/${id}/photo`,
 }))
 
-import { markWorn, requestStyle } from '../api/style'
+import { markWorn, requestStyle, saveOutfit } from '../api/style'
 
 const requestStyleMock = vi.mocked(requestStyle)
 const markWornMock = vi.mocked(markWorn)
+const saveOutfitMock = vi.mocked(saveOutfit)
 
 /** Builds an enriched OutfitItem with renderable defaults (overridable). */
 function outfitItem(id: string, over: Partial<OutfitItem> = {}): OutfitItem {
@@ -96,6 +98,7 @@ async function renderLook(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => {
   requestStyleMock.mockReset()
   markWornMock.mockReset()
+  saveOutfitMock.mockReset()
 })
 
 afterEach(() => {
@@ -375,5 +378,67 @@ describe('Stylist route', () => {
 
     expect(await screen.findByText(emptyLook.reason)).toBeInTheDocument()
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it('saves the rendered look via POST /api/outfits with source "ai" and locks the heart', async () => {
+    const user = userEvent.setup()
+    await renderLook(user)
+    saveOutfitMock.mockResolvedValue({} as never)
+
+    await user.click(screen.getByRole('button', { name: /save look/i }))
+
+    // Exactly one save carrying the rendered look's ids + reason as an AI save.
+    await waitFor(() => expect(saveOutfitMock).toHaveBeenCalledTimes(1))
+    expect(saveOutfitMock).toHaveBeenCalledWith({
+      itemIds: outfit.itemIds,
+      source: 'ai',
+      reason: outfit.reason,
+    })
+
+    // The heart transitions to a saved, locked state.
+    const heart = await screen.findByRole('button', { name: /save look/i })
+    await waitFor(() => expect(heart).toHaveAttribute('aria-pressed', 'true'))
+    expect(heart).toBeDisabled()
+  })
+
+  it('shows a retryable save error and keeps the heart clickable when the save fails', async () => {
+    const user = userEvent.setup()
+    await renderLook(user)
+    saveOutfitMock.mockRejectedValueOnce(new Error('offline'))
+
+    await user.click(screen.getByRole('button', { name: /save look/i }))
+
+    expect(await screen.findByText(/couldn.t save/i)).toBeInTheDocument()
+    // Not locked — a retry succeeds and reaches the saved state.
+    const heart = screen.getByRole('button', { name: /save look/i })
+    expect(heart).not.toBeDisabled()
+
+    saveOutfitMock.mockResolvedValueOnce({} as never)
+    await user.click(heart)
+    await waitFor(() => expect(heart).toHaveAttribute('aria-pressed', 'true'))
+  })
+
+  it('resets the saved heart when a fresh look is picked', async () => {
+    const user = userEvent.setup()
+    await renderLook(user)
+    saveOutfitMock.mockResolvedValue({} as never)
+
+    await user.click(screen.getByRole('button', { name: /save look/i }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /save look/i })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      ),
+    )
+
+    // A re-pick yields a new look whose heart starts unsaved again.
+    requestStyleMock.mockResolvedValueOnce(outfit2)
+    await user.click(screen.getByRole('button', { name: /show me another/i }))
+    await screen.findByText(outfit2.reason)
+
+    expect(screen.getByRole('button', { name: /save look/i })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
   })
 })
