@@ -81,7 +81,10 @@ describe('ItemDetail', () => {
     await waitFor(() => expect(updateTagsMock).toHaveBeenCalledTimes(1))
     const [idArg, tagsArg] = updateTagsMock.mock.calls[0]
     expect(idArg).toBe('abc')
-    expect(tagsArg).toMatchObject({ category: 'shirt', primaryColor: 'black', formality: 3, warmth: 2 })
+    // The category control is a taxonomy `<select>` (Task 2.0): the stored legacy
+    // value "shirt" is normalized to its bucket ("Top") when the form seeds and
+    // re-emitted unchanged (only primaryColor is edited in this test).
+    expect(tagsArg).toMatchObject({ category: 'Top', primaryColor: 'black', formality: 3, warmth: 2 })
   })
 
   it('renders the photo through the token-appending builder, not the raw field', async () => {

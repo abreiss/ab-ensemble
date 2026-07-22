@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.ensemble.storage.ImageProcessor;
 import com.ensemble.storage.InvalidImageException;
 import com.ensemble.tagging.dto.TagSuggestion;
+import com.ensemble.wardrobe.CategoryTaxonomy;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -83,7 +84,7 @@ public class TaggingService {
 		}
 		JsonNode root = MAPPER.readTree(json);
 		return new TagSuggestion(
-			text(root.get("category")),
+			normalizedCategory(root.get("category")),
 			text(root.get("primaryColor")),
 			text(root.get("secondaryColor")),
 			intInRange(root.get("formality"), FORMALITY_MIN, FORMALITY_MAX),
@@ -95,6 +96,20 @@ public class TaggingService {
 	/** A textual field, or {@code null} if absent or not a JSON string. */
 	private static String text(JsonNode node) {
 		return (node != null && node.isTextual()) ? node.asText() : null;
+	}
+
+	/**
+	 * The model-emitted category, normalized to a taxonomy value so the
+	 * suggested pre-fill already matches a valid {@code <select>} option
+	 * (the vision tool-schema {@code enum} is only an advisory hint — this is
+	 * the code-side guarantee, mirroring {@code ItemMapper.applyTags}). A
+	 * genuinely undetermined category (absent or non-textual) is left
+	 * {@code null} rather than defaulted to {@code "Other"}, so the form can
+	 * still show its unselected placeholder.
+	 */
+	private static String normalizedCategory(JsonNode node) {
+		String raw = text(node);
+		return (raw == null) ? null : CategoryTaxonomy.normalize(raw);
 	}
 
 	/** An integer field clamped to [{@code min}, {@code max}]; out-of-range/non-int → {@code null}. */

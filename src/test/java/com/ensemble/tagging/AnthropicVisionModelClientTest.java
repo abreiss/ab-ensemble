@@ -20,9 +20,12 @@ import com.anthropic.models.messages.ContentBlock;
 import com.anthropic.models.messages.ContentBlockParam;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
+import com.anthropic.models.messages.Tool;
 import com.anthropic.models.messages.ToolUseBlock;
 import com.anthropic.services.blocking.MessageService;
 import com.ensemble.config.AnthropicProperties;
+import com.ensemble.wardrobe.CategoryTaxonomy;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 /**
  * Verifies the SDK seam builds the correct forced-structured-output vision
@@ -93,5 +96,18 @@ class AnthropicVisionModelClientTest {
 		when(messages.create(any(MessageCreateParams.class))).thenReturn(reply);
 
 		assertThat(seam().extractTagsJson(new byte[]{1})).isNull();
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void tagTool_categoryProperty_carriesTaxonomyEnum() {
+		Tool tool = AnthropicVisionModelClient.tagTool();
+
+		JsonValue propertiesValue = tool.inputSchema()._additionalProperties().get("properties");
+		Map<String, Object> properties = propertiesValue.convert(new TypeReference<Map<String, Object>>() {
+		});
+		Map<String, Object> category = (Map<String, Object>) properties.get("category");
+
+		assertThat((List<String>) category.get("enum")).containsExactlyElementsOf(CategoryTaxonomy.values());
 	}
 }

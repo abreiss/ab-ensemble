@@ -58,7 +58,10 @@ class WardrobeServiceTest {
 		assertThat(created.itemId()).isNotBlank();
 		assertThat(created.createdAt()).isNotNull();
 		assertThat(created.wornCount()).isZero();
-		assertThat(created.category()).isEqualTo("top");
+		// "top" is normalized to the canonical taxonomy value "Top" at the
+		// ItemMapper.applyTags choke point create() calls — the save-path
+		// normalization guarantee covers create, not just updateTags.
+		assertThat(created.category()).isEqualTo("Top");
 		assertThat(created.photoUrl()).isEqualTo("/api/items/" + created.itemId() + "/photo");
 
 		ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
@@ -114,9 +117,23 @@ class WardrobeServiceTest {
 
 		ItemResponse updated = service.updateTags("x", tags());
 
-		assertThat(updated.category()).isEqualTo("top");
+		// Same choke point as create(): "top" normalizes to "Top".
+		assertThat(updated.category()).isEqualTo("Top");
 		assertThat(updated.warmth()).isEqualTo(2);
 		verify(repository).save(any(Item.class));
+	}
+
+	@Test
+	void updateTags_legacyCategory_persistsNormalizedTaxonomyValue() {
+		// Explicit choke-point coverage for updateTags with an off-taxonomy input,
+		// mirroring the create()-path assertion above (spec Unit 1, Success Metric 5).
+		when(repository.findById("x")).thenReturn(Optional.of(existing("x")));
+		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+		TagRequest legacy = new TagRequest("chinos", null, null, null, null, null, null);
+
+		ItemResponse updated = service.updateTags("x", legacy);
+
+		assertThat(updated.category()).isEqualTo("Bottom");
 	}
 
 	@Test

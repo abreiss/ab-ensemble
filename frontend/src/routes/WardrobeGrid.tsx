@@ -2,15 +2,19 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { listItems, photoUrl } from '../api/items'
+import { groupByCategory } from '../lib/wardrobeSections'
 import type { Item } from '../types/item'
 
 type Status = 'loading' | 'ready' | 'error'
 
 /**
- * Home screen (`/`): the wardrobe as a mobile-first photo grid. Fetches the item
- * list on mount and renders each as a lazy-loaded thumbnail linking to its detail
- * route. Handles the three real edge states — loading, empty, and list-failure
- * (with retry) — without crashing.
+ * Wardrobe screen (`/wardrobe`): the wardrobe as a mobile-first photo grid,
+ * grouped into category sections (spec Unit 3). Fetches the item list on
+ * mount, buckets it via `groupByCategory` (read-time `normalizeCategory` of
+ * each item's stored category, fixed taxonomy order, `Other` last, empty
+ * sections omitted), and renders each item as a lazy-loaded thumbnail linking
+ * to its detail route. Handles the three real edge states — loading, empty,
+ * and list-failure (with retry) — without crashing.
  */
 export default function WardrobeGrid() {
   const [items, setItems] = useState<Item[]>([])
@@ -77,20 +81,25 @@ export default function WardrobeGrid() {
       <Link to="/assemble" className="btn assemble-entry">
         Build it yourself
       </Link>
-      <ul className="grid">
-        {items.map((it) => (
-          <li key={it.itemId} className="grid-cell">
-            <Link to={`/item/${it.itemId}`} className="thumb">
-              <img
-                className="thumb-img"
-                src={photoUrl(it.itemId)}
-                alt={it.category ?? 'garment'}
-                loading="lazy"
-              />
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {groupByCategory(items).map((group) => (
+        <section key={group.category} className="wardrobe-section">
+          <h2 className="section-header">{group.label}</h2>
+          <ul className="grid">
+            {group.items.map((it) => (
+              <li key={it.itemId} className="grid-cell">
+                <Link to={`/item/${it.itemId}`} className="thumb">
+                  <img
+                    className="thumb-img"
+                    src={photoUrl(it.itemId)}
+                    alt={it.category ?? 'garment'}
+                    loading="lazy"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </section>
   )
 }

@@ -43,7 +43,7 @@ class TaggingServiceTest {
 			 "formality":3,"pattern":"striped","warmth":2,
 			 "descriptors":["cotton","slim"]}""");
 
-		assertThat(out.category()).isEqualTo("top");
+		assertThat(out.category()).isEqualTo("Top");
 		assertThat(out.primaryColor()).isEqualTo("navy");
 		assertThat(out.secondaryColor()).isEqualTo("white");
 		assertThat(out.formality()).isEqualTo(3);
@@ -58,7 +58,7 @@ class TaggingServiceTest {
 		TagSuggestion out = suggestWithModelJson(
 			"{\"category\":\"shoes\",\"warmth\":1}");
 
-		assertThat(out.category()).isEqualTo("shoes");
+		assertThat(out.category()).isEqualTo("Shoes");
 		assertThat(out.primaryColor()).isNull();
 		assertThat(out.formality()).isNull();
 		assertThat(out.warmth()).isEqualTo(1);
@@ -70,6 +70,22 @@ class TaggingServiceTest {
 		TagSuggestion out = suggestWithModelJson("{\"category\":42}");
 
 		assertThat(out.category()).isNull();
+	}
+
+	@Test
+	void offTaxonomyCategory_isNormalizedToATaxonomyValue() {
+		// The model's enum hint is advisory only — an off-taxonomy string must still
+		// be normalized before it reaches the suggestion (FR 1.5, vision half).
+		TagSuggestion out = suggestWithModelJson("{\"category\":\"sweatshirt\"}");
+
+		assertThat(out.category()).isEqualTo("Top");
+	}
+
+	@Test
+	void canonicalTaxonomyCategory_isUnchanged() {
+		TagSuggestion out = suggestWithModelJson("{\"category\":\"Jewelry\"}");
+
+		assertThat(out.category()).isEqualTo("Jewelry");
 	}
 
 	@Test
@@ -180,7 +196,7 @@ class TaggingServiceTest {
 		TagSuggestion out = suggestWithModelJson(
 			"{\"category\":\"jacket\",\"descriptors\":[]}");
 
-		assertThat(out.category()).isEqualTo("jacket");
+		assertThat(out.category()).isEqualTo("Jacket");
 		assertThat(out.descriptors()).isEqualTo(List.of());
 	}
 }

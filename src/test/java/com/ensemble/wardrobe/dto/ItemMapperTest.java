@@ -52,12 +52,36 @@ class ItemMapperTest {
 
 		ItemMapper.applyTags(target, tags);
 
-		assertThat(target.getCategory()).isEqualTo("bottom");
+		assertThat(target.getCategory()).isEqualTo("Bottom");
 		assertThat(target.getPrimaryColor()).isEqualTo("black");
 		assertThat(target.getSecondaryColor()).isEqualTo("grey");
 		assertThat(target.getFormality()).isEqualTo(4);
 		assertThat(target.getPattern()).isEqualTo("solid");
 		assertThat(target.getWarmth()).isEqualTo(3);
 		assertThat(target.getDescriptors()).containsExactly("wool", "warm");
+	}
+
+	@Test
+	void applyTags_legacyCategory_persistsNormalizedTaxonomyValue() {
+		// The single write choke point: every save path (create + update, vision or
+		// manual) must land on a taxonomy value, never the raw legacy string.
+		Item target = new Item();
+		TagRequest tags = new TagRequest("chinos", null, null, null, null, null, null);
+
+		ItemMapper.applyTags(target, tags);
+
+		assertThat(target.getCategory()).isEqualTo("Bottom");
+	}
+
+	@Test
+	void applyTags_jewelryWithNullFormalityAndWarmth_savesSuccessfully() {
+		Item target = new Item();
+		TagRequest tags = new TagRequest("Jewelry", "gold", null, null, null, null, null);
+
+		ItemMapper.applyTags(target, tags);
+
+		assertThat(target.getCategory()).isEqualTo("Jewelry");
+		assertThat(target.getFormality()).isNull();
+		assertThat(target.getWarmth()).isNull();
 	}
 }

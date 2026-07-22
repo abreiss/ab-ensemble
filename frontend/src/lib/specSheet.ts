@@ -6,7 +6,16 @@
 /** The four slot labels the spec sheet draws, plus a generic fallback. */
 export type Slot = 'TOP' | 'BOTTOM' | 'SHOES' | 'CARRY' | 'PIECE'
 
-/** Category (lower-cased) → slot label. Unlisted categories fall back to PIECE. */
+/**
+ * Category (lower-cased) → slot label. Unlisted categories fall back to
+ * PIECE. Covers both legacy free-text keys and the current
+ * `categoryTaxonomy.ts` vocabulary (`jacket`/`top`/`dress`→`TOP`,
+ * `bottom`→`BOTTOM`, `shoes`→`SHOES`, `jewelry`/`accessory`→`CARRY`) so a
+ * taxonomy value never regresses to the generic `PIECE` label. `other` is
+ * deliberately left unkeyed — it falls through to the `PIECE` fallback below.
+ * Jewelry intentionally shares `CARRY` with Accessory rather than a
+ * dedicated slot (assumption A1.8) — no new `Slot` value is introduced.
+ */
 const CATEGORY_SLOTS: Record<string, Slot> = {
   shirt: 'TOP',
   tee: 'TOP',
@@ -15,11 +24,13 @@ const CATEGORY_SLOTS: Record<string, Slot> = {
   top: 'TOP',
   sweater: 'TOP',
   jacket: 'TOP',
+  dress: 'TOP',
   pants: 'BOTTOM',
   chinos: 'BOTTOM',
   jeans: 'BOTTOM',
   shorts: 'BOTTOM',
   skirt: 'BOTTOM',
+  bottom: 'BOTTOM',
   shoes: 'SHOES',
   loafers: 'SHOES',
   sneakers: 'SHOES',
@@ -30,6 +41,7 @@ const CATEGORY_SLOTS: Record<string, Slot> = {
   hat: 'CARRY',
   cap: 'CARRY',
   accessory: 'CARRY',
+  jewelry: 'CARRY',
 }
 
 /**

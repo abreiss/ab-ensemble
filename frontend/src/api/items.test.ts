@@ -217,6 +217,23 @@ describe('items API client', () => {
       expect(fd.get('category')).toBe('top')
     })
 
+    it('omits null formality/warmth from the multipart body (Jewelry has neither)', async () => {
+      // Regression test for 18-reviews/18-task-02-review.md: a Jewelry item saved
+      // with formality: null, warmth: null must NOT send the literal string
+      // "null" — the field must be absent entirely, exactly like every other
+      // optional field, so the backend's nullable TagRequest.formality/warmth
+      // bind to null instead of failing Integer conversion on "null".
+      fetchMock.mockResolvedValue(jsonResponse(sampleItem, 201))
+      const photo = new File([new Uint8Array([1])], 'p.jpg', { type: 'image/jpeg' })
+
+      await createItem(photo, { category: 'Jewelry', formality: null, warmth: null })
+
+      const fd = lastCall()[1].body as FormData
+      expect(fd.has('formality')).toBe(false)
+      expect(fd.has('warmth')).toBe(false)
+      expect(fd.get('category')).toBe('Jewelry')
+    })
+
     it('throws on a non-2xx response', async () => {
       fetchMock.mockResolvedValue(jsonResponse({}, 400))
       const photo = new File([new Uint8Array([1])], 'p.jpg', { type: 'image/jpeg' })
