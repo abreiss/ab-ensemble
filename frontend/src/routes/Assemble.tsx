@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DndContext, useDraggable, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
@@ -102,6 +102,11 @@ export default function Assemble() {
   const [placement, setPlacement] = useState<PlacementState>(() => createPlacement())
   const [logStatus, setLogStatus] = useState<LogStatus>('idle')
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  // Bumped on every placement change (via `releaseActionLocks`). A save captures
+  // this token at dispatch and only locks to "Saved ✓" if it is unchanged when
+  // the request resolves — so a save that settles after the placement was edited
+  // never marks the edited (never-saved) look as saved.
+  const placementEpoch = useRef(0)
 
   const settle = useCallback((request: Promise<Item[]>) => {
     request
@@ -130,6 +135,7 @@ export default function Assemble() {
   // lock out from under an in-progress fan-out/save: placement isn't gated on
   // either status, so a drag/remove could otherwise land mid-flight.
   const releaseActionLocks = useCallback(() => {
+    placementEpoch.current += 1
     setLogStatus((prev) => (prev === 'logging' ? prev : 'idle'))
     setSaveStatus((prev) => (prev === 'saving' ? prev : 'idle'))
   }, [])
@@ -227,9 +233,13 @@ export default function Assemble() {
     if (currentlyPlacedIds.length === 0) {
       return
     }
+    const epoch = placementEpoch.current
     setSaveStatus('saving')
     saveOutfit({ itemIds: currentlyPlacedIds, source: 'manual' })
-      .then(() => setSaveStatus('saved'))
+      // Only lock to "Saved ✓" if the placement is unchanged since dispatch; a
+      // save that resolves after an edit landed (bumping the epoch) falls back to
+      // idle so the edited look reads as unsaved rather than falsely saved.
+      .then(() => setSaveStatus(placementEpoch.current === epoch ? 'saved' : 'idle'))
       .catch(() => setSaveStatus('error'))
   }, [currentlyPlacedIds])
 

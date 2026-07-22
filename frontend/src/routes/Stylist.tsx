@@ -145,10 +145,12 @@ export default function Stylist() {
   const retry = () => run(pending.text, pending.base)
 
   const loading = status === 'loading'
-  // A style/re-pick request or a wear-log fan-out is in flight. All action controls
-  // gate on this so the two never overlap — otherwise a wear-log settling mid-re-pick
-  // would land its "Logged ✓" (or error) on the freshly re-picked look.
-  const busy = loading || logStatus === 'logging'
+  // A style/re-pick request, a wear-log fan-out, or a save is in flight. All action
+  // controls gate on this so they never overlap — otherwise a wear-log or save
+  // settling mid-re-pick would land its "Logged ✓" / "Saved ✓" (or error) on the
+  // freshly re-picked look. `saveStatus` leaves `'saving'` on resolve/reject, so
+  // this always clears (no deadlock).
+  const busy = loading || logStatus === 'logging' || saveStatus === 'saving'
   const hasLook = outfit !== null && outfit.itemIds.length > 0
 
   return (

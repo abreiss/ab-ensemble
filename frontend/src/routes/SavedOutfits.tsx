@@ -98,8 +98,14 @@ export default function SavedOutfits() {
   return (
     <section data-testid="saved-outfits" className="screen">
       <ul className="outfit-list">
-        {outfits.map((o) => (
-          <SavedOutfitCard key={o.outfitId} outfit={o} byId={byId} onRemoved={handleRemoved} />
+        {outfits.map((o, index) => (
+          <SavedOutfitCard
+            key={o.outfitId}
+            outfit={o}
+            position={index + 1}
+            byId={byId}
+            onRemoved={handleRemoved}
+          />
         ))}
       </ul>
     </section>
@@ -108,6 +114,8 @@ export default function SavedOutfits() {
 
 interface SavedOutfitCardProps {
   outfit: SavedOutfit
+  /** 1-based position in the rendered list, to distinguish same-source remove controls. */
+  position: number
   /** Current wardrobe indexed by id, for resolving each piece to its photo. */
   byId: Map<string, Item>
   /** Called with the outfitId once the backend delete succeeds, so the list drops it. */
@@ -120,7 +128,7 @@ interface SavedOutfitCardProps {
  * own removing/error state (mirroring `WardrobeCell`) so one card's failure never
  * disturbs its neighbours; on a failed remove the card stays with a retry note.
  */
-function SavedOutfitCard({ outfit, byId, onRemoved }: SavedOutfitCardProps) {
+function SavedOutfitCard({ outfit, position, byId, onRemoved }: SavedOutfitCardProps) {
   const [removing, setRemoving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -151,7 +159,7 @@ function SavedOutfitCard({ outfit, byId, onRemoved }: SavedOutfitCardProps) {
         <button
           type="button"
           className="btn btn-danger"
-          aria-label={`Remove ${SOURCE_LABEL[outfit.source]} outfit`}
+          aria-label={`Remove ${SOURCE_LABEL[outfit.source]} outfit ${position}`}
           onClick={onRemove}
           disabled={removing}
         >

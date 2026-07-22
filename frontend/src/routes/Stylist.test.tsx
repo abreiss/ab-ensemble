@@ -441,4 +441,18 @@ describe('Stylist route', () => {
       'false',
     )
   })
+
+  it('blocks a re-pick while a save is in flight (no false "saved" on the next look)', async () => {
+    const user = userEvent.setup()
+    await renderLook(user)
+    // A save that never settles keeps saveStatus in "saving".
+    saveOutfitMock.mockReturnValue(new Promise<never>(() => {}))
+
+    await user.click(screen.getByRole('button', { name: /save look/i }))
+
+    // The re-pick controls gate on the in-flight save, so a settling save can
+    // never land its "saved" lock on a freshly re-picked (still unsaved) look.
+    expect(screen.getByRole('button', { name: /show me another/i })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: /message the stylist/i })).toBeDisabled()
+  })
 })

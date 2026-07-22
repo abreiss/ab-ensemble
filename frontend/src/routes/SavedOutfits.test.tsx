@@ -179,6 +179,24 @@ describe('SavedOutfits', () => {
     expect(screen.getByText(/2 pieces.*no longer in your wardrobe/i)).toBeInTheDocument()
   })
 
+  it('gives each remove button a distinct accessible name for same-source outfits', async () => {
+    listOutfitsMock.mockResolvedValue([
+      outfit('o1', ['a'], 'ai', 'Look one'),
+      outfit('o2', ['b'], 'ai', 'Look two'),
+    ])
+    listItemsMock.mockResolvedValue([item('a'), item('b')])
+
+    renderPage()
+
+    await screen.findAllByTestId('outfit-card')
+    const removeButtons = screen.getAllByRole('button', { name: /remove/i })
+    expect(removeButtons).toHaveLength(2)
+    // Two same-source cards would otherwise share an identical label; each
+    // remove control must be distinguishable to a screen reader.
+    const names = removeButtons.map((button) => button.getAttribute('aria-label'))
+    expect(new Set(names).size).toBe(2)
+  })
+
   it('keeps the card with a retryable error when remove fails', async () => {
     listOutfitsMock.mockResolvedValue([outfit('o1', ['a'])])
     listItemsMock.mockResolvedValue([item('a')])

@@ -511,4 +511,40 @@ describe('Assemble save-outfit', () => {
     expect(screen.queryByRole('button', { name: /saved ✓/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /save outfit/i })).not.toBeDisabled()
   })
+
+  it('does not lock to "Saved ✓" when an in-flight save resolves after the placement changed', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt'), item('bag-1', 'bag')])
+    // A save we hold open, then resolve only after the placement has changed.
+    let resolveSave!: (value: unknown) => void
+    saveOutfitMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSave = resolve
+      }) as never,
+    )
+    const user = userEvent.setup()
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+
+    await user.click(screen.getByRole('button', { name: /save outfit/i }))
+
+    // The placement changes while that first save is still in flight.
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('bag-1', 'bag', 'CARRY'))
+    })
+
+    // The stale in-flight save now resolves — it must NOT mark the edited look
+    // saved (the "Saved ✓" lock would misrepresent a never-saved placement).
+    await act(async () => {
+      resolveSave({})
+      await Promise.resolve()
+    })
+
+    expect(screen.queryByRole('button', { name: /saved ✓/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save outfit/i })).not.toBeDisabled()
+  })
 })
