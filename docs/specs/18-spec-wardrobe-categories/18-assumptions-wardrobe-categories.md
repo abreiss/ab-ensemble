@@ -217,3 +217,34 @@ manager-authorized to resolve inline).
   on-device verification in `18-proofs/18-task-02-proofs.md`; the same behavior
   is covered by the machine-verified `TagForm.test.tsx` assertion that the
   category control is a `<select>` listing exactly `CATEGORIES`.
+
+## Phase 3 — Task 3.0 implementation
+
+Decisions made while implementing Task 3.0 (delegated worker, no live user contact;
+manager-authorized to resolve inline).
+
+- **A3.4 — `sectionOrder()` returns `CATEGORIES` directly rather than a
+  separately-maintained list.** `CATEGORIES` already places `Other` last
+  (established in Task 2.0), so a distinct `sectionOrder` array would be a
+  second copy of the same invariant that could drift. `sectionOrder()` is kept
+  as a named function (not a re-export) so `wardrobeSections.ts` and its tests
+  express intent — "the fixed section order," not "the taxonomy list" — even
+  though the values are identical today. Non-blocking; trivially changeable if
+  section order and select-option order are ever meant to diverge.
+
+- **A3.5 — Section header element is `<h2>`, not a generic `<div>`.** The
+  spec calls for a "section header" without specifying markup. Used a real
+  heading element (`<h2 className="section-header">`) so the header is
+  accessible (`getByRole('heading', ...)` in tests, screen-reader landmark
+  navigation in the app) rather than a `<div>`/`<p>` styled to look like one.
+  Each section is wrapped in its own `<section>` for a semantic
+  heading→content grouping; the existing `data-testid="wardrobe-grid"` outer
+  `<section>` and its loading/empty/error branches are unchanged.
+
+- **A3.6 — Grouped-`/wardrobe` screenshot deferred to manual verification,**
+  for the same reason as A3.3 (this run is headless; no paired browser session
+  to capture a real screenshot). Documented in
+  `18-proofs/18-task-03-proofs.md`; the grouping/ordering behavior it would
+  show is instead covered by the machine-verified `WardrobeGrid.test.tsx`
+  assertions (fixed section order, `Other` last, a "Jewelry" header, empty
+  sections omitted) plus the pure `wardrobeSections.test.ts` unit tests.

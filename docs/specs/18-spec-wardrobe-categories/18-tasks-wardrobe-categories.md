@@ -217,7 +217,7 @@ and Success Metrics 2, 3.
   (`AddItem.test.tsx` stays green). Capture the dropdown screenshot. Commit
   (`feat(frontend): taxonomy select + relaxed tag validation`).
 
-### [ ] 3.0 Wardrobe grid grouped into category sections
+### [x] 3.0 Wardrobe grid grouped into category sections
 
 The headline browsing improvement: the flat `/wardrobe` grid becomes category
 sections. Add a pure grouping/ordering helper (read-time `normalizeCategory` on
@@ -245,31 +245,31 @@ existing loading/empty/error states. Covers spec Unit 3 and Success Metrics 1, 2
 
 #### 3.0 Tasks
 
-- [ ] 3.1 [RED] In `categoryTaxonomy.test.ts`, add tests for the singular→plural
+- [x] 3.1 [RED] In `categoryTaxonomy.test.ts`, add tests for the singular→plural
   display-label map (`Jacket`→"Jackets", `Accessory`→"Accessories", `Shoes`→"Shoes",
   `Jewelry`→"Jewelry", `Other`→"Other", per A1.11) and the section order helper
   (taxonomy order with `Other` always last). Run to confirm failure.
-- [ ] 3.2 [GREEN] Extend `categoryTaxonomy.ts` with the explicit `CATEGORY_LABELS`
+- [x] 3.2 [GREEN] Extend `categoryTaxonomy.ts` with the explicit `CATEGORY_LABELS`
   map (or `sectionLabel(category)`) and a `sectionOrder` export/helper that yields
   the taxonomy values with `Other` last. Make 3.1 pass.
-- [ ] 3.3 [RED] Write `frontend/src/lib/wardrobeSections.test.ts`: given a mixed
+- [x] 3.3 [RED] Write `frontend/src/lib/wardrobeSections.test.ts`: given a mixed
   `Item[]` (a legacy `"shirt"`, a legacy `"chinos"`, an unrecognized `"widget"`, a
   `"Jewelry"`, and one canonical value), `groupByCategory` returns ordered
   `{ category, label, items }` groups in fixed order with `Other` last, empty
   sections omitted, and each item bucketed via `normalizeCategory` of its **stored**
   category. Run to confirm failure.
-- [ ] 3.4 [GREEN] Create `frontend/src/lib/wardrobeSections.ts` — a pure
+- [x] 3.4 [GREEN] Create `frontend/src/lib/wardrobeSections.ts` — a pure
   `groupByCategory(items: Item[])` reusing `normalizeCategory` + the label map +
   section order. No React, no mutation of items. Make 3.3 pass.
-- [ ] 3.5 [RED] In `WardrobeGrid.test.tsx`, add tests: a populated list renders one
+- [x] 3.5 [RED] In `WardrobeGrid.test.tsx`, add tests: a populated list renders one
   section header per non-empty group in fixed order with `Other` last; a `Jewelry`
   item is under a "Jewelry" header; assert the existing loading / empty / error
   states and thumbnail/detail links still render. Run to confirm failure.
-- [ ] 3.6 [GREEN] In `WardrobeGrid.tsx`, replace the single flat `.grid` (populated
+- [x] 3.6 [GREEN] In `WardrobeGrid.tsx`, replace the single flat `.grid` (populated
   branch only) with one section per `groupByCategory` group — a header element +
   the existing `.grid` markup per section — preserving the loading/empty/
   list-failure-retry branches and the "Build it yourself" entry. Make 3.5 pass.
-- [ ] 3.7 [REFACTOR] Add a lightweight section-header style to `index.css` reusing
+- [x] 3.7 [REFACTOR] Add a lightweight section-header style to `index.css` reusing
   existing tokens (no new design system). Verify `npm test -- --run` + `npm run
   lint` + `tsc -b` green. Capture the grouped-`/wardrobe` screenshot. Commit
   (`feat(frontend): group wardrobe grid into category sections`).

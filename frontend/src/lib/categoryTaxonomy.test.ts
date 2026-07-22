@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CATEGORIES, normalizeCategory } from './categoryTaxonomy'
+import { CATEGORIES, CATEGORY_LABELS, normalizeCategory, sectionOrder } from './categoryTaxonomy'
 
 // The frontend taxonomy mirrors the backend `CategoryTaxonomy` exactly (per
 // assumption A1.4/A1.12): the same ordered values and the same starter
@@ -58,5 +58,46 @@ describe('normalizeCategory', () => {
   it('maps null and undefined to Other, never throwing', () => {
     expect(normalizeCategory(null)).toBe('Other')
     expect(normalizeCategory(undefined)).toBe('Other')
+  })
+})
+
+describe('CATEGORY_LABELS', () => {
+  it('maps every taxonomy value to its display label (singular→plural, A1.11)', () => {
+    expect(CATEGORY_LABELS).toEqual({
+      Jacket: 'Jackets',
+      Top: 'Tops',
+      Bottom: 'Bottoms',
+      Dress: 'Dresses',
+      Shoes: 'Shoes',
+      Jewelry: 'Jewelry',
+      Accessory: 'Accessories',
+      Other: 'Other',
+    })
+  })
+
+  it.each(CATEGORIES)('has a label defined for every taxonomy value %s', (value) => {
+    expect(CATEGORY_LABELS[value]).toBeTruthy()
+  })
+})
+
+describe('sectionOrder', () => {
+  it('yields the taxonomy order with Other always last', () => {
+    expect(sectionOrder()).toEqual([
+      'Jacket',
+      'Top',
+      'Bottom',
+      'Dress',
+      'Shoes',
+      'Jewelry',
+      'Accessory',
+      'Other',
+    ])
+  })
+
+  it('contains every taxonomy value exactly once', () => {
+    const order = sectionOrder()
+    expect(order).toHaveLength(CATEGORIES.length)
+    expect(new Set(order).size).toBe(CATEGORIES.length)
+    expect(order[order.length - 1]).toBe('Other')
   })
 })

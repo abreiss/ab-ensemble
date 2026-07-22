@@ -88,3 +88,31 @@ export function normalizeCategory(raw: string | null | undefined): Category {
   }
   return SYNONYMS[key] ?? OTHER
 }
+
+/**
+ * Singular→plural display-label map for wardrobe-grid section headers
+ * (assumption A1.11). Explicit per value — not derived by string
+ * concatenation — so irregular plurals (`Dress`→"Dresses") and unchanged
+ * forms (`Shoes`→"Shoes", `Jewelry`→"Jewelry", `Other`→"Other") render
+ * correctly.
+ */
+export const CATEGORY_LABELS: Record<Category, string> = {
+  Jacket: 'Jackets',
+  Top: 'Tops',
+  Bottom: 'Bottoms',
+  Dress: 'Dresses',
+  Shoes: 'Shoes',
+  Jewelry: 'Jewelry',
+  Accessory: 'Accessories',
+  Other: 'Other',
+}
+
+/**
+ * The fixed display order for wardrobe-grid sections: taxonomy order with
+ * `Other` always last (assumption A1.11). `CATEGORIES` already satisfies
+ * this (`Other` is defined last), so this simply names that invariant for
+ * callers that group by section.
+ */
+export function sectionOrder(): readonly Category[] {
+  return CATEGORIES
+}

@@ -121,4 +121,37 @@ describe('WardrobeGrid', () => {
     await waitFor(() => expect(screen.getByRole('img')).toBeInTheDocument())
     expect(listItemsMock).toHaveBeenCalledTimes(2)
   })
+
+  it('groups items into category sections rendered in fixed taxonomy order with Other last', async () => {
+    listItemsMock.mockResolvedValue([
+      item('widget-item', 'widget'), // unrecognized → Other
+      item('jacket-item', 'Jacket'),
+      item('shoes-item', 'Shoes'),
+    ])
+
+    renderGrid()
+
+    const headings = await screen.findAllByRole('heading')
+    const headingNames = headings.map((h) => h.textContent)
+    expect(headingNames).toEqual(['Jackets', 'Shoes', 'Other'])
+  })
+
+  it('shows a Jewelry item under a "Jewelry" section header', async () => {
+    listItemsMock.mockResolvedValue([item('necklace-item', 'Jewelry')])
+
+    renderGrid()
+
+    expect(await screen.findByRole('heading', { name: 'Jewelry' })).toBeInTheDocument()
+    expect(await screen.findByRole('img')).toBeInTheDocument()
+  })
+
+  it('omits empty category sections entirely', async () => {
+    listItemsMock.mockResolvedValue([item('a', 'Jacket')])
+
+    renderGrid()
+
+    await screen.findByRole('heading', { name: 'Jackets' })
+    expect(screen.queryByRole('heading', { name: 'Tops' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Bottoms' })).not.toBeInTheDocument()
+  })
 })
