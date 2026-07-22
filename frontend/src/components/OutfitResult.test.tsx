@@ -46,16 +46,19 @@ const outfit: Outfit = {
 
 function renderResult(over: Partial<Parameters<typeof OutfitResult>[0]> = {}) {
   const onWearToday = vi.fn()
+  const onSave = vi.fn()
   render(
     <OutfitResult
       outfit={outfit}
       onWearToday={onWearToday}
       logStatus="idle"
+      onSave={onSave}
+      saveStatus="idle"
       busy={false}
       {...over}
     />,
   )
-  return { onWearToday }
+  return { onWearToday, onSave }
 }
 
 describe('OutfitResult', () => {
@@ -138,17 +141,62 @@ describe('OutfitResult', () => {
       // Simulate a legacy/degraded response where rationale is absent.
       items: [{ ...outfitItem('x', { category: 'shirt' }), rationale: undefined as unknown as string }],
     }
-    render(<OutfitResult outfit={bare} onWearToday={vi.fn()} logStatus="idle" busy={false} />)
+    render(
+      <OutfitResult
+        outfit={bare}
+        onWearToday={vi.fn()}
+        logStatus="idle"
+        onSave={vi.fn()}
+        saveStatus="idle"
+        busy={false}
+      />,
+    )
     expect(screen.getByTestId('spec-list')).toBeInTheDocument()
   })
 
-  it('toggles the non-persisting save/heart control without a callback', async () => {
+  it('fires the save callback when the heart is clicked (idle)', async () => {
     const user = userEvent.setup()
-    renderResult()
+    const { onSave } = renderResult()
 
     const heart = screen.getByRole('button', { name: /save look/i })
     expect(heart).toHaveAttribute('aria-pressed', 'false')
+
     await user.click(heart)
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+  })
+
+  it('reflects a saved state on the heart once the look is saved', () => {
+    renderResult({ saveStatus: 'saved' })
+
+    const heart = screen.getByRole('button', { name: /save look/i })
     expect(heart).toHaveAttribute('aria-pressed', 'true')
+    // Already saved → the control locks so it isn't double-posted.
+    expect(heart).toBeDisabled()
+  })
+
+  it('disables the heart while a save is in flight', () => {
+    const { onSave } = renderResult({ saveStatus: 'saving' })
+
+    expect(screen.getByRole('button', { name: /save look/i })).toBeDisabled()
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('disables the heart while the screen is otherwise busy', () => {
+    renderResult({ busy: true })
+
+    expect(screen.getByRole('button', { name: /save look/i })).toBeDisabled()
+  })
+
+  it('shows a retryable message and keeps the heart clickable when the save failed', async () => {
+    const user = userEvent.setup()
+    const { onSave } = renderResult({ saveStatus: 'error' })
+
+    expect(screen.getByText(/couldn.t save/i)).toBeInTheDocument()
+    // Not locked — the save can be retried from the same control.
+    const heart = screen.getByRole('button', { name: /save look/i })
+    expect(heart).not.toBeDisabled()
+    await user.click(heart)
+    expect(onSave).toHaveBeenCalledTimes(1)
   })
 })

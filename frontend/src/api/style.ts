@@ -1,5 +1,6 @@
 import { authedFetch } from './http'
 import { markWorn, photoUrl } from './items'
+import { saveOutfit } from './outfits'
 
 // Typed client for the stylist API (`POST /api/style`). Follows the `api/items.ts`
 // pattern: resolve with the parsed body on a 2xx response, throw on any non-2xx or
@@ -76,4 +77,6 @@ export async function requestStyle(prompt: string, history: StyleTurn[] = []): P
   return (await response.json()) as Outfit
 }
 
-export { markWorn, photoUrl }
+// Re-exported so the stylist route imports save/wear/photo helpers from a single
+// stylist-facing module (the outfit save is a plain `POST /api/outfits`, no Claude).
+export { markWorn, photoUrl, saveOutfit }

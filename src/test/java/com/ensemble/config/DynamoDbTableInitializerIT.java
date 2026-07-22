@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import java.net.URI;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.DefaultApplicationArguments;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -15,18 +16,20 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.ListTablesResponse;
 
 /**
  * Verifies the startup table bootstrap against a real DynamoDB Local
- * (TestContainers). Drives {@link DynamoDbTableInitializer#ensureTable()}
- * directly — no Spring context — so the check is fast and isolated.
+ * (TestContainers). Drives {@link DynamoDbTableInitializer} directly — no Spring
+ * context — so the check is fast and isolated. The initializer ensures BOTH the
+ * items and the (dedicated) outfits table on startup (issue #26), so these tests
+ * assert both are created and that a re-run is idempotent.
  */
 @Testcontainers
 class DynamoDbTableInitializerIT {
 
 	private static final int PORT = 8000;
-	private static final String TABLE = "ensemble-items";
+	private static final String ITEMS_TABLE = "ensemble-items";
+	private static final String OUTFITS_TABLE = "ensemble-outfits";
 
 	@Container
 	static final GenericContainer<?> DYNAMODB =
@@ -44,29 +47,39 @@ class DynamoDbTableInitializerIT {
 	}
 
 	private DynamoDbProperties props() {
-		return new DynamoDbProperties("unused", "us-east-1", TABLE, true);
+		return new DynamoDbProperties("unused", "us-east-1", ITEMS_TABLE, OUTFITS_TABLE, true);
 	}
 
 	@Test
-	void ensureTable_whenAbsent_createsTable() {
+	void run_whenAbsent_createsBothItemsAndOutfitsTables() {
 		DynamoDbClient client = client();
 		DynamoDbTableInitializer initializer = new DynamoDbTableInitializer(client, props());
 
-		initializer.ensureTable();
+		initializer.run(new DefaultApplicationArguments());
 
-		ListTablesResponse tables = client.listTables();
-		assertThat(tables.tableNames()).contains(TABLE);
+		assertThat(client.listTables().tableNames()).contains(ITEMS_TABLE, OUTFITS_TABLE);
 	}
 
 	@Test
-	void ensureTable_whenAlreadyPresent_isIdempotent() {
+	void run_whenAlreadyPresent_isIdempotent() {
 		DynamoDbClient client = client();
 		DynamoDbTableInitializer initializer = new DynamoDbTableInitializer(client, props());
 
-		initializer.ensureTable();
+		initializer.run(new DefaultApplicationArguments());
 
-		// A second run must not throw (ResourceInUse) and must leave one table.
-		assertThatCode(initializer::ensureTable).doesNotThrowAnyException();
-		assertThat(client.listTables().tableNames()).containsOnlyOnce(TABLE);
+		// A second run must not throw (ResourceInUse) and must leave one of each table.
+		assertThatCode(() -> initializer.run(new DefaultApplicationArguments())).doesNotThrowAnyException();
+		assertThat(client.listTables().tableNames()).containsOnlyOnce(ITEMS_TABLE);
+		assertThat(client.listTables().tableNames()).containsOnlyOnce(OUTFITS_TABLE);
+	}
+
+	@Test
+	void ensureTable_createsTableWithGivenPartitionKey() {
+		DynamoDbClient client = client();
+		DynamoDbTableInitializer initializer = new DynamoDbTableInitializer(client, props());
+
+		initializer.ensureTable("adhoc-table", "outfitId");
+
+		assertThat(client.listTables().tableNames()).contains("adhoc-table");
 	}
 }

@@ -4,11 +4,12 @@ import { Link } from 'react-router-dom'
 
 import OutfitResult from '../components/OutfitResult'
 import WardrobeDrawer from '../components/WardrobeDrawer'
-import { markWorn, requestStyle } from '../api/style'
+import { markWorn, requestStyle, saveOutfit } from '../api/style'
 import type { Outfit, StyleTurn } from '../api/style'
 
 type Status = 'idle' | 'loading' | 'ready' | 'error'
 type LogStatus = 'idle' | 'logging' | 'logged' | 'error'
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 /** One turn rendered in the chat stream (display only; the backend thread is `history`). */
 interface Message {
@@ -52,6 +53,7 @@ export default function Stylist() {
   const [outfit, setOutfit] = useState<Outfit | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [logStatus, setLogStatus] = useState<LogStatus>('idle')
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   // The accumulated conversation resent on every re-pick (server stays stateless).
   const [history, setHistory] = useState<StyleTurn[]>([])
   // The turn currently in flight / last attempted, so a retry can replay it verbatim.
@@ -71,8 +73,10 @@ export default function Stylist() {
   const run = useCallback((newestUserText: string, base: StyleTurn[]) => {
     setPending({ text: newestUserText, base })
     setStatus('loading')
-    // A fresh look resets the wear-log lock so it can be logged on its own.
+    // A fresh look resets the wear-log and save locks so it can be logged and
+    // saved on its own (a re-pick is a different look, not the saved one).
     setLogStatus('idle')
+    setSaveStatus('idle')
     requestStyle(newestUserText, base)
       .then((result) => {
         setOutfit(result)
@@ -115,6 +119,21 @@ export default function Stylist() {
     })
   }, [outfit])
 
+  // Persist the whole rendered look as an AI save: one `POST /api/outfits`
+  // carrying the look's ids + the stylist's whole-look reason with
+  // `source: "ai"`. No Claude call, no client-side persistence — the server
+  // owns the record. On success the heart locks to its saved state; a failure
+  // leaves the heart clickable so the save can be retried.
+  const saveLook = useCallback(() => {
+    if (outfit === null || outfit.itemIds.length === 0) {
+      return
+    }
+    setSaveStatus('saving')
+    saveOutfit({ itemIds: outfit.itemIds, source: 'ai', reason: outfit.reason })
+      .then(() => setSaveStatus('saved'))
+      .catch(() => setSaveStatus('error'))
+  }, [outfit])
+
   const onComposerSubmit = (event: FormEvent) => {
     event.preventDefault()
     send(draft)
@@ -126,10 +145,12 @@ export default function Stylist() {
   const retry = () => run(pending.text, pending.base)
 
   const loading = status === 'loading'
-  // A style/re-pick request or a wear-log fan-out is in flight. All action controls
-  // gate on this so the two never overlap — otherwise a wear-log settling mid-re-pick
-  // would land its "Logged ✓" (or error) on the freshly re-picked look.
-  const busy = loading || logStatus === 'logging'
+  // A style/re-pick request, a wear-log fan-out, or a save is in flight. All action
+  // controls gate on this so they never overlap — otherwise a wear-log or save
+  // settling mid-re-pick would land its "Logged ✓" / "Saved ✓" (or error) on the
+  // freshly re-picked look. `saveStatus` leaves `'saving'` on resolve/reject, so
+  // this always clears (no deadlock).
+  const busy = loading || logStatus === 'logging' || saveStatus === 'saving'
   const hasLook = outfit !== null && outfit.itemIds.length > 0
 
   return (
@@ -224,6 +245,8 @@ export default function Stylist() {
             outfit={outfit}
             onWearToday={logLook}
             logStatus={logStatus}
+            onSave={saveLook}
+            saveStatus={saveStatus}
             busy={busy}
           />
         )}

@@ -16,10 +16,17 @@ vi.mock('../api/items', () => ({
   photoUrl: (id: string) => `/api/items/${id}/photo`,
 }))
 
+// The manual "Save outfit" action posts to `/api/outfits`; mock that client too.
+vi.mock('../api/outfits', () => ({
+  saveOutfit: vi.fn(),
+}))
+
 import { listItems, markWorn } from '../api/items'
+import { saveOutfit } from '../api/outfits'
 
 const listItemsMock = vi.mocked(listItems)
 const markWornMock = vi.mocked(markWorn)
+const saveOutfitMock = vi.mocked(saveOutfit)
 
 // jsdom cannot simulate a real dnd-kit drag (PointerSensor needs real pointer
 // events + layout measurement it doesn't implement — see the spec's Technical
@@ -161,6 +168,7 @@ function dragEndEventNoSlotOverride(activeId: string, category: string | null): 
 beforeEach(() => {
   listItemsMock.mockReset()
   markWornMock.mockReset()
+  saveOutfitMock.mockReset()
   dragEndRef.current = undefined
 })
 
@@ -417,5 +425,126 @@ describe('Assemble extras tray PIECE routing', () => {
 
     await user.click(within(extrasZone).getByRole('button', { name: /remove item/i }))
     expect(within(extrasZone).queryByRole('img')).not.toBeInTheDocument()
+  })
+})
+
+describe('Assemble save-outfit', () => {
+  it('saves the placed set via saveOutfit with source "manual" and locks to "Saved ✓"', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt'), item('bag-1', 'bag')])
+    saveOutfitMock.mockResolvedValue({} as never)
+    const user = userEvent.setup()
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('bag-1', 'bag', 'CARRY'))
+    })
+
+    const saveButton = screen.getByRole('button', { name: /save outfit/i })
+    expect(saveButton).not.toBeDisabled()
+
+    await user.click(saveButton)
+
+    await waitFor(() => expect(saveOutfitMock).toHaveBeenCalledTimes(1))
+    expect(saveOutfitMock).toHaveBeenCalledWith({
+      itemIds: ['shirt-1', 'bag-1'],
+      source: 'manual',
+    })
+
+    expect(await screen.findByRole('button', { name: /saved ✓/i })).toBeDisabled()
+  })
+
+  it('disables "Save outfit" when nothing is placed (no empty outfit)', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt')])
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    expect(screen.getByRole('button', { name: /save outfit/i })).toBeDisabled()
+    expect(saveOutfitMock).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a retryable error banner when the save is rejected', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt')])
+    saveOutfitMock.mockRejectedValue(new Error('offline'))
+    const user = userEvent.setup()
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+
+    await user.click(screen.getByRole('button', { name: /save outfit/i }))
+
+    expect(await screen.findByText(/couldn.t save/i)).toBeInTheDocument()
+    // Still retryable — the save button is not locked to "Saved ✓".
+    expect(screen.getByRole('button', { name: /save outfit/i })).not.toBeDisabled()
+  })
+
+  it('re-enables "Save outfit" (not the stuck "Saved ✓") once the outfit changes after saving', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt'), item('bag-1', 'bag')])
+    saveOutfitMock.mockResolvedValue({} as never)
+    const user = userEvent.setup()
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+
+    await user.click(screen.getByRole('button', { name: /save outfit/i }))
+    expect(await screen.findByRole('button', { name: /saved ✓/i })).toBeDisabled()
+
+    // Editing the assembled look after saving releases the lock so the revised
+    // outfit can be saved too, instead of staying stuck on "Saved ✓".
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('bag-1', 'bag', 'CARRY'))
+    })
+
+    expect(screen.queryByRole('button', { name: /saved ✓/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save outfit/i })).not.toBeDisabled()
+  })
+
+  it('does not lock to "Saved ✓" when an in-flight save resolves after the placement changed', async () => {
+    listItemsMock.mockResolvedValue([item('shirt-1', 'shirt'), item('bag-1', 'bag')])
+    // A save we hold open, then resolve only after the placement has changed.
+    let resolveSave!: (value: unknown) => void
+    saveOutfitMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSave = resolve
+      }) as never,
+    )
+    const user = userEvent.setup()
+
+    renderAssemble()
+    await screen.findByText(/^top$/i)
+
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('shirt-1', 'shirt', 'TOP'))
+    })
+
+    await user.click(screen.getByRole('button', { name: /save outfit/i }))
+
+    // The placement changes while that first save is still in flight.
+    act(() => {
+      dragEndRef.current?.(dragEndEvent('bag-1', 'bag', 'CARRY'))
+    })
+
+    // The stale in-flight save now resolves — it must NOT mark the edited look
+    // saved (the "Saved ✓" lock would misrepresent a never-saved placement).
+    await act(async () => {
+      resolveSave({})
+      await Promise.resolve()
+    })
+
+    expect(screen.queryByRole('button', { name: /saved ✓/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save outfit/i })).not.toBeDisabled()
   })
 })

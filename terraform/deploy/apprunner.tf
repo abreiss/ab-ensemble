@@ -49,6 +49,7 @@ resource "aws_apprunner_service" "app" {
           ENSEMBLE_PHOTOS_BACKEND      = "s3"
           ENSEMBLE_PHOTOS_S3_BUCKET    = aws_s3_bucket.photos.bucket
           ENSEMBLE_DYNAMODB_TABLE_NAME = aws_dynamodb_table.items.name
+          ENSEMBLE_OUTFITS_TABLE_NAME  = aws_dynamodb_table.outfits.name
         }
 
         # Sourced by ARN, never by value -- App Runner resolves these via the

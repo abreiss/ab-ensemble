@@ -1,0 +1,130 @@
+package com.ensemble.outfit;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.net.URI;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
+
+import com.ensemble.config.DynamoDbProperties;
+import com.ensemble.config.DynamoDbTableInitializer;
+
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+/**
+ * Real DynamoDB Local round-trips for {@link OutfitRepository} via TestContainers.
+ * Each test runs against a fresh, uniquely-named dedicated outfits table so cases
+ * (including the empty-store case) are fully isolated — no Spring context. Mirrors
+ * {@code WardrobeRepositoryIT}, minus the reserved-prefix filtering that only the
+ * shared items table needs.
+ */
+@Testcontainers
+class OutfitRepositoryIT {
+
+	private static final int PORT = 8000;
+
+	@Container
+	static final GenericContainer<?> DYNAMODB =
+		new GenericContainer<>(DockerImageName.parse("amazon/dynamodb-local:2.5.2"))
+			.withExposedPorts(PORT);
+
+	private OutfitRepository repository;
+
+	@BeforeEach
+	void setUp() {
+		String endpoint = "http://" + DYNAMODB.getHost() + ":" + DYNAMODB.getMappedPort(PORT);
+		DynamoDbClient client = DynamoDbClient.builder()
+			.endpointOverride(URI.create(endpoint))
+			.region(Region.US_EAST_1)
+			.credentialsProvider(StaticCredentialsProvider.create(
+				AwsBasicCredentials.create("local", "local")))
+			.build();
+		DynamoDbEnhancedClient enhanced = DynamoDbEnhancedClient.builder()
+			.dynamoDbClient(client)
+			.build();
+
+		String outfitsTable = "outfits-" + UUID.randomUUID();
+		DynamoDbProperties props = new DynamoDbProperties(endpoint, "us-east-1", "unused-items", outfitsTable, true);
+		new DynamoDbTableInitializer(client, props).ensureTable(outfitsTable, "outfitId");
+		repository = new OutfitRepository(enhanced, props);
+	}
+
+	private SavedOutfit sample(String id) {
+		SavedOutfit outfit = new SavedOutfit();
+		outfit.setOutfitId(id);
+		outfit.setItemIds(List.of("item-a", "item-b"));
+		outfit.setSource("manual");
+		outfit.setReason(null);
+		outfit.setCreatedAt(Instant.now().truncatedTo(ChronoUnit.MILLIS));
+		return outfit;
+	}
+
+	@Test
+	void save_thenFindById_returnsPersistedOutfitWithAllFields() {
+		SavedOutfit saved = sample("out-123");
+		saved.setSource("ai");
+		saved.setReason("navy blazer anchors the look");
+
+		repository.save(saved);
+		SavedOutfit found = repository.findById("out-123").orElseThrow();
+
+		assertThat(found.getOutfitId()).isEqualTo("out-123");
+		assertThat(found.getItemIds()).containsExactly("item-a", "item-b");
+		assertThat(found.getSource()).isEqualTo("ai");
+		assertThat(found.getReason()).isEqualTo("navy blazer anchors the look");
+		assertThat(found.getCreatedAt()).isEqualTo(saved.getCreatedAt());
+	}
+
+	@Test
+	void findById_whenMissing_returnsEmpty() {
+		assertThat(repository.findById("nope")).isEmpty();
+	}
+
+	@Test
+	void findAll_whenEmpty_returnsEmptyList() {
+		assertThat(repository.findAll()).isEmpty();
+	}
+
+	@Test
+	void findAll_returnsEverySavedOutfit() {
+		repository.save(sample("a"));
+		repository.save(sample("b"));
+		repository.save(sample("c"));
+
+		List<SavedOutfit> all = repository.findAll();
+
+		assertThat(all).extracting(SavedOutfit::getOutfitId).containsExactlyInAnyOrder("a", "b", "c");
+	}
+
+	@Test
+	void deleteById_removesTheOutfit() {
+		repository.save(sample("gone"));
+
+		repository.deleteById("gone");
+
+		assertThat(repository.findById("gone")).isEmpty();
+	}
+
+	@Test
+	void save_thenList_thenDelete_roundTrips() {
+		repository.save(sample("rt"));
+		assertThat(repository.findAll()).extracting(SavedOutfit::getOutfitId).containsExactly("rt");
+
+		repository.deleteById("rt");
+
+		assertThat(repository.findAll()).isEmpty();
+	}
+}

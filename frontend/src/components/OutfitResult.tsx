@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Heart } from 'lucide-react'
 
 import RatingPips from './RatingPips'
@@ -13,7 +12,11 @@ interface OutfitResultProps {
   onWearToday: () => void
   /** Wear-log lifecycle, driving the primary action's lock / error affordances. */
   logStatus: 'idle' | 'logging' | 'logged' | 'error'
-  /** True while a style/re-pick or a wear-log is in flight — disables the action. */
+  /** Persists the current look server-side (the `POST /api/outfits` call lives in the route). */
+  onSave: () => void
+  /** Save lifecycle, driving the heart's saved lock / in-flight disable / error affordance. */
+  saveStatus: 'idle' | 'saving' | 'saved' | 'error'
+  /** True while a style/re-pick or a wear-log is in flight — disables the actions. */
   busy: boolean
 }
 
@@ -25,8 +28,15 @@ interface OutfitResultProps {
  * bubble; this component is only the look itself. Name/slot/swatch/pips are
  * derived in code (never the model); only the rationale is LLM text.
  */
-export default function OutfitResult({ outfit, onWearToday, logStatus, busy }: OutfitResultProps) {
-  const [saved, setSaved] = useState(false)
+export default function OutfitResult({
+  outfit,
+  onWearToday,
+  logStatus,
+  onSave,
+  saveStatus,
+  busy,
+}: OutfitResultProps) {
+  const saved = saveStatus === 'saved'
   const pieces = outfit.items
 
   return (
@@ -66,10 +76,11 @@ export default function OutfitResult({ outfit, onWearToday, logStatus, busy }: O
           )}
           <button
             type="button"
-            className="btn heart-btn"
+            className={`btn heart-btn${saved ? ' is-saved' : ''}`}
             aria-label="Save look"
             aria-pressed={saved}
-            onClick={() => setSaved((prev) => !prev)}
+            onClick={onSave}
+            disabled={busy || saveStatus === 'saving' || saved}
           >
             <Heart size={16} aria-hidden="true" fill={saved ? 'currentColor' : 'none'} />
           </button>
@@ -78,6 +89,12 @@ export default function OutfitResult({ outfit, onWearToday, logStatus, busy }: O
         {logStatus === 'error' && (
           <p className="banner banner-error" role="alert">
             We couldn’t log that look. Please try again.
+          </p>
+        )}
+
+        {saveStatus === 'error' && (
+          <p className="banner banner-error" role="alert">
+            We couldn’t save that look. Please try again.
           </p>
         )}
       </div>

@@ -35,3 +35,20 @@ resource "aws_dynamodb_table" "items" {
     type = "S"
   }
 }
+
+# Saved outfits (spec #26 Part A). A dedicated table -- outfitId partition key,
+# no relational modeling -- deliberately separate from the items table (Q1-A,
+# an accepted deviation from the "single-table" note in docs/ARCHITECTURE.md;
+# see docs/specs/26-spec-ui-improvements §Technical Considerations). The running
+# app reaches it through the same instance-role grant, which is already scoped
+# to table/${local.prefix}-* (iam.tf), so this adds no IAM diff.
+resource "aws_dynamodb_table" "outfits" {
+  name         = "${local.prefix}-outfits"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "outfitId"
+
+  attribute {
+    name = "outfitId"
+    type = "S"
+  }
+}

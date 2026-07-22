@@ -4,6 +4,7 @@ import AuthGate from './components/AuthGate'
 import AddItem from './routes/AddItem'
 import Assemble from './routes/Assemble'
 import ItemDetail from './routes/ItemDetail'
+import SavedOutfits from './routes/SavedOutfits'
 import Stylist from './routes/Stylist'
 import WardrobeGrid from './routes/WardrobeGrid'
 
@@ -25,6 +26,9 @@ export default function App() {
             Ensemble
           </Link>
           <nav className="app-nav">
+            <Link to="/saved" className="btn">
+              Saved
+            </Link>
             <Link to="/assemble" className="btn">
               Build
             </Link>
@@ -44,6 +48,7 @@ export default function App() {
             <Route path="/add" element={<AddItem />} />
             <Route path="/item/:id" element={<ItemDetail />} />
             <Route path="/assemble" element={<Assemble />} />
+            <Route path="/saved" element={<SavedOutfits />} />
           </Routes>
         </main>
       </div>

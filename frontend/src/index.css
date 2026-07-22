@@ -75,16 +75,12 @@ body {
 }
 
 #root {
-  /* Mobile-first: a single phone-width column, centered on larger screens. */
-  max-width: 30rem;
+  /* Mobile-first single column that fills the viewport up to a desktop measure.
+     Every screen shares this shell; naturally-narrow screens re-center
+     themselves at a comfortable measure within it (see `.screen` below). */
+  max-width: 72rem;
   margin: 0 auto;
   min-height: 100dvh;
-}
-
-/* The stylist landing is a two-pane desktop experience (drawer + result), so it
-   breaks out of the phone-width cap when mounted; other screens stay narrow. */
-#root:has(.stylist-layout) {
-  max-width: 72rem;
 }
 
 h1,
@@ -213,6 +209,17 @@ a {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+/* Naturally-narrow screens (the add-item form and item detail) sit at a
+   comfortable reading measure and center within the now-wider shell rather than
+   stretching edge-to-edge; the width-filling screens (Build, Wardrobe, Saved,
+   Stylist) keep the full column. Targeted by their stable test ids so every
+   render state (loading / error / loaded) centers with one rule. */
+[data-testid='add-item'],
+[data-testid='item-detail'] {
+  max-width: 30rem;
+  margin-inline: auto;
 }
 
 /* Loading / empty / error notes and the block that centers them vertically. */
@@ -345,6 +352,48 @@ a {
 .cell-confirm-actions .btn {
   min-height: 36px;
   padding: 0 var(--space-3);
+}
+
+/* ---- Saved outfits ------------------------------------------------------- */
+
+/* Each saved look is a raised card holding its pieces' thumbnails; the list
+   stacks the cards, reusing the wardrobe `.grid`/`.thumb` tiles inside. */
+.outfit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.outfit-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+}
+
+.outfit-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* The stored whole-look rationale (AI saves only); manual looks omit it. */
+.outfit-reason {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* Quiet caption for pieces deleted since the save — informative, not alarming. */
+.outfit-missing {
+  font-style: italic;
 }
 
 /* ---- Screen title + banners --------------------------------------------- */
