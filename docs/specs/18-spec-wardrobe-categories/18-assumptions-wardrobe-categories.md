@@ -248,3 +248,39 @@ manager-authorized to resolve inline).
   show is instead covered by the machine-verified `WardrobeGrid.test.tsx`
   assertions (fixed section order, `Other` last, a "Jewelry" header, empty
   sections omitted) plus the pure `wardrobeSections.test.ts` unit tests.
+
+## Phase 3 — Task 5.0 remediation (post-review)
+
+Decisions made while remediating the Task 2.0 backup-reviewer finding
+(`18-reviews/18-task-02-review.md`) as Task 5.0 (delegated worker, no live user
+contact; manager-authorized to resolve inline).
+
+- **A5.1 — New `appendOptionalNumber` helper instead of widening
+  `appendOptional`.** The existing `appendOptional(form, key, value: string |
+  null | undefined)` in `frontend/src/api/items.ts` is typed for string tag
+  fields (`primaryColor`/`secondaryColor`/`pattern`). `formality`/`warmth` are
+  `number | null` on `TagInput`. Rather than widen `appendOptional`'s signature
+  to a union (`string | number | null | undefined`) — which would let a caller
+  accidentally pass a number where a string field is expected, or vice versa,
+  with no compiler help — added a small sibling `appendOptionalNumber(form,
+  key, value: number | null | undefined)` that does the null/undefined check
+  then `String(value)`-converts only on append. Same omit-when-null behavior,
+  same call-site shape, stronger typing at each call site. Non-blocking,
+  trivially squashable into one generic helper later if the pattern grows a
+  third type.
+- **A5.2 — `updateTags` audited, confirmed unaffected, left unchanged.** Per
+  the remediation scope ("audit the tag-update path in the same file for the
+  same null-handling bug — fix it too if affected"), re-verified the
+  reviewer's claim: `updateTags` builds its body via
+  `JSON.stringify(tags)`, so `formality: null`/`warmth: null` already
+  serialize as JSON `null` (not the string `"null"`) with no code change
+  needed. No fix applied to `updateTags`; this is stated explicitly in the
+  Task 5.0 proof file rather than left implicit, so a reviewer doesn't have to
+  re-derive it.
+- **A5.3 — No backend change.** `TagRequest.formality`/`warmth` were already
+  relaxed to nullable in Task 1.0 (`@Min`/`@Max` only, no `@NotNull`); the
+  existing `WardrobeControllerTest` Jewelry-create case already asserts
+  omitted `formality`/`warmth` params bind to `null` and return `201`. The
+  fixed frontend request shape (field omitted entirely) is exactly what that
+  test already exercises, so no backend test or code change was needed —
+  confirmed by reading the existing test rather than starting the backend.

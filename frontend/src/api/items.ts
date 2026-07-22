@@ -42,6 +42,18 @@ function appendOptional(form: FormData, key: string, value: string | null | unde
   }
 }
 
+/**
+ * Appends an optional numeric tag field only when it has a real (non-null)
+ * value. `formality`/`warmth` are nullable (e.g. a Jewelry/Accessory item has
+ * neither) — omitting the field lets the backend's nullable `TagRequest`
+ * fields bind to `null`, instead of sending the literal string `"null"`.
+ */
+function appendOptionalNumber(form: FormData, key: string, value: number | null | undefined): void {
+  if (value !== null && value !== undefined) {
+    form.append(key, String(value))
+  }
+}
+
 /** Builds the multipart body shared by tag-preview and create. */
 function tagFormData(photo: File, tags?: TagInput): FormData {
   const form = new FormData()
@@ -50,9 +62,9 @@ function tagFormData(photo: File, tags?: TagInput): FormData {
     form.append('category', tags.category)
     appendOptional(form, 'primaryColor', tags.primaryColor)
     appendOptional(form, 'secondaryColor', tags.secondaryColor)
-    form.append('formality', String(tags.formality))
+    appendOptionalNumber(form, 'formality', tags.formality)
     appendOptional(form, 'pattern', tags.pattern)
-    form.append('warmth', String(tags.warmth))
+    appendOptionalNumber(form, 'warmth', tags.warmth)
     for (const descriptor of tags.descriptors ?? []) {
       form.append('descriptors', descriptor)
     }

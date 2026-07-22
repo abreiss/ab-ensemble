@@ -312,3 +312,61 @@ Unit 4 and Success Metric 4.
   null/blank/unrecognized → `PIECE`) stay green and `placement.ts`/`placement.test.ts`
   are untouched. Verify `npm test -- --run` + `npm run lint` + `tsc -b` green.
   Commit (`fix(frontend): map new taxonomy values to outfit-card slots`).
+
+### [x] 5.0 Remediation: omit null formality/warmth from item API requests
+
+A read-only backup reviewer (`18-reviews/18-task-02-review.md`) FAILED Task 2.0
+with a blocking gap: `frontend/src/api/items.ts` (untouched by Task 2.0's
+commit) unconditionally does `form.append('formality', String(tags.formality))`
+and `form.append('warmth', String(tags.warmth))` in the shared `tagFormData`
+helper used by both `tagPreview` and `createItem`. For a Jewelry/Accessory item
+with `formality: null, warmth: null` (a normal, reachable state since Task
+2.0), `String(null)` produces the literal 4-character string `"null"` instead
+of omitting the field — the one boundary case in the same function that does
+not follow the `appendOptional` pattern already used for
+`primaryColor`/`secondaryColor`/`pattern`. This is very likely a `400` from the
+real endpoint (`Integer.valueOf("null")` fails Spring's data binder), breaking
+Unit 2's core acceptance criterion end-to-end despite every test passing (the
+mock boundary in `AddItem.test.tsx` and the missing null-formality/warmth case
+in `items.test.ts` both hid it). The edit path (`updateTags`) is unaffected —
+it JSON-serializes `TagInput`, so `null` already survives as JSON `null`.
+
+#### 5.0 Proof Artifact(s)
+
+- Test: `items.test.ts` — `createItem`/`tagFormData` with `formality: null,
+  warmth: null` produces a multipart body with neither key present (mirrors the
+  existing "omits null/undefined optional fields" test, extended to
+  formality/warmth). Demonstrates the fix for the reviewer-flagged gap.
+- CLI: `npm test -- --run` + `npm run lint` + `tsc -b` all green. Demonstrates
+  no regression.
+- Confirmation (via existing `WardrobeControllerTest` Jewelry case, cited
+  above) that the backend already accepts the fixed request shape (omitted
+  params bind to `null` on `TagRequest.formality`/`warmth`, which are nullable
+  since Task 1.0) — no backend change needed.
+
+#### 5.0 Tasks
+
+- [x] 5.1 [RED] In `frontend/src/api/items.test.ts`, add a test: `createItem`
+  called with `{ category: 'Jewelry', formality: null, warmth: null }` produces
+  a `FormData` body where `fd.has('formality')` and `fd.has('warmth')` are both
+  `false`. Run to confirm failure (today the fields are present with the
+  literal string `"null"`).
+- [x] 5.2 [GREEN] In `frontend/src/api/items.ts`, fix `tagFormData` to omit
+  `formality`/`warmth` when null/undefined instead of unconditionally
+  stringifying them — mirror the existing `appendOptional` pattern used for
+  `primaryColor`/`secondaryColor`/`pattern` in the same function (a numeric
+  variant, since `appendOptional` is typed for `string | null | undefined`).
+  Audit `updateTags` in the same file for the same bug — confirmed
+  unaffected (JSON-serializes `TagInput` directly, so `null` already survives
+  as JSON `null`; no change needed there). Make 5.1 pass; confirm the existing
+  "POSTs photo + tag fields" test (which supplies real `formality`/`warmth`
+  values) still asserts `fd.get('formality')` === `'3'` / `fd.get('warmth')`
+  === `'2'`.
+- [x] 5.3 [REFACTOR] Verify `npm test -- --run` + `npm run lint` + `tsc -b`
+  green. Confirm via the existing `WardrobeControllerTest` Jewelry-create case
+  (omitted `formality`/`warmth` params → `201`, captured `TagRequest.formality()`/
+  `warmth()` are `null`) that the backend already accepts the now-correctly-omitted
+  fields — no backend change required. Write proof artifact
+  `18-proofs/18-task-05-proofs.md`. Commit
+  (`fix(frontend): omit null formality/warmth from item API requests`),
+  referencing the reviewer finding in `18-reviews/18-task-02-review.md`.
