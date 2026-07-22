@@ -61,8 +61,12 @@ const createItemMock = vi.mocked(createItem)
 const clipboardReadSupportedMock = vi.mocked(clipboardReadSupported)
 const cameraSupportedMock = vi.mocked(cameraSupported)
 
+// The category control is now a taxonomy `<select>` (Task 2.0), so a vision
+// suggestion's raw category is normalized to its bucket at seed time; use a
+// legacy synonym ("jacket" → "Jacket") so these fixtures still exercise
+// edit-time normalization rather than a canonical value going in unchanged.
 const suggestion: TagSuggestion = {
-  category: 'denim jacket',
+  category: 'jacket',
   primaryColor: 'indigo',
   secondaryColor: null,
   formality: 2,
@@ -158,16 +162,15 @@ describe('AddItem review queue', () => {
     await waitFor(() => expect(tagPreviewMock).toHaveBeenCalledWith(file))
     const categories = await screen.findAllByLabelText(/^category/i)
     expect(categories).toHaveLength(1)
-    expect(categories[0]).toHaveValue('denim jacket')
+    expect(categories[0]).toHaveValue('Jacket')
 
-    await user.clear(categories[0])
-    await user.type(categories[0], 'trucker jacket')
+    await user.selectOptions(categories[0], 'Bottom')
     await user.click(screen.getByRole('button', { name: /save all/i }))
 
     await waitFor(() => expect(createItemMock).toHaveBeenCalledTimes(1))
     const [photoArg, tagsArg] = createItemMock.mock.calls[0]
     expect(photoArg).toBe(file)
-    expect(tagsArg).toMatchObject({ category: 'trucker jacket', formality: 2, warmth: 3 })
+    expect(tagsArg).toMatchObject({ category: 'Bottom', formality: 2, warmth: 3 })
 
     // Saving the only queued item drains the queue and returns to the grid.
     expect(await screen.findByText('wardrobe grid')).toBeInTheDocument()
@@ -184,13 +187,13 @@ describe('AddItem review queue', () => {
     const category = await screen.findByLabelText(/^category/i)
     expect(category).toHaveValue('')
 
-    await user.type(category, 'scarf')
+    await user.selectOptions(category, 'Accessory')
     await user.selectOptions(screen.getByLabelText(/formality/i), '2')
     await user.selectOptions(screen.getByLabelText(/warmth/i), '3')
     await user.click(screen.getByRole('button', { name: /save all/i }))
 
     await waitFor(() => expect(createItemMock).toHaveBeenCalledTimes(1))
-    expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'scarf', formality: 2, warmth: 3 })
+    expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'Accessory', formality: 2, warmth: 3 })
   })
 
   it('keeps "Save all" disabled until every tile has its required fields', async () => {
@@ -204,7 +207,7 @@ describe('AddItem review queue', () => {
     const saveAll = screen.getByRole('button', { name: /save all/i })
     expect(saveAll).toBeDisabled()
 
-    await user.type(screen.getByLabelText(/^category/i), 'hat')
+    await user.selectOptions(screen.getByLabelText(/^category/i), 'Accessory')
     await user.selectOptions(screen.getByLabelText(/formality/i), '1')
     await user.selectOptions(screen.getByLabelText(/warmth/i), '1')
     expect(saveAll).toBeEnabled()
@@ -219,13 +222,12 @@ describe('AddItem review queue', () => {
     await user.upload(screen.getByLabelText(/choose a garment photo/i), photoFile())
 
     const category = await screen.findByLabelText(/^category/i)
-    await user.clear(category)
-    await user.type(category, 'trucker jacket')
+    await user.selectOptions(category, 'Bottom')
     await user.click(screen.getByRole('button', { name: /save all/i }))
 
     // A per-item error surfaces without navigating away or clearing that tile's work.
     expect(await screen.findByText(/couldn.t save|failed|try again/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/^category/i)).toHaveValue('trucker jacket')
+    expect(screen.getByLabelText(/^category/i)).toHaveValue('Bottom')
     expect(screen.getByAltText(/selected garment/i)).toBeInTheDocument()
     expect(screen.queryByText('wardrobe grid')).not.toBeInTheDocument()
   })
@@ -243,20 +245,22 @@ describe('AddItem review queue', () => {
     expect(category).toHaveValue('')
 
     // The blank fallback is still saveable — never a dead end.
-    await user.type(category, 'scarf')
+    await user.selectOptions(category, 'Accessory')
     await user.selectOptions(screen.getByLabelText(/formality/i), '2')
     await user.selectOptions(screen.getByLabelText(/warmth/i), '3')
     await user.click(screen.getByRole('button', { name: /save all/i }))
 
     await waitFor(() => expect(createItemMock).toHaveBeenCalledTimes(1))
-    expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'scarf' })
+    expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'Accessory' })
   })
 
   it('seeds each tile from its own tag response even when one arrives out of order', async () => {
     // Per-item request-id guard: a late (stale) response for tile A must seed only
-    // tile A and never bleed into tile B. Two separate tiles expose the race.
-    const first: TagSuggestion = { ...allNull, category: 'first jacket', formality: 2, warmth: 2 }
-    const second: TagSuggestion = { ...allNull, category: 'second jacket', formality: 2, warmth: 2 }
+    // tile A and never bleed into tile B. Two separate tiles expose the race. Two
+    // distinct legacy synonyms ("jacket"/"shirt") so the two tiles' normalized
+    // categories ("Jacket"/"Top") stay distinguishable through the select.
+    const first: TagSuggestion = { ...allNull, category: 'jacket', formality: 2, warmth: 2 }
+    const second: TagSuggestion = { ...allNull, category: 'shirt', formality: 2, warmth: 2 }
     let resolveA!: (s: TagSuggestion) => void
     let resolveB!: (s: TagSuggestion) => void
     tagPreviewMock
@@ -279,8 +283,8 @@ describe('AddItem review queue', () => {
 
     const categories = await screen.findAllByLabelText(/^category/i)
     expect(categories).toHaveLength(2)
-    expect(categories[0]).toHaveValue('first jacket') // tile A kept its own tags
-    expect(categories[1]).toHaveValue('second jacket') // tile B untouched by A
+    expect(categories[0]).toHaveValue('Jacket') // tile A kept its own tags
+    expect(categories[1]).toHaveValue('Top') // tile B untouched by A
   })
 
   it('revokes only the removed tile’s object URL when it is removed', async () => {
@@ -353,7 +357,7 @@ describe('AddItem review queue', () => {
     await waitFor(() => expect(tagPreviewMock).toHaveBeenCalledTimes(3))
     const categories = await screen.findAllByLabelText(/^category/i)
     expect(categories).toHaveLength(3)
-    categories.forEach((c) => expect(c).toHaveValue('denim jacket'))
+    categories.forEach((c) => expect(c).toHaveValue('Jacket'))
   })
 
   it('saves independently: a per-item failure keeps that tile (edited tags) while successes are removed', async () => {
@@ -369,8 +373,7 @@ describe('AddItem review queue', () => {
     const categories = await screen.findAllByLabelText(/^category/i)
     expect(categories).toHaveLength(2)
     // Edit the second tile so we can prove its edits survive its save failure.
-    await user.clear(categories[1])
-    await user.type(categories[1], 'edited jacket')
+    await user.selectOptions(categories[1], 'Dress')
 
     await user.click(screen.getByRole('button', { name: /save all/i }))
 
@@ -378,7 +381,7 @@ describe('AddItem review queue', () => {
     expect(await screen.findByText(/couldn.t save|try again/i)).toBeInTheDocument()
     const remaining = screen.getAllByLabelText(/^category/i)
     expect(remaining).toHaveLength(1)
-    expect(remaining[0]).toHaveValue('edited jacket')
+    expect(remaining[0]).toHaveValue('Dress')
     expect(screen.queryByText('wardrobe grid')).not.toBeInTheDocument()
     expect(createItemMock).toHaveBeenCalledTimes(2)
   })
@@ -479,13 +482,13 @@ describe('AddItem review queue', () => {
     expect(category).toHaveValue('')
 
     // Manual tagging + "Save all" still persists via the create endpoint.
-    await user.type(category, 'scarf')
+    await user.selectOptions(category, 'Accessory')
     await user.selectOptions(screen.getByLabelText(/formality/i), '2')
     await user.selectOptions(screen.getByLabelText(/warmth/i), '3')
     await user.click(screen.getByRole('button', { name: /save all/i }))
 
     await waitFor(() => expect(createItemMock).toHaveBeenCalledTimes(1))
-    expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'scarf' })
+    expect(createItemMock.mock.calls[0][1]).toMatchObject({ category: 'Accessory' })
   })
 
   it('enqueues a wrapped image File when an image is pasted onto the screen', async () => {

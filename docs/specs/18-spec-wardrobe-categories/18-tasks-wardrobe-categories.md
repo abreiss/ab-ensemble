@@ -153,7 +153,7 @@ batch migration. Covers spec Unit 1 and Success Metrics 2, 3, 5, 6.
   `git diff --stat src/main/java/com/ensemble/wardrobe/Item.java` is empty. Commit
   (`feat(backend): category taxonomy + normalize on every save path`).
 
-### [ ] 2.0 `TagForm` category `<select>` + relaxed client validation
+### [x] 2.0 `TagForm` category `<select>` + relaxed client validation
 
 Make the manual add/edit path produce only taxonomy values and let jewelry save
 from the form (null warmth/formality). Define the frontend taxonomy once
@@ -184,35 +184,35 @@ and Success Metrics 2, 3.
 
 #### 2.0 Tasks
 
-- [ ] 2.1 [RED] Write `frontend/src/lib/categoryTaxonomy.test.ts`: assert an ordered
+- [x] 2.1 [RED] Write `frontend/src/lib/categoryTaxonomy.test.ts`: assert an ordered
   `CATEGORIES` array of the eight values and `normalizeCategory` cases mirroring
   the backend (each value → itself; `chinos`→`Bottom`, `T-Shirt`→`Top`,
   `necklace`→`Jewelry`; casing/whitespace; unrecognized/blank/null → `Other`). Run
   to confirm failure.
-- [ ] 2.2 [GREEN] Create `frontend/src/lib/categoryTaxonomy.ts` exporting
+- [x] 2.2 [GREEN] Create `frontend/src/lib/categoryTaxonomy.ts` exporting
   `CATEGORIES`, the `Category` type, and `normalizeCategory(raw): Category` (the
   synonym map mirrors A1.12). Make 2.1 pass.
-- [ ] 2.3 [RED] In `tagValidation.test.ts`, add/adjust tests: null `formality`/
+- [x] 2.3 [RED] In `tagValidation.test.ts`, add/adjust tests: null `formality`/
   `warmth` are valid; blank `category` is invalid; supplied out-of-range
   formality/warmth still fail. Run to confirm failure against the current
   required-field rules.
-- [ ] 2.4 [GREEN] In `tagValidation.ts`, make `formality`/`warmth` optional (null
+- [x] 2.4 [GREEN] In `tagValidation.ts`, make `formality`/`warmth` optional (null
   valid; range-check only when supplied); keep `category` required. Update
   `RequiredTagFields` and, in `types/item.ts`, `TagInput.formality`/`warmth` to
   `number | null`. Adjust `TagForm`'s `toTagInput` cast accordingly. Make 2.3 pass;
   ensure `tsc -b` is clean.
-- [ ] 2.5 [RED] In `TagForm.test.tsx`, add tests: (a) the category control is a
+- [x] 2.5 [RED] In `TagForm.test.tsx`, add tests: (a) the category control is a
   `<select>` of exactly the taxonomy values with a `—` placeholder; (b) selecting
   `Jewelry` with warmth/formality unset produces a submittable form whose
   `onSubmit`/`onChange` `TagInput` has `category: "Jewelry"`, `warmth: null`,
   `formality: null`; (c) seeding `initial={{ category: "chinos", ... }}`
   pre-selects `Bottom`. Run to confirm failure.
-- [ ] 2.6 [GREEN] In `TagForm.tsx`, replace the category `<input>` with a `<select>`
+- [x] 2.6 [GREEN] In `TagForm.tsx`, replace the category `<input>` with a `<select>`
   built from `CATEGORIES` (matching the `formality`/`warmth` `<select>` markup +
   `—` placeholder); seed the control via `normalizeCategory(initial?.category)` so
   a legacy value pre-selects its bucket and never renders blank/off-list. Make 2.5
   pass.
-- [ ] 2.7 [REFACTOR] Verify `npm test -- --run` + `npm run lint` + `tsc -b` green;
+- [x] 2.7 [REFACTOR] Verify `npm test -- --run` + `npm run lint` + `tsc -b` green;
   confirm the vision → suggestion → editable-form → "Save all" flow still passes
   (`AddItem.test.tsx` stays green). Capture the dropdown screenshot. Commit
   (`feat(frontend): taxonomy select + relaxed tag validation`).

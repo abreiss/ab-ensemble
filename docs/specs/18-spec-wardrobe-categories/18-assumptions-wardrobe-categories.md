@@ -169,3 +169,51 @@ contact; manager-authorized to resolve inline).
 ## Manager decisions (SDD fleet orchestrator)
 
 - **M1 — Feature branch:** Phase-3 commits land on the pre-existing `wardrobe-grouping` branch (created by the user, currently at `main`'s tip 756f1f3) instead of a new `feature/18-wardrobe-categories` branch. The branch name and its position make the intent unambiguous.
+
+## Phase 3 — Task 2.0 implementation
+
+Decisions made while implementing Task 2.0 (delegated worker, no live user contact;
+manager-authorized to resolve inline).
+
+- **A3.1 — Edit-time normalization applies only when a category value is
+  present; a blank/absent suggestion still renders the `—` placeholder.** The
+  spec's Unit 2 wording ("when editing an existing item whose stored `category`
+  is a legacy/off-taxonomy value, pre-select the normalized bucket") is scoped to
+  a *present* stored value. A brand-new item with no vision suggestion
+  (`initial?.category` null/undefined/blank) must still show the unselected `—`
+  placeholder — exactly like the existing `formality`/`warmth` null-is-blank
+  behavior — rather than defaulting to `"Other"`. Implemented as
+  `toDraftCategory`: `rawCategory ? normalizeCategory(rawCategory) : ''`. This
+  keeps the existing "renders a null suggestion as empty, editable fields" test
+  meaningful and consistent with the rest of the form.
+
+- **A3.2 — Updated pre-existing consumer tests that assumed free-text category
+  pass-through (`TagForm.test.tsx`, `AddItem.test.tsx`, `ItemDetail.test.tsx`).**
+  Replacing the category `<input>` with a taxonomy `<select>` is a real behavior
+  change: a select can only hold one of `CATEGORIES` (or the blank placeholder),
+  never arbitrary free text, and any *present* seed value is now normalized. This
+  broke several pre-existing tests that typed or asserted arbitrary strings
+  (`"denim jacket"`, `"scarf"`, `"trucker jacket"`, `"shirt"` round-tripped
+  verbatim, etc.) — not because a step was skipped, but because the tests
+  encoded the very free-text behavior Unit 2 removes. Updated them in place
+  (same files, no new scope) to use `selectOptions` on a taxonomy value and
+  assert the normalized/selected bucket instead of raw text; where a test used
+  two distinct free-text strings as a race-condition marker (`"first jacket"` /
+  `"second jacket"`), swapped in two synonyms that normalize to two distinct,
+  distinguishable buckets (`"jacket"`→`Jacket`, `"shirt"`→`Top`) so the test's
+  original intent (proving no cross-tile bleed) still holds. `AddItem.test.tsx`
+  and `ItemDetail.test.tsx` are not listed in the Task 2.0 Relevant Files table,
+  but leaving them red would violate task 2.7's own "`AddItem.test.tsx` stays
+  green" requirement and the phase's "run the full test suite" gate — this is
+  necessary collateral of implementing 2.0 correctly, not scope creep into
+  Tasks 3.0/4.0.
+
+- **A3.3 — Dropdown screenshot deferred to manual verification.** This
+  implementation run is headless (no paired browser/`claude-in-chrome` session
+  available), matching the precedent already established in this repo for the
+  same situation (`docs/specs/21-spec-manual-outfit-assembly/21-proofs/*.md`,
+  Tasks 1.0–3.0). Rather than fabricate a screenshot, the "add/edit form with
+  the category dropdown open" artifact is explicitly deferred to manual/
+  on-device verification in `18-proofs/18-task-02-proofs.md`; the same behavior
+  is covered by the machine-verified `TagForm.test.tsx` assertion that the
+  category control is a `<select>` listing exactly `CATEGORIES`.

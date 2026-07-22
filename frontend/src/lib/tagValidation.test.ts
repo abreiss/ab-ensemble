@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import { tagsAreValid, validateTags } from './tagValidation'
 
-// The three required fields mirror the backend `TagRequest` constraints exactly:
-// non-blank `category`, `formality` in 1–5, `warmth` in 1–3. This is critical
-// guardrail logic, so every branch is exercised.
+// These rules mirror the backend `TagRequest` constraints exactly: `category` is
+// required (non-blank); `formality` (1–5) and `warmth` (1–3) are optional — a
+// null is valid (e.g. jewelry has neither), but a supplied value is still
+// range-checked. This is critical guardrail logic, so every branch is exercised.
 
 const valid = { category: 'shirt', formality: 3, warmth: 2 }
 
@@ -27,9 +28,9 @@ describe('validateTags', () => {
     })
   })
 
-  describe('formality (1–5)', () => {
-    it('flags a missing formality', () => {
-      expect(validateTags({ ...valid, formality: null }).formality).toBeDefined()
+  describe('formality (1–5, optional)', () => {
+    it('accepts a null formality (optional — e.g. jewelry has no formality)', () => {
+      expect(validateTags({ ...valid, formality: null }).formality).toBeUndefined()
     })
 
     it('flags formality below 1', () => {
@@ -46,9 +47,9 @@ describe('validateTags', () => {
     })
   })
 
-  describe('warmth (1–3)', () => {
-    it('flags a missing warmth', () => {
-      expect(validateTags({ ...valid, warmth: null }).warmth).toBeDefined()
+  describe('warmth (1–3, optional)', () => {
+    it('accepts a null warmth (optional — e.g. jewelry has no warmth)', () => {
+      expect(validateTags({ ...valid, warmth: null }).warmth).toBeUndefined()
     })
 
     it('flags warmth below 1', () => {
@@ -71,9 +72,13 @@ describe('tagsAreValid', () => {
     expect(tagsAreValid(valid)).toBe(true)
   })
 
-  it('is false when any required field is invalid', () => {
+  it('is true with category only — null formality/warmth are valid (jewelry saves)', () => {
+    expect(tagsAreValid({ category: 'necklace', formality: null, warmth: null })).toBe(true)
+  })
+
+  it('is false when a required field is invalid', () => {
     expect(tagsAreValid({ ...valid, category: '' })).toBe(false)
-    expect(tagsAreValid({ ...valid, formality: null })).toBe(false)
+    expect(tagsAreValid({ ...valid, formality: 9 })).toBe(false)
     expect(tagsAreValid({ ...valid, warmth: 9 })).toBe(false)
   })
 })

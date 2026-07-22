@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 import DescriptorChips from './DescriptorChips'
+import { CATEGORIES, normalizeCategory } from '../lib/categoryTaxonomy'
 import { tagsAreValid, validateTags } from '../lib/tagValidation'
 import type { TagInput, TagSuggestion } from '../types/item'
 
@@ -38,9 +39,20 @@ interface Draft {
 const FORMALITY_OPTIONS = [1, 2, 3, 4, 5]
 const WARMTH_OPTIONS = [1, 2, 3]
 
+/**
+ * Seeds the category control: no stored/suggested value yet (`null`/`undefined`/
+ * blank) renders the `—` placeholder, same as an unset `formality`/`warmth`.
+ * A present value — canonical or legacy/off-taxonomy free text — is always
+ * normalized to a taxonomy bucket, so the `<select>` never renders blank or an
+ * option outside the list (spec Unit 2: edit-time normalization).
+ */
+function toDraftCategory(rawCategory: string | null | undefined): string {
+  return rawCategory ? normalizeCategory(rawCategory) : ''
+}
+
 function toDraft(initial?: TagSuggestion | null): Draft {
   return {
-    category: initial?.category ?? '',
+    category: toDraftCategory(initial?.category),
     primaryColor: initial?.primaryColor ?? '',
     secondaryColor: initial?.secondaryColor ?? '',
     formality: initial?.formality ?? null,
@@ -61,17 +73,18 @@ function optional(text: string): string | null {
 
 /**
  * Maps a valid draft to the API `TagInput` (blank optional fields omitted as
- * `null`). Only call once the required fields pass `tagsAreValid` — the
- * `formality`/`warmth` casts assume a selected value.
+ * `null`). Only call once the required fields pass `tagsAreValid`. `formality`/
+ * `warmth` pass through as-is — both are optional, so an unset selection (`null`)
+ * is a normal, submittable value (e.g. Jewelry/Accessory).
  */
 function toTagInput(draft: Draft): TagInput {
   return {
     category: draft.category.trim(),
     primaryColor: optional(draft.primaryColor),
     secondaryColor: optional(draft.secondaryColor),
-    formality: draft.formality as number,
+    formality: draft.formality,
     pattern: optional(draft.pattern),
-    warmth: draft.warmth as number,
+    warmth: draft.warmth,
     descriptors: draft.descriptors,
   }
 }
@@ -125,14 +138,20 @@ export default function TagForm({
     <form className="tag-form" onSubmit={handleSubmit} noValidate>
       <label className="field">
         <span className="field-label">Category</span>
-        <input
+        <select
           className="input"
-          type="text"
           value={draft.category}
           onChange={(e) => set('category', e.target.value)}
           onBlur={() => setTouched(true)}
           aria-invalid={touched && errors.category ? true : undefined}
-        />
+        >
+          <option value="">—</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
         {touched && errors.category && <span className="field-error">{errors.category}</span>}
       </label>
 
