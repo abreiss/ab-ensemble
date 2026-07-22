@@ -284,3 +284,20 @@ contact; manager-authorized to resolve inline).
   fixed frontend request shape (field omitted entirely) is exactly what that
   test already exercises, so no backend test or code change was needed —
   confirmed by reading the existing test rather than starting the backend.
+
+## Explicitly accepted trade-offs (post-review, user-directed)
+
+- **A6.1 — Hand-duplicated taxonomy across stacks can silently diverge
+  (accepted).** `CategoryTaxonomy.java` and `categoryTaxonomy.ts` are maintained
+  independently (per A1.4). Their agreement is exact today but **nothing
+  automated enforces it**: the "test invariant" from Task 4.1 binds
+  `specSheet.ts` to the *frontend* taxonomy only — no test compares frontend to
+  backend. Adding a value or synonym (e.g. `romper → Dress`) to one side only
+  would silently diverge backend save-path normalization from frontend
+  edit/display-time normalization, and no test would fail. At demo scale
+  (8 values, ~20 items, both files' docstrings cross-referencing each other and
+  this entry) this is an **explicitly accepted** maintainability trade-off, not
+  a silent one. **Revisit trigger:** if the taxonomy is expected to grow, add a
+  cheap guard first — either a shared JSON fixture both stacks load their
+  values/synonyms from, or a CI check that extracts and diffs the two lists.
+  Recorded at the user's direction after the push-gate review (2026-07-22).

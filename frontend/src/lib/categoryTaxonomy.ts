@@ -5,7 +5,14 @@
 // `com.ensemble.wardrobe.CategoryTaxonomy` constant one-for-one — the same
 // ordered list and the same starter legacy-synonym map — but the two are
 // intentionally separate, per-stack definitions (no shared codegen at this
-// scale); cross-stack agreement is a review/test invariant.
+// scale). Cross-stack agreement is maintained BY HAND — no shared code or
+// cross-stack test enforces it, so a value/synonym added on one side only
+// (e.g. romper → Dress) silently diverges frontend normalization from the
+// backend's, and no test fails. Explicitly accepted demo-scale trade-off:
+// if you change CATEGORIES or the synonym map here, mirror it in the Java
+// file in the same change. Revisit with a shared JSON fixture or CI guard if
+// the taxonomy grows — see assumption A6.1 in
+// docs/specs/18-spec-wardrobe-categories/18-assumptions-wardrobe-categories.md.
 
 /** Ordered taxonomy values; `Other` is always last. */
 export const CATEGORIES = [

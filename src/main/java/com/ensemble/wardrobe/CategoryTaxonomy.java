@@ -22,7 +22,15 @@ import java.util.Map;
  * <p>This constant is the backend half of a per-stack "two derived lists,
  * one intent" pair; the frontend defines the same taxonomy independently in
  * {@code frontend/src/lib/categoryTaxonomy.ts}. Cross-stack agreement between
- * the two is a review/test invariant, not shared code.
+ * the two is maintained <strong>by hand</strong> — no shared code, codegen, or
+ * cross-stack test enforces it. A value or synonym added on one side only
+ * (e.g. {@code romper → Dress}) silently diverges backend save-path
+ * normalization from frontend edit/display-time normalization, and no test
+ * fails. This is an explicitly accepted demo-scale trade-off: if you change
+ * the taxonomy or synonym map here, mirror it in the frontend file in the
+ * same change. Revisit with a shared JSON fixture or CI guard if the taxonomy
+ * grows — see assumption A6.1 in
+ * {@code docs/specs/18-spec-wardrobe-categories/18-assumptions-wardrobe-categories.md}.
  */
 public final class CategoryTaxonomy {
 
