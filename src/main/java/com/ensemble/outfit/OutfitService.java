@@ -1,6 +1,7 @@
 package com.ensemble.outfit;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -24,8 +25,9 @@ import com.ensemble.wardrobe.dto.ItemResponse;
  * analog of the stylist's grounding guardrail: it builds the set of valid
  * wardrobe ids from {@link WardrobeService#list()} and rejects the <em>entire</em>
  * save with {@link InvalidOutfitException} if {@code itemIds} is empty, if
- * {@code source} is outside {@code {ai, manual}}, or if any submitted id is not a
- * known wardrobe item (no partial save, no silent drop). This guard is the
+ * {@code source} is outside {@code {ai, manual}}, if any submitted id is not a
+ * known wardrobe item, or if {@code itemIds} contains a duplicate (no partial
+ * save, no silent drop, no silent dedupe). This guard is the
  * authoritative check (DTO bean-validation at the controller is defense-in-depth),
  * so all its branches live here and are unit-tested to 100%.
  */
@@ -57,9 +59,13 @@ public class OutfitService {
 		Set<String> validIds = wardrobeService.list().stream()
 			.map(ItemResponse::itemId)
 			.collect(Collectors.toSet());
+		Set<String> seen = new HashSet<>();
 		for (String id : itemIds) {
 			if (!validIds.contains(id)) {
 				throw new InvalidOutfitException("unknown item id: " + id);
+			}
+			if (!seen.add(id)) {
+				throw new InvalidOutfitException("duplicate item id: " + id);
 			}
 		}
 		SavedOutfit entity = OutfitMapper.toEntity(request, UUID.randomUUID().toString(), Instant.now());

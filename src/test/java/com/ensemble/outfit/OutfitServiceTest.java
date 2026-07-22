@@ -124,6 +124,15 @@ class OutfitServiceTest {
 	}
 
 	@Test
+	void create_duplicateItemIds_rejectsEntireSaveAndPersistsNothing() {
+		when(wardrobeService.list()).thenReturn(List.of(wardrobeItem("a")));
+
+		assertThatExceptionOfType(InvalidOutfitException.class)
+			.isThrownBy(() -> service.create(request(List.of("a", "a"), "manual", null)));
+		verify(repository, never()).save(any());
+	}
+
+	@Test
 	void list_mapsSavedOutfitsToResponses() {
 		when(repository.findAll()).thenReturn(List.of(entity("o1"), entity("o2")));
 
