@@ -10,6 +10,7 @@ import com.ensemble.config.DynamoDbProperties;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 
 /**
  * Persists {@link SavedOutfit}s via the DynamoDB Enhanced Client against the
@@ -23,6 +24,9 @@ import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
  */
 @Repository
 public class OutfitRepository {
+
+	/** Name of the sparse per-user GSI declared on {@link SavedOutfit#getUserId()} (spec #15). */
+	private static final String USER_ID_INDEX = "userId-index";
 
 	private final DynamoDbTable<SavedOutfit> table;
 
@@ -44,6 +48,18 @@ public class OutfitRepository {
 	/** Returns every saved outfit (demo scale — a full scan). */
 	public List<SavedOutfit> findAll() {
 		return table.scan().items().stream().toList();
+	}
+
+	/**
+	 * Returns only the saved outfits owned by {@code userId} via the sparse
+	 * {@code userId-index} GSI query — not a full-table scan (spec #15).
+	 */
+	public List<SavedOutfit> findByUserId(String userId) {
+		return table.index(USER_ID_INDEX)
+			.query(QueryConditional.keyEqualTo(k -> k.partitionValue(userId)))
+			.stream()
+			.flatMap(page -> page.items().stream())
+			.toList();
 	}
 
 	/** Removes the outfit with the given id; a no-op if it does not exist. */

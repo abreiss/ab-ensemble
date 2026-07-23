@@ -5,6 +5,7 @@ import java.util.List;
 
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
 /**
  * A single garment in the wardrobe — the DynamoDB single-table item.
@@ -22,6 +23,7 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
 public class Item {
 
 	private String itemId;
+	private String userId;
 	private String category;
 	private String primaryColor;
 	private String secondaryColor;
@@ -41,6 +43,21 @@ public class Item {
 
 	public void setItemId(String itemId) {
 		this.itemId = itemId;
+	}
+
+	/**
+	 * The owning account's opaque userId (spec #15). Partition key of the sparse
+	 * {@code userId-index} GSI, so {@code findByUserId} returns only this owner's
+	 * items. Sparse by design: reserved {@code usage#<date>} counter rows leave
+	 * this null and thus never appear in the index.
+	 */
+	@DynamoDbSecondaryPartitionKey(indexNames = "userId-index")
+	public String getUserId() {
+		return userId;
+	}
+
+	public void setUserId(String userId) {
+		this.userId = userId;
 	}
 
 	public String getCategory() {

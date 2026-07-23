@@ -102,6 +102,14 @@ curl -s -X DELETE localhost:8080/api/items/{id}           # delete -> 204
 `formality` must be 1–5 and `warmth` 1–3 (else `400`); an unknown id returns
 `404`. Stop the database with `docker compose down`.
 
+Per-user scoping (spec #15) added a `userId-index` GSI to the `ensemble-items`
+and `ensemble-outfits` tables. The startup initializer skips tables that
+already exist, so a local dev whose tables predate the GSI will log a WARN
+that the index is missing rather than add it — drop the tables to pick it up
+(`docker compose down -v` then restart, or delete just those two tables) so
+they're recreated with the index. Deployed tables get the index in place via
+Terraform (an in-place `UpdateTable`, no table recreation).
+
 ## Vision tagging (tag preview)
 
 `POST /api/items/tag` auto-tags a garment photo with one Claude **Haiku 4.5**

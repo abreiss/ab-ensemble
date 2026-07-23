@@ -10,6 +10,7 @@ import com.ensemble.config.DynamoDbProperties;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 
 /**
  * Persists {@link Item}s via the DynamoDB Enhanced Client against the single
@@ -19,6 +20,9 @@ import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
  */
 @Repository
 public class WardrobeRepository {
+
+	/** Name of the sparse per-user GSI declared on {@link Item#getUserId()} (spec #15). */
+	private static final String USER_ID_INDEX = "userId-index";
 
 	private final DynamoDbTable<Item> table;
 
@@ -46,6 +50,20 @@ public class WardrobeRepository {
 	public List<Item> findAll() {
 		return table.scan().items().stream()
 			.filter(item -> !item.getItemId().startsWith(USAGE_ROW_PREFIX))
+			.toList();
+	}
+
+	/**
+	 * Returns only the items owned by {@code userId} via the sparse
+	 * {@code userId-index} GSI query — not a full-table scan (spec #15). Reserved
+	 * {@code usage#<date>} counter rows carry no {@code userId}, so they are absent
+	 * from the index and never surface here.
+	 */
+	public List<Item> findByUserId(String userId) {
+		return table.index(USER_ID_INDEX)
+			.query(QueryConditional.keyEqualTo(k -> k.partitionValue(userId)))
+			.stream()
+			.flatMap(page -> page.items().stream())
 			.toList();
 	}
 

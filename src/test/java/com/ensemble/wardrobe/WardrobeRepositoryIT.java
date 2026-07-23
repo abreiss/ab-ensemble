@@ -58,7 +58,7 @@ class WardrobeRepositoryIT {
 
 		String tableName = "items-" + UUID.randomUUID();
 		DynamoDbProperties props = new DynamoDbProperties(endpoint, "us-east-1", tableName, "unused-outfits", "unused-users", true);
-		new DynamoDbTableInitializer(client, props).ensureTable(tableName, "itemId");
+		new DynamoDbTableInitializer(client, props).ensureTable(tableName, "itemId", "userId", "userId-index");
 		repository = new WardrobeRepository(enhanced, props);
 	}
 
@@ -154,6 +154,39 @@ class WardrobeRepositoryIT {
 		List<Item> all = repository.findAll();
 
 		assertThat(all).extracting(Item::getItemId).containsExactly("real-item");
+	}
+
+	@Test
+	void findByUserId_returnsOnlyThatUsersItems() {
+		Item a1 = sampleItem("a1");
+		a1.setUserId("userA");
+		Item a2 = sampleItem("a2");
+		a2.setUserId("userA");
+		Item b1 = sampleItem("b1");
+		b1.setUserId("userB");
+		repository.save(a1);
+		repository.save(a2);
+		repository.save(b1);
+
+		List<Item> found = repository.findByUserId("userA");
+
+		assertThat(found).extracting(Item::getItemId).containsExactlyInAnyOrder("a1", "a2");
+	}
+
+	@Test
+	void findByUserId_excludesUsageCounterRows() {
+		// usage#<date> daily-cap counter rows carry no userId, so the sparse GSI
+		// must never surface them in a per-user query.
+		Item usageRow = new Item();
+		usageRow.setItemId("usage#2026-07-16");
+		repository.save(usageRow);
+		Item owned = sampleItem("real");
+		owned.setUserId("userA");
+		repository.save(owned);
+
+		List<Item> found = repository.findByUserId("userA");
+
+		assertThat(found).extracting(Item::getItemId).containsExactly("real");
 	}
 
 	@Test
