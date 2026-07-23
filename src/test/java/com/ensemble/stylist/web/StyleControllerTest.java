@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -176,5 +177,97 @@ class StyleControllerTest {
 					+ "{\"role\":\"user\",\"text\":\"streetwear today\"}]}"))
 			.andExpect(status().isServiceUnavailable())
 			.andExpect(jsonPath("$.error").value("stylist_unavailable"));
+	}
+
+	// --- Input caps (issue #21 / spec Unit 1): oversized/malformed rejected with a sanitized 400 ---
+
+	/** A JSON array of {@code turns} identical user turns, each carrying {@code text}. */
+	private static String historyOf(int turns, String text) {
+		String turn = "{\"role\":\"user\",\"text\":\"" + text + "\"}";
+		return "[" + String.join(",", Collections.nCopies(turns, turn)) + "]";
+	}
+
+	@Test
+	void styleRequest_oversizePrompt_rejectedWith400() throws Exception {
+		// 1001 chars — one over the 1000-char cap.
+		String oversize = "x".repeat(1001);
+
+		mockMvc.perform(post("/api/style")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"prompt\":\"" + oversize + "\"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error").value("bad_request"))
+			.andExpect(jsonPath("$.message").value("invalid request"));
+
+		// Rejected on request binding, before any cap reservation or stylist call.
+		verifyNoInteractions(service, callCapService);
+	}
+
+	@Test
+	void styleRequest_oversizeHistory_rejectedWith400() throws Exception {
+		// 21 turns — one over the 20-turn cap.
+		String content = "{\"prompt\":\"brunch\",\"history\":" + historyOf(21, "hi") + "}";
+
+		mockMvc.perform(post("/api/style")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(content))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error").value("bad_request"))
+			.andExpect(jsonPath("$.message").value("invalid request"));
+
+		verifyNoInteractions(service, callCapService);
+	}
+
+	@Test
+	void styleRequest_oversizeTurnText_rejectedWith400() throws Exception {
+		// A single history turn whose text is 2001 chars — one over the 2000-char cap.
+		String oversize = "x".repeat(2001);
+		String content = "{\"prompt\":\"brunch\",\"history\":" + historyOf(1, oversize) + "}";
+
+		mockMvc.perform(post("/api/style")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(content))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error").value("bad_request"))
+			.andExpect(jsonPath("$.message").value("invalid request"));
+
+		verifyNoInteractions(service, callCapService);
+	}
+
+	@Test
+	void styleRequest_blankPrompt_rejectedWith400() throws Exception {
+		// Whitespace-only prompt — @NotBlank must reject it.
+		mockMvc.perform(post("/api/style")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"prompt\":\"   \"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error").value("bad_request"))
+			.andExpect(jsonPath("$.message").value("invalid request"));
+
+		verifyNoInteractions(service, callCapService);
+	}
+
+	@Test
+	void styleRequest_promptAtMaxLength_accepted() throws Exception {
+		// Exactly 1000 chars — the cap is inclusive, so this is valid input.
+		when(service.style(anyString(), anyList())).thenReturn(new Outfit(List.of(), "ok"));
+		String atCap = "x".repeat(1000);
+
+		mockMvc.perform(post("/api/style")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"prompt\":\"" + atCap + "\"}"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	void styleRequest_historyAtCap_accepted() throws Exception {
+		// Exactly 20 turns — the cap is inclusive, so this is valid input.
+		when(service.style(anyString(), anyList())).thenReturn(new Outfit(List.of(), "ok"));
+		String content = "{\"prompt\":\"brunch\",\"history\":" + historyOf(20, "hi") + "}";
+
+		mockMvc.perform(post("/api/style")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(content))
+			.andExpect(status().isOk());
 	}
 }

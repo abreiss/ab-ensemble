@@ -22,6 +22,8 @@ import com.ensemble.usage.CallCapService;
 import com.ensemble.wardrobe.WardrobeService;
 import com.ensemble.wardrobe.dto.ItemResponse;
 
+import jakarta.validation.Valid;
+
 /**
  * REST API for the stylist under {@code /api/style}. Accepts a free-text vibe and
  * returns a grounded outfit as DTOs only — the {@link StylistService} internals,
@@ -54,7 +56,7 @@ public class StyleController {
 	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public StyleResponse style(@RequestBody StyleRequest request) {
+	public StyleResponse style(@Valid @RequestBody StyleRequest request) {
 		callCapService.reserve();
 		Outfit outfit = service.style(request.prompt(), toHistory(request.history()));
 		List<OutfitItem> items = enrich(outfit);
