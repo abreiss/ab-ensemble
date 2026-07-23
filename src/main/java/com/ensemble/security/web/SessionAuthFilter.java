@@ -16,8 +16,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * Gates every request it sees behind a valid session token, except {@code POST /api/auth}
- * and {@code GET /api/health}. Registered (see {@code com.ensemble.security.SecurityConfig})
+ * Gates every request it sees behind a valid session token, except the token-free entry points
+ * {@code POST /api/auth} (login), {@code POST /api/accounts} (sign-up), and
+ * {@code GET /api/health}. Registered (see {@code com.ensemble.security.SecurityConfig})
  * via a {@code FilterRegistrationBean} scoped to {@code /api/*} rather than as a
  * {@code @Component} bean, so it is applied to the real servlet container and full
  * {@code @SpringBootTest} contexts but is <strong>not</strong> auto-added to narrow
@@ -81,7 +82,9 @@ public class SessionAuthFilter extends OncePerRequestFilter {
 		if ("/api/health".equals(path)) {
 			return "GET".equalsIgnoreCase(request.getMethod());
 		}
-		if ("/api/auth".equals(path)) {
+		// Login and invite-only sign-up are the two token-free entry points: a caller has no
+		// session yet when acquiring one. Both are POST-only.
+		if ("/api/auth".equals(path) || "/api/accounts".equals(path)) {
 			return "POST".equalsIgnoreCase(request.getMethod());
 		}
 		return false;

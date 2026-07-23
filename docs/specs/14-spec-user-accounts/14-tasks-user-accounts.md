@@ -142,7 +142,7 @@ request and exposes it via a current-user accessor; `GET /api/me` returns
 - [x] 2.8 (GREEN) Add `InvalidCredentialsException` (`security/InvalidCredentialsException.java`) and map it in `ApiExceptionHandler` → `401 ("unauthorized","invalid email or password")`. Run → green.
 - [x] 2.9 (REFACTOR + proof) Run `./gradlew test -PskipFrontend` (green) + JaCoCo (100% branch on token verify/parse + login match path). Capture the CLI proof (`POST /api/auth` → token; `GET /api/me` with/without header) using a throwaway local user (a directly-seeded users-table row, or after Task 3.0's signup).
 
-### [ ] 3.0 Sign-up endpoint `POST /api/accounts` behind the signup passcode (auto-login)
+### [x] 3.0 Sign-up endpoint `POST /api/accounts` behind the signup passcode (auto-login)
 
 Lets a user create an account, invite-only. `AccountController` validates input,
 verifies the shared signup passcode with a constant-time SHA-256 compare
@@ -160,14 +160,14 @@ extended so the endpoint is reachable token-free.
 
 #### 3.0 Tasks
 
-- [ ] 3.1 (RED) Write `SignupPasscodeVerifierTest` (`security/SignupPasscodeVerifierTest.java`): `matchesConfiguredPasscode`, `rejectsWrongPasscode`, `rejectsBlankOrNullCandidate`, `signupClosedWhenPasscodeUnconfigured`. Run → fails.
-- [ ] 3.2 (GREEN) Implement `SignupPasscodeVerifier` (`security/SignupPasscodeVerifier.java`, `@Component`) holding `SecurityProperties`; `boolean matches(String candidate)` using the constant-time SHA-256 compare factored out of the old `AuthController` (null/blank candidate → false; blank configured passcode → always false). Update `SecurityConfig.logGateState()` wording to reflect the signup gate. Run → green; 100% branch.
-- [ ] 3.3 (RED) Write `MaxUtf8BytesValidatorTest` (`user/web/MaxUtf8BytesValidatorTest.java`): 72-byte valid, 73-byte invalid, multi-byte UTF-8 counted by bytes, null valid (delegated to `@NotBlank`). Run → fails.
-- [ ] 3.4 (GREEN) Implement `@MaxUtf8Bytes` + `MaxUtf8BytesValidator` (`user/web/`); create `SignupRequest` (`user/web/SignupRequest.java`): `@NotBlank @Email String email`, `@NotBlank @Size(min = 8) @MaxUtf8Bytes(72) String password`, `@NotBlank String passcode`. Run → green; 100% branch on the validator.
-- [ ] 3.5 (RED) Write `AccountControllerTest` (`user/web/AccountControllerTest.java`, `@WebMvcTest(AccountController.class)`): the six cases above; mock `UserRepository`, `PasswordHasher`, `SignupPasscodeVerifier`, `SessionTokenService`; assert no `create(...)` on the passcode-fail path. Run → fails.
-- [ ] 3.6 (GREEN) Implement `AccountController` (`user/web/AccountController.java`, `POST /api/accounts`): `@Valid @RequestBody SignupRequest` → `SignupPasscodeVerifier.matches` (else `InvalidPasscodeException`) → build `User` (UUID `userId`, `createdAt`, `passwordHash = hasher.hash(password)`, normalized email) → `UserRepository.create` (`DuplicateEmailException` → 409) → `tokenService.issue(userId)` → `201 { token }` (reuse `AuthResponse`). Run → green.
-- [ ] 3.7 (GREEN) Extend `SessionAuthFilter.isOpen(...)` to allow `POST /api/accounts`; add a `SessionAuthFilterTest` `accounts_isOpen` case. Register `AccountController` in `ApiExceptionHandler` `assignableTypes`; map `DuplicateEmailException` → `409 ("conflict","email already registered")` (+ handler test). Run → green.
-- [ ] 3.8 (REFACTOR + proof) Run `./gradlew test -PskipFrontend` (green) + JaCoCo (100% branch on signup-passcode check + password validation). Capture the CLI proof (signup 201 / duplicate 409 / wrong passcode 401 / login round-trip) with throwaway values.
+- [x] 3.1 (RED) Write `SignupPasscodeVerifierTest` (`security/SignupPasscodeVerifierTest.java`): `matchesConfiguredPasscode`, `rejectsWrongPasscode`, `rejectsBlankOrNullCandidate`, `signupClosedWhenPasscodeUnconfigured`. Run → fails.
+- [x] 3.2 (GREEN) Implement `SignupPasscodeVerifier` (`security/SignupPasscodeVerifier.java`, `@Component`) holding `SecurityProperties`; `boolean matches(String candidate)` using the constant-time SHA-256 compare factored out of the old `AuthController` (null/blank candidate → false; blank configured passcode → always false). Update `SecurityConfig.logGateState()` wording to reflect the signup gate. Run → green; 100% branch.
+- [x] 3.3 (RED) Write `MaxUtf8BytesValidatorTest` (`user/web/MaxUtf8BytesValidatorTest.java`): 72-byte valid, 73-byte invalid, multi-byte UTF-8 counted by bytes, null valid (delegated to `@NotBlank`). Run → fails.
+- [x] 3.4 (GREEN) Implement `@MaxUtf8Bytes` + `MaxUtf8BytesValidator` (`user/web/`); create `SignupRequest` (`user/web/SignupRequest.java`): `@NotBlank @Email String email`, `@NotBlank @Size(min = 8) @MaxUtf8Bytes(72) String password`, `@NotBlank String passcode`. Run → green; 100% branch on the validator.
+- [x] 3.5 (RED) Write `AccountControllerTest` (`user/web/AccountControllerTest.java`, `@WebMvcTest(AccountController.class)`): the six cases above; mock `UserRepository`, `PasswordHasher`, `SignupPasscodeVerifier`, `SessionTokenService`; assert no `create(...)` on the passcode-fail path. Run → fails.
+- [x] 3.6 (GREEN) Implement `AccountController` (`user/web/AccountController.java`, `POST /api/accounts`): `@Valid @RequestBody SignupRequest` → `SignupPasscodeVerifier.matches` (else `InvalidPasscodeException`) → build `User` (UUID `userId`, `createdAt`, `passwordHash = hasher.hash(password)`, normalized email) → `UserRepository.create` (`DuplicateEmailException` → 409) → `tokenService.issue(userId)` → `201 { token }` (reuse `AuthResponse`). Run → green.
+- [x] 3.7 (GREEN) Extend `SessionAuthFilter.isOpen(...)` to allow `POST /api/accounts`; add a `SessionAuthFilterTest` `accounts_isOpen` case. Register `AccountController` in `ApiExceptionHandler` `assignableTypes`; map `DuplicateEmailException` → `409 ("conflict","email already registered")` (+ handler test). Run → green.
+- [x] 3.8 (REFACTOR + proof) Run `./gradlew test -PskipFrontend` (green) + JaCoCo (100% branch on signup-passcode check + password validation). Capture the CLI proof (signup 201 / duplicate 409 / wrong passcode 401 / login round-trip) with throwaway values.
 
 ### [ ] 4.0 Seed account, login/sign-up UI, and documentation
 

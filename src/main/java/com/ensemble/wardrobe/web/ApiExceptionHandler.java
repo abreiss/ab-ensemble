@@ -21,6 +21,8 @@ import com.ensemble.stylist.StylistUnavailableException;
 import com.ensemble.stylist.web.StyleController;
 import com.ensemble.tagging.web.TaggingController;
 import com.ensemble.usage.DailyCapExceededException;
+import com.ensemble.user.DuplicateEmailException;
+import com.ensemble.user.web.AccountController;
 import com.ensemble.user.web.MeController;
 import com.ensemble.wardrobe.ItemNotFoundException;
 
@@ -28,11 +30,11 @@ import jakarta.validation.ConstraintViolationException;
 
 /**
  * Maps domain and request errors to HTTP responses for the wardrobe, tagging,
- * stylist, and auth APIs: unknown ids → 404, invalid input (validation, bad range,
+ * stylist, auth, and account APIs: unknown ids → 404, invalid input (validation, bad range,
  * missing/invalid photo, malformed JSON) → 400, an unavailable/ungroundable
- * stylist → 503, a wrong/blank passcode → 401. Returns a small sanitized error body.
- * The tag-preview, style, auth, and outfit controllers are covered here too, so
- * their failures reuse the same sanitized error shape.
+ * stylist → 503, a wrong/blank passcode or bad login → 401, a duplicate sign-up email → 409.
+ * Returns a small sanitized error body. The tag-preview, style, auth, account, me, and outfit
+ * controllers are covered here too, so their failures reuse the same sanitized error shape.
  */
 @RestControllerAdvice(assignableTypes = {
 	WardrobeController.class,
@@ -40,7 +42,8 @@ import jakarta.validation.ConstraintViolationException;
 	StyleController.class,
 	AuthController.class,
 	OutfitController.class,
-	MeController.class
+	MeController.class,
+	AccountController.class
 })
 public class ApiExceptionHandler {
 
@@ -128,6 +131,16 @@ public class ApiExceptionHandler {
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)
 	public ErrorResponse handleInvalidCredentials(InvalidCredentialsException ex) {
 		return new ErrorResponse("unauthorized", "invalid email or password");
+	}
+
+	/**
+	 * Sign-up hit an email that is already registered (the atomic {@code attribute_not_exists}
+	 * conditional put failed). The message is a fixed, user-safe string — it echoes no internals.
+	 */
+	@ExceptionHandler(DuplicateEmailException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponse handleDuplicateEmail(DuplicateEmailException ex) {
+		return new ErrorResponse("conflict", "email already registered");
 	}
 
 	/** The global daily call cap has been exceeded; Claude was not called for this request. */

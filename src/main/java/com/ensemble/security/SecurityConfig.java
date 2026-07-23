@@ -44,8 +44,9 @@ public class SecurityConfig {
 	@PostConstruct
 	void logGateState() {
 		if (!properties.passcodeConfigured()) {
-			log.warn("ensemble.security.passcode is blank — the passcode gate is closed "
-				+ "(every /api/auth attempt will be rejected) until ENSEMBLE_PASSCODE is set");
+			log.warn("ensemble.security.passcode is blank — the signup gate is closed "
+				+ "(every POST /api/accounts attempt will be rejected) until ENSEMBLE_PASSCODE is set. "
+				+ "Existing accounts can still log in via POST /api/auth");
 		}
 	}
 

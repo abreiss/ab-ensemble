@@ -98,6 +98,20 @@ class SessionAuthFilterTest {
 	}
 
 	@Test
+	void accounts_isOpen() throws Exception {
+		// POST /api/accounts is a token-free entry point (sign-up): it reaches AccountController
+		// rather than being short-circuited by the gate filter. With no signup passcode configured
+		// in the test context the passcode check fails, so it surfaces the *signup* 401
+		// ("invalid passcode") — proving the request passed the gate — not the gate's own
+		// "authentication required" 401.
+		mockMvc.perform(post("/api/accounts")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\":\"new@example.com\",\"password\":\"correcthorse\",\"passcode\":\"whatever\"}"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.message").value("invalid passcode"));
+	}
+
+	@Test
 	void me_withoutToken_returns401() throws Exception {
 		mockMvc.perform(get("/api/me"))
 			.andExpect(status().isUnauthorized());
