@@ -99,6 +99,34 @@ class StylistServiceTest {
 	}
 
 	@Test
+	void styleRequest_countToThousandInReason_isTruncatedBeforeDto() {
+		when(wardrobe.list()).thenReturn(List.of(item("a")));
+		// A compromised/misbehaving model emits a runaway whole-look reason ("count to
+		// 1000" class): 500 chars. The app must bound it before the DTO reaches the client.
+		String runaway = "x".repeat(500);
+		when(model.proposeOutfit(anyString(), anyList())).thenReturn(pick(runaway, "a"));
+
+		Outfit outfit = service.style("streetwear today");
+
+		assertThat(outfit.itemIds()).containsExactly("a");
+		assertThat(outfit.reason().length()).isLessThanOrEqualTo(300);
+	}
+
+	@Test
+	void styleRequest_oversizeRationale_isTruncatedBeforeDto() {
+		when(wardrobe.list()).thenReturn(List.of(item("a")));
+		// The per-piece rationale is the other free-text channel — bound it independently.
+		String runaway = "y".repeat(400);
+		when(model.proposeOutfit(anyString(), anyList()))
+			.thenReturn(pieces("clean", "a", runaway));
+
+		Outfit outfit = service.style("brunch");
+
+		assertThat(outfit.itemIds()).containsExactly("a");
+		assertThat(outfit.rationaleFor("a").length()).isLessThanOrEqualTo(200);
+	}
+
+	@Test
 	void styleRequest_withHallucinatedId_retriesOnceThenRendersValidSubset() {
 		when(wardrobe.list()).thenReturn(List.of(item("a"), item("b")));
 		when(model.proposeOutfit(anyString(), anyList()))

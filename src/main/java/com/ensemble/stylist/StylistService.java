@@ -41,6 +41,16 @@ public class StylistService {
 	static final String EMPTY_WARDROBE_REASON =
 		"Your wardrobe is empty — add a few pieces and I'll style you an outfit.";
 
+	/**
+	 * Deterministic ceiling on the whole-look {@code reason}. The model is also asked
+	 * to keep it concise, but this app-side backstop bounds the field regardless of
+	 * what the model returns (the "count to 1000 in the reason" injection class).
+	 */
+	static final int MAX_REASON_LENGTH = 300;
+
+	/** Deterministic ceiling on each per-piece {@code rationale} — the other free-text channel. */
+	static final int MAX_RATIONALE_LENGTH = 200;
+
 	private final StylistModelClient model;
 	private final WardrobeService wardrobe;
 
@@ -108,15 +118,16 @@ public class StylistService {
 				"Couldn't build a grounded outfit from your wardrobe. Please try again.");
 		}
 		// Carry only the grounded ids' rationale — a hallucinated id's rationale is dropped
-		// with the id itself, so nothing unvalidated is ever surfaced.
+		// with the id itself, so nothing unvalidated is ever surfaced. Each free-text field
+		// is length-capped here (before the DTO) as the deterministic output backstop.
 		Map<String, String> groundedRationale = new LinkedHashMap<>();
 		for (String id : grounded) {
 			String rationale = pick.rationaleFor(id);
 			if (!rationale.isEmpty()) {
-				groundedRationale.put(id, rationale);
+				groundedRationale.put(id, TextBounds.cap(rationale, MAX_RATIONALE_LENGTH));
 			}
 		}
-		return new Outfit(grounded, pick.reason(), groundedRationale);
+		return new Outfit(grounded, TextBounds.cap(pick.reason(), MAX_REASON_LENGTH), groundedRationale);
 	}
 
 	/**

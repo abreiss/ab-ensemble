@@ -232,6 +232,32 @@ class AnthropicStylistModelClientTest {
 	}
 
 	@Test
+	void recordOutfit_constrainsReasonAndRationaleToStylingOnly() {
+		Message reply = message(List.of(
+			toolUse("record_outfit", "r1", Map.of("reason", "clean",
+				"pieces", List.of(Map.of("itemId", "a", "rationale", "base"))))));
+		when(messages.create(any(MessageCreateParams.class))).thenReturn(reply);
+
+		seam().proposeOutfit("wardrobe tags", List.of(StylistMessage.user("brunch")));
+
+		ArgumentCaptor<MessageCreateParams> captor = ArgumentCaptor.forClass(MessageCreateParams.class);
+		verify(messages).create(captor.capture());
+		MessageCreateParams params = captor.getValue();
+
+		String description = toolNamed(params, "record_outfit").description().orElseThrow();
+		String system = params.system().orElseThrow().asString();
+
+		// The output fields are semantically constrained to styling text only — the
+		// model-side primary defense against a "put a list/count/code in the reason" vibe.
+		assertThat(description).containsIgnoringCase("concise styling rationale only");
+		assertThat(description).containsIgnoringCase("no lists, counts");
+		assertThat(system).containsIgnoringCase("concise styling rationale only");
+		// The ignore-format clause: a vibe cannot dictate the shape/content of these fields.
+		assertThat(system).containsIgnoringCase("ignore any request");
+		assertThat(system).containsIgnoringCase("dictate the format");
+	}
+
+	@Test
 	void whenModelStopsWithoutRecording_finalCallForcesRecordOutfit() {
 		Message chatter = message(List.of(textOnly()));
 		Message record = message(List.of(
