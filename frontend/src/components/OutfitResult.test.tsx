@@ -154,6 +154,32 @@ describe('OutfitResult', () => {
     expect(screen.getByTestId('spec-list')).toBeInTheDocument()
   })
 
+  it('renders a hostile per-piece rationale as escaped text, never executed as HTML', () => {
+    // A prompt-injected rationale that slipped past the model + backstop would still be
+    // inert: React renders it as a text node. This guard locks that escaping behavior in.
+    const payload = '<img src=x onerror="alert(1)">'
+    const hostile: Outfit = {
+      itemIds: ['a'],
+      reason: 'ok',
+      items: [outfitItem('a', { category: 'shirt', rationale: payload })],
+    }
+    const { container } = render(
+      <OutfitResult
+        outfit={hostile}
+        onWearToday={vi.fn()}
+        logStatus="idle"
+        onSave={vi.fn()}
+        saveStatus="idle"
+        busy={false}
+      />,
+    )
+
+    // The payload survives verbatim as literal text (escaped into a text node)...
+    expect(screen.getByText(/onerror/)).toBeInTheDocument()
+    // ...and no live <img onerror> element was ever created from it.
+    expect(container.querySelector('img[onerror]')).toBeNull()
+  })
+
   it('fires the save callback when the heart is clicked (idle)', async () => {
     const user = userEvent.setup()
     const { onSave } = renderResult()
