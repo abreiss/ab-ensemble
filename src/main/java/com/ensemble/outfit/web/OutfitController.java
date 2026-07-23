@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ensemble.outfit.OutfitService;
 import com.ensemble.outfit.dto.OutfitResponse;
 import com.ensemble.outfit.dto.SaveOutfitRequest;
+import com.ensemble.security.web.CurrentUserId;
 
 import jakarta.validation.Valid;
 
@@ -29,6 +30,11 @@ import jakarta.validation.Valid;
  * {@code com.ensemble.wardrobe.web.ApiExceptionHandler}, which registers this
  * controller for the shared sanitized error shape. The routes are session-gated
  * automatically by the servlet filter on {@code /api/*}.
+ *
+ * <p>Each handler resolves the authenticated caller's {@code userId} via
+ * {@link CurrentUserId} and forwards it to the service, so saves are grounded against
+ * and stamped with the caller, list returns only the caller's outfits, and a cross-user
+ * delete returns the same non-enumerating 404 as a missing one (spec #15).
  */
 @RestController
 @RequestMapping("/api/outfits")
@@ -41,21 +47,22 @@ public class OutfitController {
 	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<OutfitResponse> save(@Valid @RequestBody SaveOutfitRequest request) {
-		OutfitResponse created = service.create(request);
+	public ResponseEntity<OutfitResponse> save(
+			@CurrentUserId String userId, @Valid @RequestBody SaveOutfitRequest request) {
+		OutfitResponse created = service.create(userId, request);
 		return ResponseEntity
 			.created(URI.create("/api/outfits/" + created.outfitId()))
 			.body(created);
 	}
 
 	@GetMapping
-	public List<OutfitResponse> list() {
-		return service.list();
+	public List<OutfitResponse> list(@CurrentUserId String userId) {
+		return service.list(userId);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void delete(@PathVariable String id) {
-		service.delete(id);
+	public void delete(@CurrentUserId String userId, @PathVariable String id) {
+		service.delete(userId, id);
 	}
 }

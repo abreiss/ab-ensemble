@@ -148,7 +148,7 @@ tables + instance-role policy gain the index and the `index/*` query grant that
 - [x] 1.11 (REFACTOR) Run `./gradlew test -PskipFrontend`; keep tests green and remove
   duplication in the initializer/repository GSI wiring.
 
-### [ ] 2.0 Ownership-enforced wardrobe & outfit APIs
+### [x] 2.0 Ownership-enforced wardrobe & outfit APIs
 
 **Demoable outcome:** Two logged-in accounts each see only their own items and
 outfits; every single-resource operation (`get`, `updateTags`, `markWorn`,
@@ -172,39 +172,39 @@ never that resource's contents — closing the live cross-user authorization gap
 
 #### 2.0 Tasks
 
-- [ ] 2.1 (RED) In `WardrobeServiceTest`, add `list_returnsOnlyCallersItems` (stub
+- [x] 2.1 (RED) In `WardrobeServiceTest`, add `list_returnsOnlyCallersItems` (stub
   `repository.findByUserId("userA")`) and `find_otherUsersItem_throwsNotFound` (repo returns
   an item whose `userId` is `userB` → expect `ItemNotFoundException`). Also add
   `create_stampsCallerUserId`: capture the `Item` passed to `repository.save(...)` with an
   `ArgumentCaptor` and assert its `getUserId()` equals the caller (guards the "no owned row
   written without an owner" FR). Confirm failing.
-- [ ] 2.2 (GREEN) `WardrobeService`: change the private choke point to
+- [x] 2.2 (GREEN) `WardrobeService`: change the private choke point to
   `find(String userId, String itemId)` — `repository.findById(itemId)` then throw
   `ItemNotFoundException(itemId)` if empty **or** `!item.getUserId().equals(userId)`. Route
   `get`/`updateTags`/`markWorn`/`delete`/`loadPhoto` through it.
-- [ ] 2.3 (GREEN) `WardrobeService.create(...)`: add a `userId` parameter, set it on the new
+- [x] 2.3 (GREEN) `WardrobeService.create(...)`: add a `userId` parameter, set it on the new
   `Item` before save (satisfying `create_stampsCallerUserId` from 2.1). Add `list(String userId)`
   returning `repository.findByUserId(userId)` mapped to DTOs. (Keep the no-arg `list()` only until Unit 4.)
-- [ ] 2.4 (RED→GREEN) `WardrobeControllerTest`: add cross-user 404 cases for
+- [x] 2.4 (RED→GREEN) `WardrobeControllerTest`: add cross-user 404 cases for
   `get`/`updateTags`/`markWorn`/`delete` using `.requestAttr("ensemble.userId", "userB")`
   against a service stubbed to throw for the foreign id. Then add `@CurrentUserId String userId`
   to all seven `WardrobeController` handlers and forward it to the service.
-- [ ] 2.5 (RED) In `OutfitServiceTest`, add `list_returnsOnlyCallersOutfits`,
+- [x] 2.5 (RED) In `OutfitServiceTest`, add `list_returnsOnlyCallersOutfits`,
   `find_otherUsersOutfit_throwsNotFound`, and `create_stampsCallerUserId` (ArgumentCaptor on
   `repository.save(...)` asserting the persisted `SavedOutfit.getUserId()` equals the caller).
   Confirm failing.
-- [ ] 2.6 (GREEN) `OutfitService`: `create(userId, request)` stamps `userId` (satisfying
+- [x] 2.6 (GREEN) `OutfitService`: `create(userId, request)` stamps `userId` (satisfying
   `create_stampsCallerUserId` from 2.5) and builds `validIds` from `wardrobeService.list(userId)`;
   `list(userId)` → `repository.findByUserId(userId)`; `find(userId, outfitId)` choke point →
   `OutfitNotFoundException` on missing or cross-user.
-- [ ] 2.7 (RED→GREEN) `OutfitControllerTest`: cross-user `delete` → 404 and scoped `list`; then add
+- [x] 2.7 (RED→GREEN) `OutfitControllerTest`: cross-user `delete` → 404 and scoped `list`; then add
   `@CurrentUserId` to `OutfitController.save`/`list`/`delete` and forward it.
-- [ ] 2.8 Update `docs/ARCHITECTURE.md` / `README.md` to state that per-user isolation is now
+- [x] 2.8 Update `docs/ARCHITECTURE.md` / `README.md` to state that per-user isolation is now
   enforced and is only trustworthy with a distinct `ENSEMBLE_SESSION_SECRET` set (the
   invite-code fallback lets any invited user forge a `userId`); keep the existing startup warning.
-- [ ] 2.9 (Proof) With two seeded accounts, capture the two-token `GET /api/items` disjoint-set
+- [x] 2.9 (Proof) With two seeded accounts, capture the two-token `GET /api/items` disjoint-set
   output and the cross-user `DELETE … → 404` (sanitized: `$TOKEN_A`/`$TOKEN_B`, redacted ids).
-- [ ] 2.10 (REFACTOR) `./gradlew test -PskipFrontend` green; de-duplicate the ownership choke-point
+- [x] 2.10 (REFACTOR) `./gradlew test -PskipFrontend` green; de-duplicate the ownership choke-point
   logic between wardrobe and outfit services where sensible.
 
 ### [ ] 3.0 Per-user photo namespacing + cross-user photo isolation

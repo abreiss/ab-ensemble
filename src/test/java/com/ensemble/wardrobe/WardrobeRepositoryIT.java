@@ -209,10 +209,11 @@ class WardrobeRepositoryIT {
 		};
 		WardrobeService service = new WardrobeService(repository, noPhotos);
 		Item seed = sampleItem("worn-1");
+		seed.setUserId("userA");
 		Instant createdAt = seed.getCreatedAt();
 		repository.save(seed);
 
-		ItemResponse worn = service.markWorn("worn-1");
+		ItemResponse worn = service.markWorn("userA", "worn-1");
 
 		assertThat(worn.wornCount()).isEqualTo(1);
 		assertThat(worn.lastWorn()).isNotNull();

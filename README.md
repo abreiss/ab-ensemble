@@ -258,6 +258,28 @@ token in `sessionStorage`, and returns to that screen on any `401`, so day-to-da
 use just means logging in once per tab. `GET /api/me` returns
 `{"userId", "email"}` for the authenticated caller.
 
+**Per-user isolation (spec #15).** Every `/api/items` and `/api/outfits` route is
+scoped to the caller's `userId` from the token: two accounts see disjoint
+wardrobes, and one account cannot read, mutate, or delete another's items — a
+cross-user id returns the same `404` as a missing one, never the resource. Quick
+check with two accounts' tokens (`$TOKEN_A` / `$TOKEN_B`, never literal secrets):
+
+```bash
+# each account sees only its own items (disjoint id sets)
+curl -s localhost:8080/api/items -H "X-Ensemble-Session: $TOKEN_A"
+curl -s localhost:8080/api/items -H "X-Ensemble-Session: $TOKEN_B"
+
+# B cannot delete one of A's items -> 404 (not 204), and A's item is untouched
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -X DELETE localhost:8080/api/items/<an-A-item-id> -H "X-Ensemble-Session: $TOKEN_B"
+# -> 404
+```
+
+This isolation is only trustworthy with a distinct `ENSEMBLE_SESSION_SECRET` set;
+otherwise the token-signing key falls back to the shared invite code and an
+invited user could forge another user's `userId` (a startup warning fires until
+you set one).
+
 **Daily call cap.** `POST /api/style` and `POST /api/items/tag` (the two
 Claude-backed endpoints) share one global counter, keyed by UTC calendar day.
 Once a call would push the day's count past `ensemble.usage.daily-limit`

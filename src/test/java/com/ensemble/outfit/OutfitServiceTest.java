@@ -28,11 +28,17 @@ import com.ensemble.wardrobe.dto.ItemResponse;
  * guard — the critical logic that must reach 100% branch coverage per
  * {@code docs/TESTING.md}: all ids valid → save; any unknown id → reject the whole
  * save; empty {@code itemIds} → reject; {@code source} outside {ai,manual} → reject;
- * delete-unknown → not-found. The {@link WardrobeService} and {@link OutfitRepository}
- * are mocked so the guard is exercised in isolation.
+ * delete-unknown → not-found. Per-user scoping (spec #15) is layered on: the guard's
+ * valid-id set is built from the caller's <em>own</em> wardrobe
+ * ({@link WardrobeService#list(String)}), the created outfit is stamped with the
+ * caller's userId, and delete is ownership-checked. The {@link WardrobeService} and
+ * {@link OutfitRepository} are mocked so the guard is exercised in isolation.
  */
 @ExtendWith(MockitoExtension.class)
 class OutfitServiceTest {
+
+	/** The authenticated caller every operation is scoped to (spec #15). */
+	private static final String USER = "userA";
 
 	@Mock
 	OutfitRepository repository;
@@ -55,6 +61,7 @@ class OutfitServiceTest {
 	private SavedOutfit entity(String id) {
 		SavedOutfit outfit = new SavedOutfit();
 		outfit.setOutfitId(id);
+		outfit.setUserId(USER);
 		outfit.setItemIds(List.of("a"));
 		outfit.setSource("manual");
 		outfit.setCreatedAt(Instant.now());
@@ -63,10 +70,10 @@ class OutfitServiceTest {
 
 	@Test
 	void create_allIdsValid_persistsWithServerOwnedIdAndCreatedAt() {
-		when(wardrobeService.list()).thenReturn(List.of(wardrobeItem("a"), wardrobeItem("b")));
+		when(wardrobeService.list(USER)).thenReturn(List.of(wardrobeItem("a"), wardrobeItem("b")));
 		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-		OutfitResponse created = service.create(request(List.of("a", "b"), "manual", null));
+		OutfitResponse created = service.create(USER, request(List.of("a", "b"), "manual", null));
 
 		assertThat(created.outfitId()).isNotBlank();
 		assertThat(created.createdAt()).isNotNull();
@@ -83,11 +90,36 @@ class OutfitServiceTest {
 	}
 
 	@Test
-	void create_aiSourceWithReason_preservesSourceAndReason() {
-		when(wardrobeService.list()).thenReturn(List.of(wardrobeItem("a")));
+	void create_stampsCallerUserId() {
+		// The owner FR: a saved outfit must carry the caller's userId so it is only ever
+		// returned to that user. Capture the persisted entity and assert the stamp directly.
+		when(wardrobeService.list(USER)).thenReturn(List.of(wardrobeItem("a")));
 		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-		OutfitResponse created = service.create(request(List.of("a"), "ai", "navy blazer anchors it"));
+		service.create(USER, request(List.of("a"), "manual", null));
+
+		ArgumentCaptor<SavedOutfit> captor = ArgumentCaptor.forClass(SavedOutfit.class);
+		verify(repository).save(captor.capture());
+		assertThat(captor.getValue().getUserId()).isEqualTo(USER);
+	}
+
+	@Test
+	void create_groundsAgainstCallersOwnWardrobe() {
+		// The valid-id set is built from the caller's own wardrobe — an id that exists only in
+		// another user's wardrobe is not consulted here, so it grounds like an unknown id.
+		when(wardrobeService.list(USER)).thenReturn(List.of(wardrobeItem("a")));
+
+		assertThatExceptionOfType(InvalidOutfitException.class)
+			.isThrownBy(() -> service.create(USER, request(List.of("a", "othersItem"), "manual", null)));
+		verify(repository, never()).save(any());
+	}
+
+	@Test
+	void create_aiSourceWithReason_preservesSourceAndReason() {
+		when(wardrobeService.list(USER)).thenReturn(List.of(wardrobeItem("a")));
+		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+		OutfitResponse created = service.create(USER, request(List.of("a"), "ai", "navy blazer anchors it"));
 
 		assertThat(created.source()).isEqualTo("ai");
 		assertThat(created.reason()).isEqualTo("navy blazer anchors it");
@@ -95,48 +127,50 @@ class OutfitServiceTest {
 
 	@Test
 	void create_unknownItemId_rejectsEntireSaveAndPersistsNothing() {
-		when(wardrobeService.list()).thenReturn(List.of(wardrobeItem("a")));
+		when(wardrobeService.list(USER)).thenReturn(List.of(wardrobeItem("a")));
 
 		assertThatExceptionOfType(InvalidOutfitException.class)
-			.isThrownBy(() -> service.create(request(List.of("a", "ghost"), "manual", null)));
+			.isThrownBy(() -> service.create(USER, request(List.of("a", "ghost"), "manual", null)));
 		verify(repository, never()).save(any());
 	}
 
 	@Test
 	void create_emptyItemIds_rejectsWithoutConsultingWardrobe() {
 		assertThatExceptionOfType(InvalidOutfitException.class)
-			.isThrownBy(() -> service.create(request(List.of(), "manual", null)));
+			.isThrownBy(() -> service.create(USER, request(List.of(), "manual", null)));
 		verify(repository, never()).save(any());
 	}
 
 	@Test
 	void create_nullItemIds_rejects() {
 		assertThatExceptionOfType(InvalidOutfitException.class)
-			.isThrownBy(() -> service.create(request(null, "manual", null)));
+			.isThrownBy(() -> service.create(USER, request(null, "manual", null)));
 		verify(repository, never()).save(any());
 	}
 
 	@Test
 	void create_sourceOutsideAllowedSet_rejects() {
 		assertThatExceptionOfType(InvalidOutfitException.class)
-			.isThrownBy(() -> service.create(request(List.of("a"), "robot", null)));
+			.isThrownBy(() -> service.create(USER, request(List.of("a"), "robot", null)));
 		verify(repository, never()).save(any());
 	}
 
 	@Test
 	void create_duplicateItemIds_rejectsEntireSaveAndPersistsNothing() {
-		when(wardrobeService.list()).thenReturn(List.of(wardrobeItem("a")));
+		when(wardrobeService.list(USER)).thenReturn(List.of(wardrobeItem("a")));
 
 		assertThatExceptionOfType(InvalidOutfitException.class)
-			.isThrownBy(() -> service.create(request(List.of("a", "a"), "manual", null)));
+			.isThrownBy(() -> service.create(USER, request(List.of("a", "a"), "manual", null)));
 		verify(repository, never()).save(any());
 	}
 
 	@Test
-	void list_mapsSavedOutfitsToResponses() {
-		when(repository.findAll()).thenReturn(List.of(entity("o1"), entity("o2")));
+	void list_returnsOnlyCallersOutfits() {
+		// The scoped list delegates to the userId GSI query, so it can only ever return the
+		// caller's saved outfits — no full-table scan, no other user's outfits.
+		when(repository.findByUserId(USER)).thenReturn(List.of(entity("o1"), entity("o2")));
 
-		List<OutfitResponse> list = service.list();
+		List<OutfitResponse> list = service.list(USER);
 
 		assertThat(list).extracting(OutfitResponse::outfitId).containsExactly("o1", "o2");
 	}
@@ -145,7 +179,7 @@ class OutfitServiceTest {
 	void delete_existingOutfit_removesRecord() {
 		when(repository.findById("o1")).thenReturn(Optional.of(entity("o1")));
 
-		service.delete("o1");
+		service.delete(USER, "o1");
 
 		verify(repository).deleteById("o1");
 	}
@@ -155,7 +189,20 @@ class OutfitServiceTest {
 		when(repository.findById("nope")).thenReturn(Optional.empty());
 
 		assertThatExceptionOfType(OutfitNotFoundException.class)
-			.isThrownBy(() -> service.delete("nope"));
+			.isThrownBy(() -> service.delete(USER, "nope"));
+		verify(repository, never()).deleteById(any());
+	}
+
+	@Test
+	void find_otherUsersOutfit_throwsNotFound() {
+		// An outfit owned by userB must be indistinguishable from a missing one to userA:
+		// delete throws the same non-enumerating OutfitNotFoundException and removes nothing.
+		SavedOutfit foreign = entity("o1");
+		foreign.setUserId("userB");
+		when(repository.findById("o1")).thenReturn(Optional.of(foreign));
+
+		assertThatExceptionOfType(OutfitNotFoundException.class)
+			.isThrownBy(() -> service.delete(USER, "o1"));
 		verify(repository, never()).deleteById(any());
 	}
 }

@@ -61,7 +61,7 @@ class SessionAuthFilterTest {
 
 	@Test
 	void validToken_resolvesUserId_andPassesThrough() throws Exception {
-		when(wardrobeService.list()).thenReturn(List.of());
+		when(wardrobeService.list("user-1")).thenReturn(List.of());
 
 		mockMvc.perform(get("/api/items").header("X-Ensemble-Session", tokenService.issue("user-1")))
 			.andExpect(status().isOk());
@@ -69,7 +69,7 @@ class SessionAuthFilterTest {
 
 	@Test
 	void protectedApi_withValidQueryToken_passesThrough() throws Exception {
-		when(wardrobeService.list()).thenReturn(List.of());
+		when(wardrobeService.list("user-1")).thenReturn(List.of());
 
 		mockMvc.perform(get("/api/items").param("token", tokenService.issue("user-1")))
 			.andExpect(status().isOk());

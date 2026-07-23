@@ -29,6 +29,9 @@ import com.ensemble.wardrobe.dto.TagRequest;
 @ExtendWith(MockitoExtension.class)
 class WardrobeServiceTest {
 
+	/** The authenticated caller every id-based operation is scoped to (spec #15). */
+	private static final String USER = "userA";
+
 	@Mock
 	WardrobeRepository repository;
 
@@ -45,6 +48,7 @@ class WardrobeServiceTest {
 	private Item existing(String id) {
 		Item item = new Item();
 		item.setItemId(id);
+		item.setUserId(USER);
 		item.setPhotoKey(id + ".jpg");
 		return item;
 	}
@@ -53,7 +57,7 @@ class WardrobeServiceTest {
 	void create_generatesIdStoresPhotoAndPersistsItem() {
 		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-		ItemResponse created = service.create(tags(), new byte[]{1, 2, 3});
+		ItemResponse created = service.create(USER, tags(), new byte[]{1, 2, 3});
 
 		assertThat(created.itemId()).isNotBlank();
 		assertThat(created.createdAt()).isNotNull();
@@ -75,10 +79,24 @@ class WardrobeServiceTest {
 	}
 
 	@Test
+	void create_stampsCallerUserId() {
+		// The owner FR: a created item must carry the caller's userId so it is only ever
+		// returned to that user. Capture the persisted entity and assert the stamp directly —
+		// a scoped read test alone would still pass if create() forgot to set the owner.
+		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+		service.create(USER, tags(), new byte[]{1, 2, 3});
+
+		ArgumentCaptor<Item> itemCaptor = ArgumentCaptor.forClass(Item.class);
+		verify(repository).save(itemCaptor.capture());
+		assertThat(itemCaptor.getValue().getUserId()).isEqualTo(USER);
+	}
+
+	@Test
 	void create_whenRepositorySaveFails_deletesOrphanedPhoto() {
 		when(repository.save(any())).thenThrow(new RuntimeException("dynamo unavailable"));
 
-		assertThatThrownBy(() -> service.create(tags(), new byte[]{1, 2, 3}))
+		assertThatThrownBy(() -> service.create(USER, tags(), new byte[]{1, 2, 3}))
 			.isInstanceOf(RuntimeException.class);
 
 		// The photo was written before the failing record save; it must be cleaned up
@@ -90,16 +108,26 @@ class WardrobeServiceTest {
 
 	@Test
 	void list_returnsAllItems() {
+		// The unscoped list() is retained only for the stylist until Unit 4.
 		when(repository.findAll()).thenReturn(List.of(existing("a"), existing("b")));
 
 		assertThat(service.list()).extracting(ItemResponse::itemId).containsExactly("a", "b");
 	}
 
 	@Test
+	void list_returnsOnlyCallersItems() {
+		// The scoped list delegates to the userId GSI query, so it can only ever return the
+		// caller's rows — no full-table scan, no other user's items.
+		when(repository.findByUserId(USER)).thenReturn(List.of(existing("a"), existing("b")));
+
+		assertThat(service.list(USER)).extracting(ItemResponse::itemId).containsExactly("a", "b");
+	}
+
+	@Test
 	void get_whenPresent_returnsItem() {
 		when(repository.findById("x")).thenReturn(Optional.of(existing("x")));
 
-		assertThat(service.get("x").itemId()).isEqualTo("x");
+		assertThat(service.get(USER, "x").itemId()).isEqualTo("x");
 	}
 
 	@Test
@@ -107,7 +135,20 @@ class WardrobeServiceTest {
 		when(repository.findById("nope")).thenReturn(Optional.empty());
 
 		assertThatExceptionOfType(ItemNotFoundException.class)
-			.isThrownBy(() -> service.get("nope"));
+			.isThrownBy(() -> service.get(USER, "nope"));
+	}
+
+	@Test
+	void find_otherUsersItem_throwsNotFound() {
+		// An item owned by userB must be indistinguishable from a missing item to userA:
+		// the ownership choke point throws the same non-enumerating ItemNotFoundException,
+		// never that item's contents.
+		Item foreign = existing("x");
+		foreign.setUserId("userB");
+		when(repository.findById("x")).thenReturn(Optional.of(foreign));
+
+		assertThatExceptionOfType(ItemNotFoundException.class)
+			.isThrownBy(() -> service.get(USER, "x"));
 	}
 
 	@Test
@@ -115,7 +156,7 @@ class WardrobeServiceTest {
 		when(repository.findById("x")).thenReturn(Optional.of(existing("x")));
 		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-		ItemResponse updated = service.updateTags("x", tags());
+		ItemResponse updated = service.updateTags(USER, "x", tags());
 
 		// Same choke point as create(): "top" normalizes to "Top".
 		assertThat(updated.category()).isEqualTo("Top");
@@ -131,7 +172,7 @@ class WardrobeServiceTest {
 		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 		TagRequest legacy = new TagRequest("chinos", null, null, null, null, null, null);
 
-		ItemResponse updated = service.updateTags("x", legacy);
+		ItemResponse updated = service.updateTags(USER, "x", legacy);
 
 		assertThat(updated.category()).isEqualTo("Bottom");
 	}
@@ -141,7 +182,7 @@ class WardrobeServiceTest {
 		when(repository.findById("nope")).thenReturn(Optional.empty());
 
 		assertThatExceptionOfType(ItemNotFoundException.class)
-			.isThrownBy(() -> service.updateTags("nope", tags()));
+			.isThrownBy(() -> service.updateTags(USER, "nope", tags()));
 		verify(repository, never()).save(any());
 	}
 
@@ -149,7 +190,7 @@ class WardrobeServiceTest {
 	void delete_removesItemRecordBeforePhoto() {
 		when(repository.findById("x")).thenReturn(Optional.of(existing("x")));
 
-		service.delete("x");
+		service.delete(USER, "x");
 
 		// Record first, then photo: if the photo delete fails the record is already
 		// gone (a later get returns 404), rather than leaving a record whose photo is
@@ -164,7 +205,7 @@ class WardrobeServiceTest {
 		when(repository.findById("nope")).thenReturn(Optional.empty());
 
 		assertThatExceptionOfType(ItemNotFoundException.class)
-			.isThrownBy(() -> service.delete("nope"));
+			.isThrownBy(() -> service.delete(USER, "nope"));
 		verify(photoStorage, never()).delete(any());
 		verify(repository, never()).deleteById(any());
 	}
@@ -174,7 +215,7 @@ class WardrobeServiceTest {
 		when(repository.findById("x")).thenReturn(Optional.of(existing("x")));
 		when(photoStorage.load("x.jpg")).thenReturn(new byte[]{9, 9});
 
-		assertThat(service.loadPhoto("x")).containsExactly(9, 9);
+		assertThat(service.loadPhoto(USER, "x")).containsExactly(9, 9);
 	}
 
 	@Test
@@ -182,7 +223,7 @@ class WardrobeServiceTest {
 		when(repository.findById("nope")).thenReturn(Optional.empty());
 
 		assertThatExceptionOfType(ItemNotFoundException.class)
-			.isThrownBy(() -> service.loadPhoto("nope"));
+			.isThrownBy(() -> service.loadPhoto(USER, "nope"));
 		verify(photoStorage, never()).load(any());
 	}
 
@@ -194,7 +235,7 @@ class WardrobeServiceTest {
 		when(repository.findById("x")).thenReturn(Optional.of(item));
 		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-		ItemResponse worn = service.markWorn("x");
+		ItemResponse worn = service.markWorn(USER, "x");
 
 		assertThat(worn.wornCount()).isEqualTo(1);
 		assertThat(worn.lastWorn()).isNotNull();
@@ -214,7 +255,7 @@ class WardrobeServiceTest {
 		when(repository.findById("x")).thenReturn(Optional.of(item));
 		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-		ItemResponse worn = service.markWorn("x");
+		ItemResponse worn = service.markWorn(USER, "x");
 
 		assertThat(worn.wornCount()).isEqualTo(8);
 		assertThat(worn.lastWorn()).isNotNull().isAfter(old);
@@ -227,7 +268,7 @@ class WardrobeServiceTest {
 		when(repository.findById("x")).thenReturn(Optional.of(item));
 		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-		ItemResponse worn = service.markWorn("x");
+		ItemResponse worn = service.markWorn(USER, "x");
 
 		assertThat(worn.wornCount()).isEqualTo(1);
 	}
@@ -237,7 +278,7 @@ class WardrobeServiceTest {
 		when(repository.findById("nope")).thenReturn(Optional.empty());
 
 		assertThatExceptionOfType(ItemNotFoundException.class)
-			.isThrownBy(() -> service.markWorn("nope"));
+			.isThrownBy(() -> service.markWorn(USER, "nope"));
 		verify(repository, never()).save(any());
 	}
 }
