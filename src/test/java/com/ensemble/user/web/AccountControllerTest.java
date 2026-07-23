@@ -11,10 +11,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,7 +43,19 @@ import com.ensemble.user.UserRepository;
  * crypto or persistence.
  */
 @WebMvcTest(AccountController.class)
+@Import(AccountControllerTest.FixedClockConfig.class)
 class AccountControllerTest {
+
+	/** A fixed instant so {@code createdAt} is deterministic, mirroring the injected Clock bean. */
+	private static final Instant FIXED_NOW = Instant.parse("2026-01-01T00:00:00Z");
+
+	@TestConfiguration
+	static class FixedClockConfig {
+		@Bean
+		Clock clock() {
+			return Clock.fixed(FIXED_NOW, ZoneOffset.UTC);
+		}
+	}
 
 	@Autowired
 	MockMvc mockMvc;
@@ -77,7 +96,7 @@ class AccountControllerTest {
 		assertThat(created.getEmail()).isEqualTo("new@example.com");
 		assertThat(created.getPasswordHash()).isEqualTo("bcrypt-hash");
 		assertThat(created.getUserId()).isNotBlank();
-		assertThat(created.getCreatedAt()).isNotNull();
+		assertThat(created.getCreatedAt()).isEqualTo(FIXED_NOW);
 		verify(tokenService).issue(created.getUserId());
 	}
 

@@ -132,7 +132,11 @@ class SessionAuthFilterTest {
 	void me_withValidTokenButUnknownUser_returns401() throws Exception {
 		when(userRepository.findByUserId("ghost")).thenReturn(Optional.empty());
 
+		// An orphaned but valid token gets the gate's generic "authentication required" 401
+		// (re-authenticate) — not the login "invalid email or password", which would misdescribe
+		// a request that carried a valid token and no credentials.
 		mockMvc.perform(get("/api/me").header("X-Ensemble-Session", tokenService.issue("ghost")))
-			.andExpect(status().isUnauthorized());
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.message").value("authentication required"));
 	}
 }

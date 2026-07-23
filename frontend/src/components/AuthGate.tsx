@@ -26,7 +26,7 @@ function errorMessageFor(mode: Mode, err: unknown): string {
   const status = statusOf(err)
   if (mode === 'login') {
     if (status === 401) return 'Invalid email or password.'
-    if (status === 400) return 'Password must be at least 8 characters.'
+    if (status === 400) return 'Enter a valid email and password.'
   } else {
     if (status === 409) return 'That email is already registered.'
     if (status === 400) return 'Password must be at least 8 characters.'

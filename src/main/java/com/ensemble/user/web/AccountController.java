@@ -1,6 +1,6 @@
 package com.ensemble.user.web;
 
-import java.time.Instant;
+import java.time.Clock;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -45,13 +45,15 @@ public class AccountController {
 	private final PasswordHasher passwordHasher;
 	private final SignupPasscodeVerifier signupPasscodeVerifier;
 	private final SessionTokenService tokenService;
+	private final Clock clock;
 
 	public AccountController(UserRepository users, PasswordHasher passwordHasher,
-			SignupPasscodeVerifier signupPasscodeVerifier, SessionTokenService tokenService) {
+			SignupPasscodeVerifier signupPasscodeVerifier, SessionTokenService tokenService, Clock clock) {
 		this.users = users;
 		this.passwordHasher = passwordHasher;
 		this.signupPasscodeVerifier = signupPasscodeVerifier;
 		this.tokenService = tokenService;
+		this.clock = clock;
 	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -64,7 +66,7 @@ public class AccountController {
 		user.setUserId(UUID.randomUUID().toString());
 		user.setEmail(request.email());
 		user.setPasswordHash(passwordHasher.hash(request.password()));
-		user.setCreatedAt(Instant.now());
+		user.setCreatedAt(clock.instant());
 		users.create(user);
 		return new AuthResponse(tokenService.issue(user.getUserId()));
 	}

@@ -329,6 +329,14 @@ the coverage split) + a small backend seed runner + docs.
   come from the git-ignored `.env` locally and from **Secrets Manager** at deploy (injected by
   ARN as `ENSEMBLE_*` env vars). Tests never need real values. The pre-commit secret scan must
   catch an accidental commit of any of them.
+- **Session-secret / invite-code coupling**: `ENSEMBLE_SESSION_SECRET` still falls back to
+  deriving the token-signing HMAC key from `ENSEMBLE_PASSCODE` when blank (the documented
+  single-secret local-dev flow). But now that `ENSEMBLE_PASSCODE` is a *shared* invite code,
+  leaving the session secret blank means every invited user knows the signing key and could
+  forge session tokens for arbitrary userIds — a latent horizontal-privilege-escalation once
+  data is scoped by `userId` (#15). Mitigation: the fallback is retained (does not fail closed),
+  but a loud startup warning fires while the session secret is unconfigured, and operators are
+  told to set a distinct `ENSEMBLE_SESSION_SECRET`, especially before #15.
 - **Proof artifacts** must not commit a real password, seed credential, live key, or the passcode
   value; `curl`/screenshot proofs are captured with throwaway demo values.
 

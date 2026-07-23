@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.ensemble.security.InvalidCredentialsException;
+import com.ensemble.security.SessionUserNotFoundException;
 import com.ensemble.security.web.CurrentUserId;
 import com.ensemble.user.UserRepository;
 
@@ -17,8 +17,10 @@ import com.ensemble.user.UserRepository;
  * <p>The token carries only the opaque {@code userId} (no email/PII — see the spec's
  * "Security"), so the email is looked up via {@link UserRepository#findByUserId} (a
  * demo-scale scan; the table is email-keyed with no {@code userId} GSI). A valid session
- * whose account no longer exists (deleted out-of-band) resolves to nothing and is treated as
- * unauthenticated — the caller re-authenticates.
+ * whose account no longer exists (deleted out-of-band) resolves to nothing and throws
+ * {@link SessionUserNotFoundException} → a generic {@code 401} telling the caller to
+ * re-authenticate (not the login "invalid email or password", which would misdescribe a
+ * request that carried a valid token and no credentials).
  */
 @RestController
 @RequestMapping("/api/me")
@@ -38,6 +40,6 @@ public class MeController {
 	public MeResponse me(@CurrentUserId String userId) {
 		return users.findByUserId(userId)
 			.map(user -> new MeResponse(user.getUserId(), user.getEmail()))
-			.orElseThrow(InvalidCredentialsException::new);
+			.orElseThrow(SessionUserNotFoundException::new);
 	}
 }

@@ -128,7 +128,7 @@ describe('AuthGate', () => {
     expect(screen.queryByText('secret content')).not.toBeInTheDocument()
   })
 
-  it('shows "Password must be at least 8 characters." for a login 400', async () => {
+  it('shows "Enter a valid email and password." for a login 400', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: 'bad_request' }, 400))
     const user = userEvent.setup()
     render(
@@ -138,10 +138,10 @@ describe('AuthGate', () => {
     )
 
     await user.type(screen.getByLabelText(/^email$/i), 'jane@example.com')
-    await user.type(screen.getByLabelText(/^password$/i), 'short')
+    await user.type(screen.getByLabelText(/^password$/i), 'correct-horse-battery')
     await user.click(screen.getByRole('button', { name: /log in/i }))
 
-    expect(await screen.findByText('Password must be at least 8 characters.')).toBeInTheDocument()
+    expect(await screen.findByText('Enter a valid email and password.')).toBeInTheDocument()
   })
 
   it('shows "Password must be at least 8 characters." for a signup 400', async () => {

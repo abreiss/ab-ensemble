@@ -14,6 +14,7 @@ import com.ensemble.outfit.OutfitNotFoundException;
 import com.ensemble.outfit.web.OutfitController;
 import com.ensemble.security.InvalidCredentialsException;
 import com.ensemble.security.InvalidPasscodeException;
+import com.ensemble.security.SessionUserNotFoundException;
 import com.ensemble.security.web.AuthController;
 import com.ensemble.storage.InvalidImageException;
 import com.ensemble.storage.PhotoNotFoundException;
@@ -131,6 +132,18 @@ public class ApiExceptionHandler {
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)
 	public ErrorResponse handleInvalidCredentials(InvalidCredentialsException ex) {
 		return new ErrorResponse("unauthorized", "invalid email or password");
+	}
+
+	/**
+	 * A cryptographically valid session token whose account no longer exists (orphaned token).
+	 * Not a login failure, so it returns the gate's generic {@code 401 "authentication required"}
+	 * — telling the client to re-authenticate — rather than the login "invalid email or password",
+	 * which would misdescribe a request that carried a valid token and no credentials.
+	 */
+	@ExceptionHandler(SessionUserNotFoundException.class)
+	@ResponseStatus(HttpStatus.UNAUTHORIZED)
+	public ErrorResponse handleSessionUserNotFound(SessionUserNotFoundException ex) {
+		return new ErrorResponse("unauthorized", "authentication required");
 	}
 
 	/**
