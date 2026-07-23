@@ -12,6 +12,7 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import com.ensemble.outfit.InvalidOutfitException;
 import com.ensemble.outfit.OutfitNotFoundException;
 import com.ensemble.outfit.web.OutfitController;
+import com.ensemble.security.InvalidCredentialsException;
 import com.ensemble.security.InvalidPasscodeException;
 import com.ensemble.security.web.AuthController;
 import com.ensemble.storage.InvalidImageException;
@@ -20,6 +21,7 @@ import com.ensemble.stylist.StylistUnavailableException;
 import com.ensemble.stylist.web.StyleController;
 import com.ensemble.tagging.web.TaggingController;
 import com.ensemble.usage.DailyCapExceededException;
+import com.ensemble.user.web.MeController;
 import com.ensemble.wardrobe.ItemNotFoundException;
 
 import jakarta.validation.ConstraintViolationException;
@@ -37,7 +39,8 @@ import jakarta.validation.ConstraintViolationException;
 	TaggingController.class,
 	StyleController.class,
 	AuthController.class,
-	OutfitController.class
+	OutfitController.class,
+	MeController.class
 })
 public class ApiExceptionHandler {
 
@@ -115,6 +118,16 @@ public class ApiExceptionHandler {
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)
 	public ErrorResponse handleInvalidPasscode(InvalidPasscodeException ex) {
 		return new ErrorResponse("unauthorized", "invalid passcode");
+	}
+
+	/**
+	 * Login failed — unknown email or wrong password. The same generic message is returned
+	 * for both so the response never reveals whether an email is registered (no enumeration).
+	 */
+	@ExceptionHandler(InvalidCredentialsException.class)
+	@ResponseStatus(HttpStatus.UNAUTHORIZED)
+	public ErrorResponse handleInvalidCredentials(InvalidCredentialsException ex) {
+		return new ErrorResponse("unauthorized", "invalid email or password");
 	}
 
 	/** The global daily call cap has been exceeded; Claude was not called for this request. */

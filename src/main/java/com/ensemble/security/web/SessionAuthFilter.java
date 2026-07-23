@@ -1,6 +1,7 @@
 package com.ensemble.security.web;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -28,8 +29,16 @@ import jakarta.servlet.http.HttpServletResponse;
  * {@code <img>} GETs that cannot set headers, a {@code token} query parameter. A missing
  * or invalid token short-circuits with a sanitized {@code 401} — the request never
  * reaches a controller, so no data access or Claude call happens.
+ *
+ * <p>On a valid token the resolved {@code userId} (from
+ * {@link SessionTokenService#verify}) is exposed as the {@link #USER_ID_ATTRIBUTE} request
+ * attribute, so downstream controllers read the caller's identity via the
+ * {@link CurrentUserId} argument resolver without touching servlet internals.
  */
 public class SessionAuthFilter extends OncePerRequestFilter {
+
+	/** Request attribute holding the authenticated caller's opaque {@code userId}. */
+	public static final String USER_ID_ATTRIBUTE = "ensemble.userId";
 
 	static final String TOKEN_HEADER = "X-Ensemble-Session";
 	static final String TOKEN_PARAM = "token";
@@ -53,7 +62,9 @@ public class SessionAuthFilter extends OncePerRequestFilter {
 		if (token == null || token.isBlank()) {
 			token = request.getParameter(TOKEN_PARAM);
 		}
-		if (token != null && tokenService.verify(token)) {
+		Optional<String> userId = (token == null) ? Optional.empty() : tokenService.verify(token);
+		if (userId.isPresent()) {
+			request.setAttribute(USER_ID_ATTRIBUTE, userId.get());
 			chain.doFilter(request, response);
 			return;
 		}
