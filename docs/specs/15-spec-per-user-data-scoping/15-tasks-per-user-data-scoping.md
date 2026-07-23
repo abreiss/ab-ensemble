@@ -207,7 +207,7 @@ never that resource's contents — closing the live cross-user authorization gap
 - [x] 2.10 (REFACTOR) `./gradlew test -PskipFrontend` green; de-duplicate the ownership choke-point
   logic between wardrobe and outfit services where sensible.
 
-### [ ] 3.0 Per-user photo namespacing + cross-user photo isolation
+### [x] 3.0 Per-user photo namespacing + cross-user photo isolation
 
 **Demoable outcome:** New items store their photo under a per-user key
 `<userId>/<itemId>.jpg`; the local-disk backend writes nested keys correctly while
@@ -226,25 +226,25 @@ owned by another user returns **404**, never the image bytes.
 
 #### 3.0 Tasks
 
-- [ ] 3.1 (RED) In `LocalDiskPhotoStorageTest`, add `save_nestedKey_createsParentDirsAndStores`
+- [x] 3.1 (RED) In `LocalDiskPhotoStorageTest`, add `save_nestedKey_createsParentDirsAndStores`
   (save under `"user1/abc.jpg"`, then `load` returns the bytes). Keep
   `resolve_pathTraversalKey_isRejected` (`"../escape.jpg"`). Confirm the nested-key test fails
   (`NoSuchFileException`/`UncheckedIOException`).
-- [ ] 3.2 (GREEN) In `LocalDiskPhotoStorage.save`, `Files.createDirectories(target.getParent())`
+- [x] 3.2 (GREEN) In `LocalDiskPhotoStorage.save`, `Files.createDirectories(target.getParent())`
   before `Files.write`. Do not weaken `resolve(...)`; the traversal guard still rejects escaping keys.
-- [ ] 3.3 (RED) In `WardrobeServiceTest`, add `create_namespacesPhotoKeyPerUser` and update the
+- [x] 3.3 (RED) In `WardrobeServiceTest`, add `create_namespacesPhotoKeyPerUser` and update the
   existing key assertions (`create_generatesIdStoresPhotoAndPersistsItem`,
   `delete_removesItemRecordBeforePhoto`, `loadPhoto`) from `<itemId>.jpg` to
   `<userId>/<itemId>.jpg`. Confirm failing.
-- [ ] 3.4 (GREEN) In `WardrobeService.create`, derive `photoKey = userId + "/" + itemId + ".jpg"`
+- [x] 3.4 (GREEN) In `WardrobeService.create`, derive `photoKey = userId + "/" + itemId + ".jpg"`
   (replacing `itemId + ".jpg"`), store it on the `Item`, and use the stored key for save/load/delete.
-- [ ] 3.5 (RED→GREEN) In `WardrobeControllerTest`, add `photo_otherUsersItem_returns404`
+- [x] 3.5 (RED→GREEN) In `WardrobeControllerTest`, add `photo_otherUsersItem_returns404`
   (service stubbed to throw `ItemNotFoundException` for the foreign id via `loadPhoto`). Confirm the
   photo handler forwards `@CurrentUserId` (from 2.4) into `loadPhoto`→`find(userId, itemId)`, so the
   cross-user request 404s rather than returning bytes.
-- [ ] 3.6 Confirm no `S3PhotoStorage` or `PhotoStorage`-interface change is required (nested key is a
+- [x] 3.6 Confirm no `S3PhotoStorage` or `PhotoStorage`-interface change is required (nested key is a
   native S3 prefix; `key` stays an opaque `String`) — note this in the commit body.
-- [ ] 3.7 (REFACTOR) `./gradlew test -PskipFrontend` green.
+- [x] 3.7 (REFACTOR) `./gradlew test -PskipFrontend` green.
 
 ### [ ] 4.0 User-scoped stylist + cross-user grounding guardrail
 

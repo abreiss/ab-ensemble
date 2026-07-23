@@ -49,7 +49,7 @@ class WardrobeServiceTest {
 		Item item = new Item();
 		item.setItemId(id);
 		item.setUserId(USER);
-		item.setPhotoKey(id + ".jpg");
+		item.setPhotoKey(USER + "/" + id + ".jpg");
 		return item;
 	}
 
@@ -70,12 +70,31 @@ class WardrobeServiceTest {
 
 		ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
 		verify(photoStorage).save(keyCaptor.capture(), eq(new byte[]{1, 2, 3}));
-		assertThat(keyCaptor.getValue()).isEqualTo(created.itemId() + ".jpg");
+		assertThat(keyCaptor.getValue()).isEqualTo(USER + "/" + created.itemId() + ".jpg");
 
 		ArgumentCaptor<Item> itemCaptor = ArgumentCaptor.forClass(Item.class);
 		verify(repository).save(itemCaptor.capture());
 		assertThat(itemCaptor.getValue().getItemId()).isEqualTo(created.itemId());
-		assertThat(itemCaptor.getValue().getPhotoKey()).isEqualTo(created.itemId() + ".jpg");
+		assertThat(itemCaptor.getValue().getPhotoKey()).isEqualTo(USER + "/" + created.itemId() + ".jpg");
+	}
+
+	@Test
+	void create_namespacesPhotoKeyPerUser() {
+		// The photo key is namespaced under the owner (<userId>/<itemId>.jpg) so one user's
+		// photos live under a per-user prefix and can never collide with or be reached under
+		// another user's id. Capture both the storage key and the persisted key.
+		when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+		ItemResponse created = service.create(USER, tags(), new byte[]{1, 2, 3});
+
+		String expectedKey = USER + "/" + created.itemId() + ".jpg";
+		ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+		verify(photoStorage).save(keyCaptor.capture(), any());
+		assertThat(keyCaptor.getValue()).isEqualTo(expectedKey);
+
+		ArgumentCaptor<Item> itemCaptor = ArgumentCaptor.forClass(Item.class);
+		verify(repository).save(itemCaptor.capture());
+		assertThat(itemCaptor.getValue().getPhotoKey()).isEqualTo(expectedKey);
 	}
 
 	@Test
@@ -197,7 +216,7 @@ class WardrobeServiceTest {
 		// missing (which would 500 on loadPhoto).
 		InOrder order = inOrder(repository, photoStorage);
 		order.verify(repository).deleteById("x");
-		order.verify(photoStorage).delete("x.jpg");
+		order.verify(photoStorage).delete(USER + "/x.jpg");
 	}
 
 	@Test
@@ -213,7 +232,7 @@ class WardrobeServiceTest {
 	@Test
 	void loadPhoto_returnsBytesFromStorage() {
 		when(repository.findById("x")).thenReturn(Optional.of(existing("x")));
-		when(photoStorage.load("x.jpg")).thenReturn(new byte[]{9, 9});
+		when(photoStorage.load(USER + "/x.jpg")).thenReturn(new byte[]{9, 9});
 
 		assertThat(service.loadPhoto(USER, "x")).containsExactly(9, 9);
 	}

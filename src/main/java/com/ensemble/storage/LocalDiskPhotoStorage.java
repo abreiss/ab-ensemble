@@ -41,7 +41,12 @@ public class LocalDiskPhotoStorage implements PhotoStorage {
 	public void save(String key, byte[] imageBytes) {
 		Path target = resolve(key); // reject a bad key before any decode work
 		byte[] jpeg = imageProcessor.toResizedJpeg(imageBytes);
-		io(() -> Files.write(target, jpeg), "write photo " + key);
+		io(() -> {
+			// Per-user keys are nested (<userId>/<itemId>.jpg); create the parent
+			// directory so the first write under a new user does not fail.
+			Files.createDirectories(target.getParent());
+			return Files.write(target, jpeg);
+		}, "write photo " + key);
 	}
 
 	@Override

@@ -46,7 +46,9 @@ public class WardrobeService {
 	 */
 	public ItemResponse create(String userId, TagRequest tags, byte[] photoBytes) {
 		String itemId = UUID.randomUUID().toString();
-		String photoKey = itemId + ".jpg";
+		// Namespace the photo under its owner so one user's photos live under a per-user
+		// prefix (<userId>/<itemId>.jpg) and can never be reached under another user's id.
+		String photoKey = userId + "/" + itemId + ".jpg";
 		photoStorage.save(photoKey, photoBytes);
 
 		Item item = new Item();

@@ -262,6 +262,19 @@ class WardrobeControllerTest {
 	}
 
 	@Test
+	void photo_otherUsersItem_returns404() throws Exception {
+		// A cross-user photo request must 404 — never return the owner's image bytes. The
+		// handler forwards the caller (userB) into loadPhoto → find(userId, itemId), so the
+		// ownership choke point rejects it exactly like a missing id.
+		when(service.loadPhoto(OTHER, "a")).thenThrow(new ItemNotFoundException("a"));
+
+		mockMvc.perform(get("/api/items/a/photo")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, OTHER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("not_found"));
+	}
+
+	@Test
 	void updateTags_returnsUpdatedItem() throws Exception {
 		when(service.updateTags(eq(USER), eq("a"), any())).thenReturn(response("a"));
 
