@@ -26,7 +26,7 @@ class DynamoDbConfigTest {
 
 	@Test
 	void blankEndpoint_usesDefaultCredentialsWithNoOverride() {
-		DynamoDbProperties props = new DynamoDbProperties("", "us-east-1", "ensemble-items", "ensemble-outfits", false);
+		DynamoDbProperties props = new DynamoDbProperties("", "us-east-1", "ensemble-items", "ensemble-outfits", "ensemble-users", false);
 
 		DynamoDbClient client = config.dynamoDbClient(props);
 
@@ -37,7 +37,7 @@ class DynamoDbConfigTest {
 
 	@Test
 	void absentEndpoint_usesDefaultCredentialsWithNoOverride() {
-		DynamoDbProperties props = new DynamoDbProperties(null, "us-east-1", "ensemble-items", "ensemble-outfits", false);
+		DynamoDbProperties props = new DynamoDbProperties(null, "us-east-1", "ensemble-items", "ensemble-outfits", "ensemble-users", false);
 
 		DynamoDbClient client = config.dynamoDbClient(props);
 
@@ -49,7 +49,7 @@ class DynamoDbConfigTest {
 	@Test
 	void presentEndpoint_overridesEndpointWithStaticDummyCredentials() {
 		DynamoDbProperties props =
-			new DynamoDbProperties("http://localhost:8000", "us-east-1", "ensemble-items", "ensemble-outfits", false);
+			new DynamoDbProperties("http://localhost:8000", "us-east-1", "ensemble-items", "ensemble-outfits", "ensemble-users", false);
 
 		DynamoDbClient client = config.dynamoDbClient(props);
 

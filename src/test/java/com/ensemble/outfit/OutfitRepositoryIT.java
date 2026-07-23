@@ -57,7 +57,7 @@ class OutfitRepositoryIT {
 			.build();
 
 		String outfitsTable = "outfits-" + UUID.randomUUID();
-		DynamoDbProperties props = new DynamoDbProperties(endpoint, "us-east-1", "unused-items", outfitsTable, true);
+		DynamoDbProperties props = new DynamoDbProperties(endpoint, "us-east-1", "unused-items", outfitsTable, "unused-users", true);
 		new DynamoDbTableInitializer(client, props).ensureTable(outfitsTable, "outfitId");
 		repository = new OutfitRepository(enhanced, props);
 	}

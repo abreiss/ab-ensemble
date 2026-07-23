@@ -23,6 +23,13 @@ dependencies {
 	// Bean Validation (Hibernate Validator) for request DTO constraints.
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+	// bcrypt password hashing (BCryptPasswordEncoder) for user accounts (issue #14).
+	// The standalone crypto utility jar ONLY — version managed by the Spring Boot
+	// BOM. Deliberately NOT the full spring-boot-starter-security: this adds no
+	// auto-config and no servlet filter chain, so the hand-rolled SessionAuthFilter
+	// is untouched.
+	implementation 'org.springframework.security:spring-security-crypto'
+
 	// AWS SDK v2 — DynamoDB Enhanced Client for single-table persistence.
 	// No Spring Data / JPA (see AGENTS.md): one item model, itemId partition key.
 	implementation platform('software.amazon.awssdk:bom:2.30.0')

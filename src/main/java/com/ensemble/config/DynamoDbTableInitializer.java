@@ -17,10 +17,11 @@ import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
 
 /**
  * Creates the DynamoDB tables on startup if they do not already exist, so a fresh
- * DynamoDB Local is usable with no manual step. Ensures both the wardrobe
- * (items) table and the dedicated saved-outfits table (issue #26). Only each
- * table's partition key is declared — DynamoDB is schemaless for non-key
- * attributes, so the remaining fields need no table-level definition.
+ * DynamoDB Local is usable with no manual step. Ensures the wardrobe (items)
+ * table, the dedicated saved-outfits table (issue #26), and the dedicated
+ * user-accounts table (issue #14). Only each table's partition key is declared —
+ * DynamoDB is schemaless for non-key attributes, so the remaining fields need no
+ * table-level definition.
  *
  * <p>Gated by {@code ensemble.dynamodb.auto-create-table} (default true). Tests
  * set it to {@code false} so a Spring context can load without a live DynamoDB;
@@ -35,6 +36,7 @@ public class DynamoDbTableInitializer implements ApplicationRunner {
 
 	static final String ITEMS_PARTITION_KEY = "itemId";
 	static final String OUTFITS_PARTITION_KEY = "outfitId";
+	static final String USERS_PARTITION_KEY = "email";
 
 	private final DynamoDbClient client;
 	private final DynamoDbProperties props;
@@ -48,6 +50,7 @@ public class DynamoDbTableInitializer implements ApplicationRunner {
 	public void run(ApplicationArguments args) {
 		ensureTable(props.tableName(), ITEMS_PARTITION_KEY);
 		ensureTable(props.outfitsTableName(), OUTFITS_PARTITION_KEY);
+		ensureTable(props.usersTableName(), USERS_PARTITION_KEY);
 	}
 
 	/**
