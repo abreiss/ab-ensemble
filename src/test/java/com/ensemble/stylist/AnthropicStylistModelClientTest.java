@@ -274,6 +274,24 @@ class AnthropicStylistModelClientTest {
 	}
 
 	@Test
+	void searchWardrobeTool_framesWardrobeTextAsData() {
+		Message reply = message(List.of(
+			toolUse("record_outfit", "r1", Map.of("itemIds", List.of("a"), "reason", "clean"))));
+		when(messages.create(any(MessageCreateParams.class))).thenReturn(reply);
+
+		seam().proposeOutfit("wardrobe tags", List.of(StylistMessage.user("brunch")));
+
+		ArgumentCaptor<MessageCreateParams> captor = ArgumentCaptor.forClass(MessageCreateParams.class);
+		verify(messages).create(captor.capture());
+		String description = toolNamed(captor.getValue(), "searchWardrobe").description().orElseThrow();
+		// The wardrobe text — including user-editable item descriptors — is framed as
+		// data, not instructions, closing the indirect-injection path where a payload
+		// hides in a descriptor that flows verbatim into the tool result.
+		assertThat(description).containsIgnoringCase("descriptor");
+		assertThat(description).containsIgnoringCase("data, not instructions");
+	}
+
+	@Test
 	void vibe_isWrappedAsData_inConversationContent() {
 		Message reply = message(List.of(
 			toolUse("record_outfit", "r1", Map.of("itemIds", List.of("a"), "reason", "clean"))));
