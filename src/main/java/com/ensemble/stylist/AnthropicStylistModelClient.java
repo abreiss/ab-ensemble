@@ -158,6 +158,12 @@ public class AnthropicStylistModelClient implements StylistModelClient {
 	 * grounding retry corrects with a user turn (never an assistant turn), so a
 	 * first-pick retry is not misread as a pushback re-pick.
 	 */
+	private static String systemPromptFor(List<StylistMessage> conversation) {
+		boolean isRepick = conversation.stream()
+			.anyMatch(turn -> turn.role() == StylistMessage.Role.ASSISTANT);
+		return isRepick ? SYSTEM_PROMPT + "\n\n" + REPICK_INSTRUCTION : SYSTEM_PROMPT;
+	}
+
 	/**
 	 * Frames a client turn's text as tagged data and strips any embedded copy of either
 	 * wrapper delimiter (open or close, any case). Stripping the delimiter is what stops
@@ -167,12 +173,6 @@ public class AnthropicStylistModelClient implements StylistModelClient {
 	private static String wrapAsData(String text, String tag) {
 		String neutralized = WRAPPER_DELIMITER.matcher(text == null ? "" : text).replaceAll("");
 		return "<" + tag + ">" + neutralized + "</" + tag + ">";
-	}
-
-	private static String systemPromptFor(List<StylistMessage> conversation) {
-		boolean isRepick = conversation.stream()
-			.anyMatch(turn -> turn.role() == StylistMessage.Role.ASSISTANT);
-		return isRepick ? SYSTEM_PROMPT + "\n\n" + REPICK_INSTRUCTION : SYSTEM_PROMPT;
 	}
 
 	private MessageCreateParams autoParams(List<MessageParam> messages, String system) {
