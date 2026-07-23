@@ -52,3 +52,20 @@ resource "aws_dynamodb_table" "outfits" {
     type = "S"
   }
 }
+
+# User accounts (spec #14). A dedicated table -- email partition key (normalized
+# to lowercase by the app), generated userId + bcrypt passwordHash as non-key
+# attributes -- deliberately separate from the items/outfits tables, matching the
+# single-item, no-GSI data pattern. The running app reaches it through the same
+# instance-role grant, already scoped to table/${local.prefix}-* (iam.tf), so
+# this adds no IAM diff.
+resource "aws_dynamodb_table" "users" {
+  name         = "${local.prefix}-users"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "email"
+
+  attribute {
+    name = "email"
+    type = "S"
+  }
+}

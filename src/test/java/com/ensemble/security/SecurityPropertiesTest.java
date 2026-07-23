@@ -43,10 +43,24 @@ class SecurityPropertiesTest {
 	}
 
 	@Test
+	void blankSessionSecret_isFlaggedAsUnconfigured() {
+		assertThat(new SecurityProperties("pw", null, null).sessionSecretConfigured()).isFalse();
+		assertThat(new SecurityProperties("pw", "", null).sessionSecretConfigured()).isFalse();
+		assertThat(new SecurityProperties("pw", "   ", null).sessionSecretConfigured()).isFalse();
+	}
+
+	@Test
+	void configuredSessionSecret_isFlaggedAsConfigured() {
+		assertThat(new SecurityProperties("pw", "own-secret", null).sessionSecretConfigured()).isTrue();
+	}
+
+	@Test
 	void nullPasscode_normalizesToBlankAndIsAccepted() {
 		SecurityProperties props = new SecurityProperties(null, null, null);
 		assertThat(props.passcode()).isEmpty();
 		assertThat(props.passcodeConfigured()).isFalse();
+		// Both secrets render empty (the derived session secret equals the blank passcode).
+		assertThat(props.toString()).contains("****(empty)");
 	}
 
 	@Test

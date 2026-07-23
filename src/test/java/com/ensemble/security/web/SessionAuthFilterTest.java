@@ -3,9 +3,11 @@ package com.ensemble.security.web;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,13 +19,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.ensemble.security.SessionTokenService;
+import com.ensemble.user.User;
+import com.ensemble.user.UserRepository;
 import com.ensemble.wardrobe.WardrobeService;
 
 /**
- * Full-context test (real {@code SecurityConfig} filter registration) so the actual
- * gate scope and header/query token acceptance are exercised end-to-end, not just the
- * filter's unit logic. {@link WardrobeService} is mocked so no live DynamoDB is needed —
- * this stays a fast, isolated test per docs/TESTING.md.
+ * Full-context test (real {@code SecurityConfig} filter registration + the
+ * {@code CurrentUserId} argument resolver) so the actual gate scope, header/query token
+ * acceptance, and end-to-end principal resolution are exercised, not just the filter's unit
+ * logic. {@link WardrobeService} and {@link UserRepository} are mocked so no live DynamoDB is
+ * needed — this stays a fast, isolated test per docs/TESTING.md.
  */
 @SpringBootTest(webEnvironment = WebEnvironment.MOCK)
 @AutoConfigureMockMvc
@@ -38,6 +43,16 @@ class SessionAuthFilterTest {
 	@MockitoBean
 	WardrobeService wardrobeService;
 
+	@MockitoBean
+	UserRepository userRepository;
+
+	private static User userWith(String userId, String email) {
+		User user = new User();
+		user.setUserId(userId);
+		user.setEmail(email);
+		return user;
+	}
+
 	@Test
 	void protectedApi_withoutToken_returns401() throws Exception {
 		mockMvc.perform(get("/api/items"))
@@ -45,10 +60,10 @@ class SessionAuthFilterTest {
 	}
 
 	@Test
-	void protectedApi_withValidToken_passesThrough() throws Exception {
+	void validToken_resolvesUserId_andPassesThrough() throws Exception {
 		when(wardrobeService.list()).thenReturn(List.of());
 
-		mockMvc.perform(get("/api/items").header("X-Ensemble-Session", tokenService.issue()))
+		mockMvc.perform(get("/api/items").header("X-Ensemble-Session", tokenService.issue("user-1")))
 			.andExpect(status().isOk());
 	}
 
@@ -56,7 +71,7 @@ class SessionAuthFilterTest {
 	void protectedApi_withValidQueryToken_passesThrough() throws Exception {
 		when(wardrobeService.list()).thenReturn(List.of());
 
-		mockMvc.perform(get("/api/items").param("token", tokenService.issue()))
+		mockMvc.perform(get("/api/items").param("token", tokenService.issue("user-1")))
 			.andExpect(status().isOk());
 	}
 
@@ -67,19 +82,61 @@ class SessionAuthFilterTest {
 	}
 
 	@Test
-	void health_isOpenWithoutToken() throws Exception {
+	void authAndHealth_areOpen() throws Exception {
 		mockMvc.perform(get("/api/health"))
 			.andExpect(status().isOk());
+
+		// POST /api/auth is open: it reaches AuthController (which returns the *login* 401
+		// with the "invalid email or password" body) rather than being short-circuited by
+		// the gate filter (whose 401 body is "authentication required").
+		when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+		mockMvc.perform(post("/api/auth")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\":\"nobody@example.com\",\"password\":\"whatever\"}"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.message").value("invalid email or password"));
 	}
 
 	@Test
-	void auth_isOpenWithoutToken() throws Exception {
-		// Reaches AuthController (which itself rejects the wrong passcode with a 401)
-		// rather than being short-circuited by the gate filter — proven by using the
-		// real test passcode and expecting success, not just "some 401".
-		mockMvc.perform(post("/api/auth")
+	void accounts_isOpen() throws Exception {
+		// POST /api/accounts is a token-free entry point (sign-up): it reaches AccountController
+		// rather than being short-circuited by the gate filter. With no signup passcode configured
+		// in the test context the passcode check fails, so it surfaces the *signup* 401
+		// ("invalid passcode") — proving the request passed the gate — not the gate's own
+		// "authentication required" 401.
+		mockMvc.perform(post("/api/accounts")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"passcode\":\"test-passcode\"}"))
-			.andExpect(status().isOk());
+				.content("{\"email\":\"new@example.com\",\"password\":\"correcthorse\",\"passcode\":\"whatever\"}"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.message").value("invalid passcode"));
+	}
+
+	@Test
+	void me_withoutToken_returns401() throws Exception {
+		mockMvc.perform(get("/api/me"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void me_withValidToken_returns200WithUserIdAndEmail() throws Exception {
+		when(userRepository.findByUserId("user-42"))
+			.thenReturn(Optional.of(userWith("user-42", "demo@example.com")));
+
+		mockMvc.perform(get("/api/me").header("X-Ensemble-Session", tokenService.issue("user-42")))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.userId").value("user-42"))
+			.andExpect(jsonPath("$.email").value("demo@example.com"));
+	}
+
+	@Test
+	void me_withValidTokenButUnknownUser_returns401() throws Exception {
+		when(userRepository.findByUserId("ghost")).thenReturn(Optional.empty());
+
+		// An orphaned but valid token gets the gate's generic "authentication required" 401
+		// (re-authenticate) — not the login "invalid email or password", which would misdescribe
+		// a request that carried a valid token and no credentials.
+		mockMvc.perform(get("/api/me").header("X-Ensemble-Session", tokenService.issue("ghost")))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.message").value("authentication required"));
 	}
 }

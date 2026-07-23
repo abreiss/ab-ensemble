@@ -1,34 +1,64 @@
-// Typed client for the passcode gate (`POST /api/auth`). Follows the `api/items.ts`
-// pattern: resolve on a 2xx response, throw on any non-2xx or network/transport
-// failure. The returned session token is held in `sessionStorage` (cleared on tab
-// close, unlike `localStorage`) so `AuthGate` and the authenticated fetch wrapper can
-// read/clear it without threading it through component state.
+// Typed client for the account endpoints: `POST /api/auth` (email/password login) and
+// `POST /api/accounts` (invite-passcode-gated signup). Follows the `api/items.ts` pattern:
+// resolve on a 2xx response, throw on any non-2xx or network/transport failure. The
+// returned session token is held in `sessionStorage` (cleared on tab close, unlike
+// `localStorage`) so `AuthGate` and the authenticated fetch wrapper can read/clear it
+// without threading it through component state.
 
-const BASE = '/api/auth'
+const LOGIN_URL = '/api/auth'
+const SIGNUP_URL = '/api/accounts'
 
 /** `sessionStorage` key for the signed session token; exported so tests can seed it directly. */
 export const SESSION_TOKEN_STORAGE_KEY = 'ensemble.session.token'
 
-/** Throws a descriptive error for a non-2xx response; otherwise returns it. */
+/** An HTTP error whose `status` lets callers (e.g. `AuthGate`) map it to specific copy. */
+export class HttpError extends Error {
+  readonly status: number
+
+  constructor(action: string, status: number) {
+    super(`${action} failed with status ${status}`)
+    this.name = 'HttpError'
+    this.status = status
+  }
+}
+
+/** Throws an `HttpError` carrying the response status for a non-2xx response. */
 function ensureOk(response: Response, action: string): Response {
   if (!response.ok) {
-    throw new Error(`${action} failed with status ${response.status}`)
+    throw new HttpError(action, response.status)
   }
   return response
 }
 
-/** Trades a passcode for a signed session token, storing it in `sessionStorage`. */
-export async function login(passcode: string): Promise<void> {
+/** POSTs `body` as JSON to `url`, stores the returned `token`, and throws on non-2xx. */
+async function postForToken(
+  url: string,
+  body: Record<string, string>,
+  action: string,
+): Promise<void> {
   const response = ensureOk(
-    await fetch(BASE, {
+    await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ passcode }),
+      body: JSON.stringify(body),
     }),
-    'Login',
+    action,
   )
   const { token } = (await response.json()) as { token: string }
   sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, token)
+}
+
+/** Trades an email/password for a signed session token, storing it in `sessionStorage`. */
+export async function login(email: string, password: string): Promise<void> {
+  await postForToken(LOGIN_URL, { email, password }, 'Login')
+}
+
+/**
+ * Trades an email/password plus the invite passcode for a signed session token
+ * (`POST /api/accounts`), storing it in `sessionStorage`.
+ */
+export async function signup(email: string, password: string, passcode: string): Promise<void> {
+  await postForToken(SIGNUP_URL, { email, password, passcode }, 'Signup')
 }
 
 /** The stored session token, or `null` if not authenticated. */

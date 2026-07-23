@@ -55,6 +55,7 @@ resource "aws_apprunner_service" "app" {
           ENSEMBLE_PHOTOS_S3_BUCKET    = aws_s3_bucket.photos.bucket
           ENSEMBLE_DYNAMODB_TABLE_NAME = aws_dynamodb_table.items.name
           ENSEMBLE_OUTFITS_TABLE_NAME  = aws_dynamodb_table.outfits.name
+          ENSEMBLE_USERS_TABLE_NAME    = aws_dynamodb_table.users.name
         }
 
         # Sourced by ARN, never by value -- App Runner resolves these via the
@@ -63,6 +64,8 @@ resource "aws_apprunner_service" "app" {
           ENSEMBLE_ANTHROPIC_API_KEY = aws_secretsmanager_secret.anthropic_key.arn
           ENSEMBLE_PASSCODE          = aws_secretsmanager_secret.passcode.arn
           ENSEMBLE_SESSION_SECRET    = aws_secretsmanager_secret.session_secret.arn
+          ENSEMBLE_SEED_EMAIL        = aws_secretsmanager_secret.seed_email.arn
+          ENSEMBLE_SEED_PASSWORD     = aws_secretsmanager_secret.seed_password.arn
         }
       }
     }

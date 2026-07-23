@@ -20,8 +20,9 @@ that serves a JSON API under `/api` and the built React/Vite UI as static assets
 
 No Claude API key is needed to build or test. Live vision tagging needs a key in a
 git-ignored `.env` — see [Vision tagging](#vision-tagging-tag-preview). Every
-`/api/**` route except `POST /api/auth` and `GET /api/health` is passcode-gated —
-see [Passcode gate & daily call cap](#passcode-gate--daily-call-cap) before
+`/api/**` route except `POST /api/auth`, `POST /api/accounts`, and
+`GET /api/health` requires a logged-in session — see
+[Passcode gate & daily call cap](#passcode-gate--daily-call-cap) before
 calling `/api/items`, `/api/items/tag`, or `/api/style` locally.
 
 ## Project Layout
@@ -190,35 +191,64 @@ Because this app spends real Claude money and can show a private wardrobe, two
 guards wrap the API — both are transparent once you're logged in and under the
 limit.
 
-**Passcode gate.** Every `/api/**` route except `POST /api/auth` and
-`GET /api/health` requires a valid session token. Set a passcode in your
-git-ignored `.env` (see [Vision tagging](#vision-tagging-tag-preview) for the
-`cp .env.example .env` step):
+**Accounts.** Ensemble uses **email/password accounts** (issue #14) instead of a
+single shared login passcode. Every `/api/**` route except `POST /api/auth`,
+`POST /api/accounts`, and `GET /api/health` requires a valid session token.
 
-```bash
-# .env
-ENSEMBLE_PASSCODE=<your-demo-passcode>
-# optional: ENSEMBLE_SESSION_SECRET=<separate-hmac-key>   (defaults to the passcode)
-```
+- `POST /api/auth` — **log in** to an existing account with `{"email", "password"}`.
+  An unknown email and a wrong password both return the same generic `401`
+  (non-enumerating); malformed input returns `400`.
+- `POST /api/accounts` — **invite-only sign-up** with
+  `{"email", "password", "passcode"}` and auto-login on success. The `passcode`
+  here is the shared **signup/invite code** — set it in your git-ignored `.env`
+  (see [Vision tagging](#vision-tagging-tag-preview) for the `cp .env.example .env`
+  step):
 
-A blank/unset `ENSEMBLE_PASSCODE` leaves the gate **effectively closed** — every
-protected route returns `401` until it's set. Exchange the passcode for a
-signed, expiring (default 12h) session token, then send it as the
+  ```bash
+  # .env
+  ENSEMBLE_PASSCODE=<signup-code>
+  # optional: ENSEMBLE_SESSION_SECRET=<separate-hmac-key>   (defaults to the passcode)
+  ```
+
+  A blank/unset `ENSEMBLE_PASSCODE` leaves **signup** closed — `POST /api/accounts`
+  returns `401` and no account is created — but existing accounts can still log
+  in. A duplicate email returns `409`; an invalid email, a password under 8
+  characters, or a password over 72 bytes returns `400`; a wrong signup passcode
+  returns `401` (no user created).
+- **Seed account.** If both `ENSEMBLE_SEED_EMAIL` and `ENSEMBLE_SEED_PASSWORD`
+  are set in `.env`, a default account is created idempotently on startup
+  (skipped if it already exists), bypassing the signup passcode — a way to get
+  a usable login before you have (or want to share) an invite code. Leave both
+  blank to skip seeding.
+
+Either `/api/auth` or `/api/accounts` returns a signed, expiring (default 12h)
+session token carrying an opaque `userId` (no email/PII). Send it as the
 `X-Ensemble-Session` header on every subsequent call:
 
 ```bash
+# log in with an existing (e.g. seeded) account
 TOKEN=$(curl -s -X POST localhost:8080/api/auth \
-  -H 'Content-Type: application/json' -d '{"passcode":"<your-demo-passcode>"}' \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"<demo-email>","password":"<demo-password>"}' \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["token"])')
 
 curl -s localhost:8080/api/items -H "X-Ensemble-Session: $TOKEN"
 ```
 
+```bash
+# or sign up a new account with the invite passcode (auto-login)
+TOKEN=$(curl -s -X POST localhost:8080/api/accounts \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"<demo-email>","password":"<demo-password>","passcode":"<signup-code>"}' \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["token"])')
+```
+
 `<img src>` requests can't set headers, so gated photo GETs also accept the
 token as a `?token=` query param (the frontend's `photoUrl(id)` does this
-automatically). The frontend itself renders a passcode entry screen, stores the
+automatically). The frontend itself renders a login/sign-up screen, stores the
 token in `sessionStorage`, and returns to that screen on any `401`, so day-to-day
-use just means logging in once per tab.
+use just means logging in once per tab. `GET /api/me` returns
+`{"userId", "email"}` for the authenticated caller.
 
 **Daily call cap.** `POST /api/style` and `POST /api/items/tag` (the two
 Claude-backed endpoints) share one global counter, keyed by UTC calendar day.
@@ -299,14 +329,18 @@ AWS_PROFILE=abreiss-ensemble-terraform terraform plan
 AWS_PROFILE=abreiss-ensemble-terraform terraform apply
 ```
 
-**3. Populate the three secret values out-of-band.** Terraform declares only
+**3. Populate the secret values out-of-band.** Terraform declares only
 empty Secrets Manager containers, so no plaintext ever enters state or git.
-Paste each value in the AWS console (Secrets Manager → secret → *Set secret
-value*), or use the CLI with a git-ignored file so the value stays out of
-shell history:
+Three are required — `abreiss-ensemble-anthropic-key`, `-passcode` (the
+signup/invite code), and `-session-secret` — and two are optional:
+`-seed-email` / `-seed-password`, which auto-seed a default cloud account on
+startup (leave them empty to skip seeding). Paste each value in the AWS console
+(Secrets Manager → secret → *Set secret value*), or use the CLI with a
+git-ignored file so the value stays out of shell history:
 
 ```bash
-# for each of: abreiss-ensemble-anthropic-key, -passcode, -session-secret
+# required: abreiss-ensemble-anthropic-key, -passcode, -session-secret
+# optional: abreiss-ensemble-seed-email, -seed-password (auto-seed a cloud account)
 AWS_PROFILE=abreiss-ensemble-terraform aws secretsmanager put-secret-value \
   --secret-id abreiss-ensemble-anthropic-key --secret-string file://secret.txt
 rm secret.txt

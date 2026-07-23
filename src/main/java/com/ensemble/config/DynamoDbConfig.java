@@ -26,7 +26,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
  * Spring context can start without a live DynamoDB.
  */
 @Configuration
-@EnableConfigurationProperties({DynamoDbProperties.class, PhotoProperties.class})
+@EnableConfigurationProperties({DynamoDbProperties.class, PhotoProperties.class, SeedProperties.class})
 public class DynamoDbConfig {
 
 	@Bean

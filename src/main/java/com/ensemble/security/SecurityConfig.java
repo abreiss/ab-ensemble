@@ -44,8 +44,15 @@ public class SecurityConfig {
 	@PostConstruct
 	void logGateState() {
 		if (!properties.passcodeConfigured()) {
-			log.warn("ensemble.security.passcode is blank — the passcode gate is closed "
-				+ "(every /api/auth attempt will be rejected) until ENSEMBLE_PASSCODE is set");
+			log.warn("ensemble.security.passcode is blank — the signup gate is closed "
+				+ "(every POST /api/accounts attempt will be rejected) until ENSEMBLE_PASSCODE is set. "
+				+ "Existing accounts can still log in via POST /api/auth");
+		}
+		if (!properties.sessionSecretConfigured()) {
+			log.warn("ensemble.security.session-secret is not set — the session-token signing key is "
+				+ "being derived from the shared ENSEMBLE_PASSCODE invite code. Every invited user knows "
+				+ "that code and could therefore forge session tokens for arbitrary userIds. Set a distinct "
+				+ "ENSEMBLE_SESSION_SECRET, especially before per-user data scoping (#15)");
 		}
 	}
 

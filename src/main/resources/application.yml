@@ -27,6 +27,9 @@ ensemble:
     # Dedicated saved-outfits table (issue #26), separate from the items table.
     # The cloud table is Terraform-owned; the env var is injected by App Runner.
     outfits-table-name: ${ENSEMBLE_OUTFITS_TABLE_NAME:ensemble-outfits}
+    # Dedicated user-accounts table (issue #14), keyed on the normalized email.
+    # The cloud table is Terraform-owned; the env var is injected by App Runner.
+    users-table-name: ${ENSEMBLE_USERS_TABLE_NAME:ensemble-users}
     # Create the tables on startup if absent. Disabled in tests (see
     # src/test/resources/application.yml) so context tests need no live DynamoDB.
     auto-create-table: true
@@ -62,6 +65,12 @@ ensemble:
     # single env var is enough to run locally.
     session-secret: ${ENSEMBLE_SESSION_SECRET:}
     session-ttl: PT12H
+  seed:
+    # One-time default account seeded on startup when BOTH are set (issue #14).
+    # Bypasses the signup passcode server-side; idempotent (skips if the email
+    # already exists). Blank/unset -> no seeding. Never commit real values.
+    email: ${ENSEMBLE_SEED_EMAIL:}
+    password: ${ENSEMBLE_SEED_PASSWORD:}
   usage:
     # Global daily cap on Claude-backed calls (POST /api/style, POST /api/items/tag).
     # Counted before the call so a failed/timed-out upstream call still consumes

@@ -20,9 +20,10 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 /**
  * Verifies the startup table bootstrap against a real DynamoDB Local
  * (TestContainers). Drives {@link DynamoDbTableInitializer} directly — no Spring
- * context — so the check is fast and isolated. The initializer ensures BOTH the
- * items and the (dedicated) outfits table on startup (issue #26), so these tests
- * assert both are created and that a re-run is idempotent.
+ * context — so the check is fast and isolated. The initializer ensures the
+ * items, the (dedicated) outfits table (issue #26), and the (dedicated) users
+ * table (issue #14) on startup, so these tests assert all are created and that a
+ * re-run is idempotent.
  */
 @Testcontainers
 class DynamoDbTableInitializerIT {
@@ -30,6 +31,7 @@ class DynamoDbTableInitializerIT {
 	private static final int PORT = 8000;
 	private static final String ITEMS_TABLE = "ensemble-items";
 	private static final String OUTFITS_TABLE = "ensemble-outfits";
+	private static final String USERS_TABLE = "ensemble-users";
 
 	@Container
 	static final GenericContainer<?> DYNAMODB =
@@ -47,17 +49,17 @@ class DynamoDbTableInitializerIT {
 	}
 
 	private DynamoDbProperties props() {
-		return new DynamoDbProperties("unused", "us-east-1", ITEMS_TABLE, OUTFITS_TABLE, true);
+		return new DynamoDbProperties("unused", "us-east-1", ITEMS_TABLE, OUTFITS_TABLE, USERS_TABLE, true);
 	}
 
 	@Test
-	void run_whenAbsent_createsBothItemsAndOutfitsTables() {
+	void run_whenAbsent_createsItemsOutfitsAndUsersTables() {
 		DynamoDbClient client = client();
 		DynamoDbTableInitializer initializer = new DynamoDbTableInitializer(client, props());
 
 		initializer.run(new DefaultApplicationArguments());
 
-		assertThat(client.listTables().tableNames()).contains(ITEMS_TABLE, OUTFITS_TABLE);
+		assertThat(client.listTables().tableNames()).contains(ITEMS_TABLE, OUTFITS_TABLE, USERS_TABLE);
 	}
 
 	@Test
@@ -71,6 +73,7 @@ class DynamoDbTableInitializerIT {
 		assertThatCode(() -> initializer.run(new DefaultApplicationArguments())).doesNotThrowAnyException();
 		assertThat(client.listTables().tableNames()).containsOnlyOnce(ITEMS_TABLE);
 		assertThat(client.listTables().tableNames()).containsOnlyOnce(OUTFITS_TABLE);
+		assertThat(client.listTables().tableNames()).containsOnlyOnce(USERS_TABLE);
 	}
 
 	@Test

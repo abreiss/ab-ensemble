@@ -1353,6 +1353,30 @@ select.input {
   text-align: left;
 }
 
+/* Login/sign-up mode switch: a plain-text button, not a second primary action. */
+.auth-toggle {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.auth-toggle:hover {
+  opacity: 0.8;
+}
+
+.auth-toggle:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 /* ---- Manual assembly: mannequin + drop zones ----------------------------- */
 
 .assemble-entry {

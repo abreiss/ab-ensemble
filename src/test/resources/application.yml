@@ -16,6 +16,7 @@ ensemble:
     region: us-east-1
     table-name: ensemble-items
     outfits-table-name: ensemble-outfits
+    users-table-name: ensemble-users
     auto-create-table: false
   photos:
     dir: build/test-photos

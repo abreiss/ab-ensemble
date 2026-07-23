@@ -12,7 +12,9 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import com.ensemble.outfit.InvalidOutfitException;
 import com.ensemble.outfit.OutfitNotFoundException;
 import com.ensemble.outfit.web.OutfitController;
+import com.ensemble.security.InvalidCredentialsException;
 import com.ensemble.security.InvalidPasscodeException;
+import com.ensemble.security.SessionUserNotFoundException;
 import com.ensemble.security.web.AuthController;
 import com.ensemble.storage.InvalidImageException;
 import com.ensemble.storage.PhotoNotFoundException;
@@ -20,24 +22,29 @@ import com.ensemble.stylist.StylistUnavailableException;
 import com.ensemble.stylist.web.StyleController;
 import com.ensemble.tagging.web.TaggingController;
 import com.ensemble.usage.DailyCapExceededException;
+import com.ensemble.user.DuplicateEmailException;
+import com.ensemble.user.web.AccountController;
+import com.ensemble.user.web.MeController;
 import com.ensemble.wardrobe.ItemNotFoundException;
 
 import jakarta.validation.ConstraintViolationException;
 
 /**
  * Maps domain and request errors to HTTP responses for the wardrobe, tagging,
- * stylist, and auth APIs: unknown ids → 404, invalid input (validation, bad range,
+ * stylist, auth, and account APIs: unknown ids → 404, invalid input (validation, bad range,
  * missing/invalid photo, malformed JSON) → 400, an unavailable/ungroundable
- * stylist → 503, a wrong/blank passcode → 401. Returns a small sanitized error body.
- * The tag-preview, style, auth, and outfit controllers are covered here too, so
- * their failures reuse the same sanitized error shape.
+ * stylist → 503, a wrong/blank passcode or bad login → 401, a duplicate sign-up email → 409.
+ * Returns a small sanitized error body. The tag-preview, style, auth, account, me, and outfit
+ * controllers are covered here too, so their failures reuse the same sanitized error shape.
  */
 @RestControllerAdvice(assignableTypes = {
 	WardrobeController.class,
 	TaggingController.class,
 	StyleController.class,
 	AuthController.class,
-	OutfitController.class
+	OutfitController.class,
+	MeController.class,
+	AccountController.class
 })
 public class ApiExceptionHandler {
 
@@ -115,6 +122,38 @@ public class ApiExceptionHandler {
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)
 	public ErrorResponse handleInvalidPasscode(InvalidPasscodeException ex) {
 		return new ErrorResponse("unauthorized", "invalid passcode");
+	}
+
+	/**
+	 * Login failed — unknown email or wrong password. The same generic message is returned
+	 * for both so the response never reveals whether an email is registered (no enumeration).
+	 */
+	@ExceptionHandler(InvalidCredentialsException.class)
+	@ResponseStatus(HttpStatus.UNAUTHORIZED)
+	public ErrorResponse handleInvalidCredentials(InvalidCredentialsException ex) {
+		return new ErrorResponse("unauthorized", "invalid email or password");
+	}
+
+	/**
+	 * A cryptographically valid session token whose account no longer exists (orphaned token).
+	 * Not a login failure, so it returns the gate's generic {@code 401 "authentication required"}
+	 * — telling the client to re-authenticate — rather than the login "invalid email or password",
+	 * which would misdescribe a request that carried a valid token and no credentials.
+	 */
+	@ExceptionHandler(SessionUserNotFoundException.class)
+	@ResponseStatus(HttpStatus.UNAUTHORIZED)
+	public ErrorResponse handleSessionUserNotFound(SessionUserNotFoundException ex) {
+		return new ErrorResponse("unauthorized", "authentication required");
+	}
+
+	/**
+	 * Sign-up hit an email that is already registered (the atomic {@code attribute_not_exists}
+	 * conditional put failed). The message is a fixed, user-safe string — it echoes no internals.
+	 */
+	@ExceptionHandler(DuplicateEmailException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponse handleDuplicateEmail(DuplicateEmailException ex) {
+		return new ErrorResponse("conflict", "email already registered");
 	}
 
 	/** The global daily call cap has been exceeded; Claude was not called for this request. */
