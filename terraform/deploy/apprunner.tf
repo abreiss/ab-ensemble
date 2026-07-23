@@ -64,6 +64,8 @@ resource "aws_apprunner_service" "app" {
           ENSEMBLE_ANTHROPIC_API_KEY = aws_secretsmanager_secret.anthropic_key.arn
           ENSEMBLE_PASSCODE          = aws_secretsmanager_secret.passcode.arn
           ENSEMBLE_SESSION_SECRET    = aws_secretsmanager_secret.session_secret.arn
+          ENSEMBLE_SEED_EMAIL        = aws_secretsmanager_secret.seed_email.arn
+          ENSEMBLE_SEED_PASSWORD     = aws_secretsmanager_secret.seed_password.arn
         }
       }
     }

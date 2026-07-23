@@ -65,6 +65,12 @@ ensemble:
     # single env var is enough to run locally.
     session-secret: ${ENSEMBLE_SESSION_SECRET:}
     session-ttl: PT12H
+  seed:
+    # One-time default account seeded on startup when BOTH are set (issue #14).
+    # Bypasses the signup passcode server-side; idempotent (skips if the email
+    # already exists). Blank/unset -> no seeding. Never commit real values.
+    email: ${ENSEMBLE_SEED_EMAIL:}
+    password: ${ENSEMBLE_SEED_PASSWORD:}
   usage:
     # Global daily cap on Claude-backed calls (POST /api/style, POST /api/items/tag).
     # Counted before the call so a failed/timed-out upstream call still consumes

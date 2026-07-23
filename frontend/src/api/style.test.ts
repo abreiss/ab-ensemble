@@ -51,7 +51,7 @@ function lastCall(): [string, RequestInit] {
 /** Seeds a session token via the real `login` flow rather than poking storage directly. */
 async function seedToken(token: string): Promise<void> {
   fetchMock.mockResolvedValueOnce(jsonResponse({ token }))
-  await login('any-passcode')
+  await login('any@example.com', 'any-password')
 }
 
 beforeEach(() => {

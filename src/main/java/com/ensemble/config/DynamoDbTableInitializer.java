@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -27,8 +29,12 @@ import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
  * set it to {@code false} so a Spring context can load without a live DynamoDB;
  * integration tests drive {@link #ensureTable(String, String)} directly against
  * TestContainers.
+ *
+ * <p>Ordered to run before {@code SeedAccountRunner} (issue #14), which seeds a
+ * default account into the users table this runner creates in local dev.
  */
 @Component
+@Order(Ordered.LOWEST_PRECEDENCE - 100)
 @ConditionalOnProperty(name = "ensemble.dynamodb.auto-create-table", havingValue = "true", matchIfMissing = true)
 public class DynamoDbTableInitializer implements ApplicationRunner {
 

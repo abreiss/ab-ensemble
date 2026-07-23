@@ -19,3 +19,13 @@ resource "aws_secretsmanager_secret" "session_secret" {
   name        = "${local.prefix}-session-secret"
   description = "HMAC key for signing session tokens. Terraform manages the container only; the value is set out-of-band."
 }
+
+resource "aws_secretsmanager_secret" "seed_email" {
+  name        = "${local.prefix}-seed-email"
+  description = "Email for the idempotent startup-seeded account (issue #14). Terraform manages the container only; the value is set out-of-band."
+}
+
+resource "aws_secretsmanager_secret" "seed_password" {
+  name        = "${local.prefix}-seed-password"
+  description = "Password for the idempotent startup-seeded account (issue #14). Terraform manages the container only; the value is set out-of-band."
+}
