@@ -29,7 +29,10 @@ function errorMessageFor(mode: Mode, err: unknown): string {
     if (status === 400) return 'Enter a valid email and password.'
   } else {
     if (status === 409) return 'That email is already registered.'
-    if (status === 400) return 'Password must be at least 8 characters.'
+    // A signup 400 can come from a bad email, a too-short password, or a blank
+    // invite code; HttpError only carries the status, so use a generic message
+    // (mirrors the login-400 copy) rather than blaming one field.
+    if (status === 400) return 'Check your email, password, and signup code.'
     if (status === 401) return "That signup code isn't valid."
   }
   return 'Something went wrong. Try again.'

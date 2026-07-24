@@ -57,6 +57,12 @@ describe('auth API client', () => {
       })
       expect(getToken()).toBeNull()
     })
+
+    it('propagates a network/transport failure', async () => {
+      fetchMock.mockRejectedValue(new TypeError('offline'))
+      await expect(login('jane@example.com', 'correct-horse-battery')).rejects.toThrow()
+      expect(getToken()).toBeNull()
+    })
   })
 
   describe('signup', () => {
@@ -101,6 +107,14 @@ describe('auth API client', () => {
       await expect(signup('new@example.com', 'a-strong-password', 'wrong-code')).rejects.toMatchObject(
         { status: 401 },
       )
+      expect(getToken()).toBeNull()
+    })
+
+    it('propagates a network/transport failure', async () => {
+      fetchMock.mockRejectedValue(new TypeError('offline'))
+      await expect(
+        signup('new@example.com', 'a-strong-password', 'invite-code'),
+      ).rejects.toThrow()
       expect(getToken()).toBeNull()
     })
   })
