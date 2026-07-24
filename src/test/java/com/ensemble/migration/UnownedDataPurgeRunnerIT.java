@@ -26,6 +26,7 @@ import com.ensemble.wardrobe.WardrobeRepository;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
@@ -49,6 +50,9 @@ class UnownedDataPurgeRunnerIT {
 
 	private WardrobeRepository wardrobeRepository;
 	private OutfitRepository outfitRepository;
+	private DynamoDbEnhancedClient enhanced;
+	private String itemsTable;
+	private String outfitsTable;
 
 	@BeforeEach
 	void setUp() {
@@ -59,12 +63,12 @@ class UnownedDataPurgeRunnerIT {
 			.credentialsProvider(StaticCredentialsProvider.create(
 				AwsBasicCredentials.create("local", "local")))
 			.build();
-		DynamoDbEnhancedClient enhanced = DynamoDbEnhancedClient.builder()
+		enhanced = DynamoDbEnhancedClient.builder()
 			.dynamoDbClient(client)
 			.build();
 
-		String itemsTable = "items-" + UUID.randomUUID();
-		String outfitsTable = "outfits-" + UUID.randomUUID();
+		itemsTable = "items-" + UUID.randomUUID();
+		outfitsTable = "outfits-" + UUID.randomUUID();
 		DynamoDbProperties props =
 			new DynamoDbProperties(endpoint, "us-east-1", itemsTable, outfitsTable, "unused-users", true);
 		DynamoDbTableInitializer init = new DynamoDbTableInitializer(client, props);
@@ -74,25 +78,41 @@ class UnownedDataPurgeRunnerIT {
 		outfitRepository = new OutfitRepository(enhanced, props);
 	}
 
+	/**
+	 * Seeds an item/outfit straight through the enhanced client, deliberately
+	 * bypassing the repositories' owner-stamp guard (spec #15). This is the faithful
+	 * way to plant the legacy pre-#15 <em>unowned</em> rows (and the reserved
+	 * {@code usage#<date>} counter row) the purge exists to act on — data that only
+	 * ever reaches the table through a path other than the guarded {@code save()}.
+	 */
+	private void saveUnowned(Item item) {
+		enhanced.table(itemsTable, TableSchema.fromBean(Item.class)).putItem(item);
+	}
+
+	private void saveUnowned(SavedOutfit outfit) {
+		enhanced.table(outfitsTable, TableSchema.fromBean(SavedOutfit.class)).putItem(outfit);
+	}
+
 	@Test
 	void purge_whenEnabled_removesOnlyUnownedRowsAndTheirPhotos_leavingOwnedAndUsageRows() {
 		Map<String, byte[]> photos = new HashMap<>();
 		PhotoStorage photoStorage = inMemory(photos);
 
-		// Unowned item with a stored photo (a legacy pre-ownership row).
-		wardrobeRepository.save(item("orphan-1", null, "orphan-1.jpg"));
+		// Unowned item with a stored photo (a legacy pre-ownership row). Seeded via the
+		// raw seam since the guarded save() now refuses owner-less writes.
+		saveUnowned(item("orphan-1", null, "orphan-1.jpg"));
 		photos.put("orphan-1.jpg", new byte[] {1, 2, 3});
 		// Unowned item whose photo is ALREADY missing — resilience: the run must not abort.
-		wardrobeRepository.save(item("orphan-2", null, "orphan-2.jpg"));
-		// Owned item + its photo — must survive.
+		saveUnowned(item("orphan-2", null, "orphan-2.jpg"));
+		// Owned item + its photo — must survive (goes through the guarded save()).
 		wardrobeRepository.save(item("owned-1", "userA", "userA/owned-1.jpg"));
 		photos.put("userA/owned-1.jpg", new byte[] {9});
 		// Reserved usage#<date> daily-cap counter row (no userId) — must survive.
 		Item usageRow = new Item();
 		usageRow.setItemId("usage#2026-07-16");
-		wardrobeRepository.save(usageRow);
+		saveUnowned(usageRow);
 		// Unowned + owned outfits.
-		outfitRepository.save(outfit("orphan-outfit", null));
+		saveUnowned(outfit("orphan-outfit", null));
 		outfitRepository.save(outfit("owned-outfit", "userA"));
 
 		newRunner(photoStorage, true).run(null);
@@ -113,9 +133,10 @@ class UnownedDataPurgeRunnerIT {
 	void purge_whenDisabled_leavesEverythingUntouched() {
 		Map<String, byte[]> photos = new HashMap<>();
 		PhotoStorage photoStorage = inMemory(photos);
-		wardrobeRepository.save(item("orphan-1", null, "orphan-1.jpg"));
+		// Seeded via the raw seam (guarded save() refuses owner-less writes).
+		saveUnowned(item("orphan-1", null, "orphan-1.jpg"));
 		photos.put("orphan-1.jpg", new byte[] {1});
-		outfitRepository.save(outfit("orphan-outfit", null));
+		saveUnowned(outfit("orphan-outfit", null));
 
 		newRunner(photoStorage, false).run(null);
 

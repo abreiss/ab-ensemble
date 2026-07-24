@@ -24,6 +24,7 @@ import com.ensemble.wardrobe.dto.ItemResponse;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
@@ -43,6 +44,8 @@ class WardrobeRepositoryIT {
 			.withExposedPorts(PORT);
 
 	private WardrobeRepository repository;
+	private DynamoDbEnhancedClient enhanced;
+	private String tableName;
 
 	@BeforeEach
 	void setUp() {
@@ -53,11 +56,11 @@ class WardrobeRepositoryIT {
 			.credentialsProvider(StaticCredentialsProvider.create(
 				AwsBasicCredentials.create("local", "local")))
 			.build();
-		DynamoDbEnhancedClient enhanced = DynamoDbEnhancedClient.builder()
+		enhanced = DynamoDbEnhancedClient.builder()
 			.dynamoDbClient(client)
 			.build();
 
-		String tableName = "items-" + UUID.randomUUID();
+		tableName = "items-" + UUID.randomUUID();
 		DynamoDbProperties props = new DynamoDbProperties(endpoint, "us-east-1", tableName, "unused-outfits", "unused-users", true);
 		new DynamoDbTableInitializer(client, props).ensureTable(tableName, "itemId", new GsiSpec("userId", "userId-index"));
 		repository = new WardrobeRepository(enhanced, props);
@@ -66,6 +69,10 @@ class WardrobeRepositoryIT {
 	private Item sampleItem(String id) {
 		Item item = new Item();
 		item.setItemId(id);
+		// A "sample" item represents real, owned wardrobe data; stamp a default owner
+		// so it clears WardrobeRepository.save's owner-stamp guard. Tests that need an
+		// unowned/legacy row override this to null/blank and seed via saveUnowned(...).
+		item.setUserId("owner-default");
 		item.setCategory("top");
 		item.setPrimaryColor("navy");
 		item.setSecondaryColor("white");
@@ -78,6 +85,17 @@ class WardrobeRepositoryIT {
 		item.setLastWorn(null);
 		item.setWornCount(0);
 		return item;
+	}
+
+	/**
+	 * Seeds a row straight through the enhanced client, deliberately bypassing
+	 * {@link WardrobeRepository#save}'s owner-stamp guard. This is the faithful way
+	 * to plant a legacy pre-#15 <em>unowned</em> row or a reserved {@code usage#<date>}
+	 * counter row — data that only ever reaches the table through a path other than
+	 * the guarded {@code save()} (old code, or the low-level usage writer).
+	 */
+	private void saveUnowned(Item item) {
+		enhanced.table(tableName, TableSchema.fromBean(Item.class)).putItem(item);
 	}
 
 	@Test
@@ -148,10 +166,11 @@ class WardrobeRepositoryIT {
 	@Test
 	void findByUserId_excludesUsageCounterRows() {
 		// usage#<date> daily-cap counter rows carry no userId, so the sparse GSI
-		// must never surface them in a per-user query.
+		// must never surface them in a per-user query. Seed the counter row via the
+		// raw seam (the guarded save() would reject an owner-less row).
 		Item usageRow = new Item();
 		usageRow.setItemId("usage#2026-07-16");
-		repository.save(usageRow);
+		saveUnowned(usageRow);
 		Item owned = sampleItem("real");
 		owned.setUserId("userA");
 		repository.save(owned);
@@ -168,16 +187,19 @@ class WardrobeRepositoryIT {
 		// unowned), an owned row, and a reserved usage#<date> counter row (also no
 		// userId, but legitimate) share the table.
 		Item orphan = sampleItem("orphan");
+		orphan.setUserId(null);
 		Item blankOwner = sampleItem("blank");
 		blankOwner.setUserId("   ");
 		Item owned = sampleItem("owned");
 		owned.setUserId("userA");
 		Item usageRow = new Item();
 		usageRow.setItemId("usage#2026-07-16");
-		repository.save(orphan);
-		repository.save(blankOwner);
+		// The unowned + usage rows are seeded via the raw seam (the guarded save()
+		// refuses owner-less writes); only the owned row goes through repository.save.
+		saveUnowned(orphan);
+		saveUnowned(blankOwner);
 		repository.save(owned);
-		repository.save(usageRow);
+		saveUnowned(usageRow);
 
 		List<Item> unowned = repository.findUnowned();
 

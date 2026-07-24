@@ -34,8 +34,22 @@ public class OutfitRepository {
 		this.table = enhancedClient.table(props.outfitsTableName(), TableSchema.fromBean(SavedOutfit.class));
 	}
 
-	/** Creates or replaces an outfit (full put). Returns the saved outfit. */
+	/**
+	 * Creates or replaces an outfit (full put). Returns the saved outfit.
+	 *
+	 * <p><strong>Owner-stamp precondition (spec #15).</strong> {@code userId} is the
+	 * entire per-user security boundary, so this persistence chokepoint refuses to
+	 * write an outfit with a null or blank owner — the last-line guarantee that no
+	 * owner-less ("unowned") outfit is ever persisted, independent of whether an
+	 * individual caller remembered to stamp the owner. A legacy pre-#15 unowned
+	 * outfit therefore never reaches the table through this method; such rows exist
+	 * only via paths that predate this guard (and the purge exists to remove them).
+	 */
 	public SavedOutfit save(SavedOutfit outfit) {
+		if (outfit.getUserId() == null || outfit.getUserId().isBlank()) {
+			throw new IllegalStateException(
+				"refusing to persist an outfit with no owner (userId); every write must be owner-stamped (spec #15)");
+		}
 		table.putItem(outfit);
 		return outfit;
 	}
