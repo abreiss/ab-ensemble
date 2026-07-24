@@ -198,6 +198,20 @@ class WardrobeServiceTest {
 	}
 
 	@Test
+	void updateTags_otherUsersItem_throwsNotFound() {
+		// An item owned by userB must be indistinguishable from a missing one to userA — the
+		// ownership choke point throws the same non-enumerating ItemNotFoundException and
+		// touches nothing (userB's item is never mutated on userA's behalf).
+		Item foreign = existing("x");
+		foreign.setUserId("userB");
+		when(repository.findById("x")).thenReturn(Optional.of(foreign));
+
+		assertThatExceptionOfType(ItemNotFoundException.class)
+			.isThrownBy(() -> service.updateTags(USER, "x", tags()));
+		verify(repository, never()).save(any());
+	}
+
+	@Test
 	void delete_removesItemRecordBeforePhoto() {
 		when(repository.findById("x")).thenReturn(Optional.of(existing("x")));
 
@@ -222,6 +236,21 @@ class WardrobeServiceTest {
 	}
 
 	@Test
+	void delete_otherUsersItem_throwsNotFound() {
+		// An item owned by userB must be indistinguishable from a missing one to userA — the
+		// ownership choke point throws the same non-enumerating ItemNotFoundException and
+		// touches nothing, so userA can never delete another user's item or its photo.
+		Item foreign = existing("x");
+		foreign.setUserId("userB");
+		when(repository.findById("x")).thenReturn(Optional.of(foreign));
+
+		assertThatExceptionOfType(ItemNotFoundException.class)
+			.isThrownBy(() -> service.delete(USER, "x"));
+		verify(repository, never()).deleteById(any());
+		verify(photoStorage, never()).delete(any());
+	}
+
+	@Test
 	void loadPhoto_returnsBytesFromStorage() {
 		when(repository.findById("x")).thenReturn(Optional.of(existing("x")));
 		when(photoStorage.load(USER + "/x.jpg")).thenReturn(new byte[]{9, 9});
@@ -235,6 +264,20 @@ class WardrobeServiceTest {
 
 		assertThatExceptionOfType(ItemNotFoundException.class)
 			.isThrownBy(() -> service.loadPhoto(USER, "nope"));
+		verify(photoStorage, never()).load(any());
+	}
+
+	@Test
+	void loadPhoto_otherUsersItem_throwsNotFound() {
+		// The headline IDOR: an item owned by userB must be indistinguishable from a missing
+		// one to userA — the ownership choke point throws the same non-enumerating
+		// ItemNotFoundException, so userA's image-byte read never reaches another user's photo.
+		Item foreign = existing("x");
+		foreign.setUserId("userB");
+		when(repository.findById("x")).thenReturn(Optional.of(foreign));
+
+		assertThatExceptionOfType(ItemNotFoundException.class)
+			.isThrownBy(() -> service.loadPhoto(USER, "x"));
 		verify(photoStorage, never()).load(any());
 	}
 
@@ -290,6 +333,20 @@ class WardrobeServiceTest {
 
 		assertThatExceptionOfType(ItemNotFoundException.class)
 			.isThrownBy(() -> service.markWorn(USER, "nope"));
+		verify(repository, never()).save(any());
+	}
+
+	@Test
+	void markWorn_otherUsersItem_throwsNotFound() {
+		// An item owned by userB must be indistinguishable from a missing one to userA — the
+		// ownership choke point throws the same non-enumerating ItemNotFoundException and
+		// touches nothing, so userA can never bump another user's wear-history.
+		Item foreign = existing("x");
+		foreign.setUserId("userB");
+		when(repository.findById("x")).thenReturn(Optional.of(foreign));
+
+		assertThatExceptionOfType(ItemNotFoundException.class)
+			.isThrownBy(() -> service.markWorn(USER, "x"));
 		verify(repository, never()).save(any());
 	}
 }
