@@ -14,8 +14,9 @@ proof docs at face value.
 - **Overall: PASS** — no gate tripped (GATE A/B/C/D/E/F all satisfied).
 - **Implementation Ready: Yes** — every functional requirement across all five units is
   implemented and verified with file:line evidence, the full backend + frontend suites are
-  green, critical-logic branch coverage is 100%, and Terraform validates; the only follow-up
-  is a housekeeping commit (see Issue V-1).
+  green, critical-logic branch coverage is 100%, and Terraform validates. The one prior
+  follow-up — committing Unit 5 — has since been completed as `c71126f` (see Issue V-1, now
+  RESOLVED).
 - **Key metrics:**
   - **% Requirements Verified: 100%** (21/21 functional requirements Verified; 0 Failed; 0 Unknown).
   - **% Proof Artifacts Working: 100%** — backend `tests=403 failures=0 errors=0`; frontend
@@ -23,8 +24,9 @@ proof docs at face value.
     `WardrobeRepository`, `OutfitRepository`; `terraform validate` → *Success*.
   - **Files Changed vs Expected:** all changed core/supporting files map to the task list's
     Relevant Files and to a spec unit. The single out-of-list change (`UserRepository.java`)
-    is a javadoc-only cleanup with clear linkage. **Unit 5 is implemented but uncommitted** in
-    the working tree (Issue V-1, MEDIUM traceability — non-blocking).
+    is a javadoc-only cleanup with clear linkage. Unit 5 — implemented and green on the working
+    tree when this report was written — has since been committed as `c71126f` (Issue V-1,
+    originally MEDIUM traceability, now **RESOLVED**).
 
 ## 2) Coverage Matrix
 
@@ -65,7 +67,7 @@ proof docs at face value.
 | DTOs at boundary; stylist reasons over text tags only | Verified | Controllers return DTOs; stylist builds text from `ItemResponse`, no image bytes |
 | Mock external boundaries; DynamoDB Local for round-trips; no live network | Verified | Claude client & S3 mocked in unit tests; TestContainers ITs; suite runs offline |
 | Infra validated (`fmt`/`validate` + Access Analyzer lint), not unit-tested | Verified | `terraform fmt -check -recursive` clean; `validate` → *Success*; rendered lint JSON mirrors HCL |
-| Conventional commits, ~one per demoable unit | **Partial** | Units 1–4 = 4 clean conventional commits mapped to tasks; **Unit 5 is uncommitted** (Issue V-1) |
+| Conventional commits, ~one per demoable unit | Verified | All five units are clean conventional commits mapped to tasks: Units 1–4, plus Unit 5 committed as `c71126f` (Issue V-1, resolved) |
 | Frontend suite still passes (Non-Goal #7) | Verified | `vitest --run` → 32 files / **374 tests** passed; no frontend source change |
 
 ### Proof Artifacts
@@ -87,7 +89,7 @@ proof docs at face value.
 
 | Severity | Issue | Impact | Recommendation |
 | --- | --- | --- | --- |
-| **MEDIUM** | **Unit 5 (purge runner) is implemented but uncommitted.** `git log main..HEAD` shows 4 commits (Units 1–4 only). The working tree still holds `src/main/java/com/ensemble/migration/{UnownedDataPurgeRunner,MigrationProperties}.java`, its two tests, and modified `DynamoDbConfig.java`, `Wardrobe/OutfitRepository.java` (`findUnowned`), `application.yml`, `src/test/resources/application.yml`, `.env.example`, `apprunner.tf`, `variables.tf`, plus `15-task-05-proofs.md`. | Git traceability (R4) for Unit 5 is currently absent; requirement verification itself is unaffected (all files present and tested green on the working tree). | Commit the Unit 5 changes as one conventional commit (e.g. `feat(scoping): one-time opt-in purge of pre-existing unowned data`) referencing spec-15 T5.0, before opening the PR. |
+| **MEDIUM** → **RESOLVED (c71126f)** | **Unit 5 (purge runner) was implemented but uncommitted at the time of validation.** `git log main..HEAD` then showed 4 commits (Units 1–4 only); the working tree still held `src/main/java/com/ensemble/migration/{UnownedDataPurgeRunner,MigrationProperties}.java`, its two tests, and modified `DynamoDbConfig.java`, `Wardrobe/OutfitRepository.java` (`findUnowned`), `application.yml`, `src/test/resources/application.yml`, `.env.example`, `apprunner.tf`, `variables.tf`, plus `15-task-05-proofs.md`. | Git traceability (R4) for Unit 5 was momentarily absent; requirement verification itself was never affected (all files present and tested green on the working tree). | **Resolved:** the Unit 5 changes were committed as one conventional commit `c71126f` (*"feat(scoping): one-time opt-in purge of pre-existing unowned data"*), referencing spec-15 T5.0 — the direct parent of this document's own commit. |
 | **LOW** | `UserRepository.java` changed in the Unit-4 commit but is **not** in the task list's Relevant Files. | Potential traceability ambiguity only. | None required — verified as a **javadoc-only** edit removing a now-stale reference to the `WardrobeRepository.findAll()` deleted in the same commit; behavior and the users-table scan are unchanged, so Non-Goal #4 holds. Recorded here for completeness. |
 
 No CRITICAL or HIGH issues. No `Unknown` coverage entries. No unmapped out-of-scope core file changes.
@@ -102,7 +104,9 @@ d98f131 feat(scoping): user-scoped stylist + cross-user grounding guardrail     
 5f46daa feat(scoping): ownership-enforced wardrobe & outfit APIs                 (Unit 2)
 6b81983 feat(scoping): owner-stamped, per-user-queryable data model + GSI IaC/IAM (Unit 1)
 ```
-Each commit body carries a `Related to T#.0 in Spec 15` trailer. Unit 5 has **no commit** (working tree only — Issue V-1).
+Each commit body carries a `Related to T#.0 in Spec 15` trailer. This appendix's `git log main..HEAD`
+was captured while Unit 5 was still uncommitted; Unit 5 was subsequently committed as `c71126f`
+(Issue V-1, resolved).
 
 **Backend suite** (`./gradlew test -PskipFrontend`; aggregated from `build/test-results/test/*.xml`):
 
@@ -158,10 +162,10 @@ validate:   Success! The configuration is valid.
 
 ## How to Continue the SDD Workflow
 
-Likely next phase action: this feature's SDD workflow is complete — validation **PASSED**. Before
-merging, commit the Unit 5 changes (Issue V-1) and do a final human code review of the completed
-implementation and this validation report. The next SDD action would be starting Phase 1 for a new
-feature.
+Likely next phase action: this feature's SDD workflow is complete — validation **PASSED**. Unit 5
+has since been committed (`c71126f`, Issue V-1 resolved); the remaining step before merging is a
+final human code review of the completed implementation and this validation report. The next SDD
+action would be starting Phase 1 for a new feature.
 
 To continue the workflow in this chat, reply with:
 
@@ -172,3 +176,11 @@ repository state from the persisted spec/task/audit/proof/validation artifacts.
 
 **Validation Completed:** 2026-07-23
 **Validation Performed By:** Claude Opus 4.8 (1M context)
+
+---
+
+**Addendum (2026-07-24):** Issue V-1 resolved — Unit 5 was committed as `c71126f`
+(*"feat(scoping): one-time opt-in purge of pre-existing unowned data"*), the direct parent of this
+document's own commit `8a3c60dd`. The finding was raised while Unit 5 was still uncommitted in the
+working tree; the Evidence Appendix's `git log main..HEAD` predates that commit. Requirement
+verification was unaffected — all Unit 5 files were present and green when the report was written.
