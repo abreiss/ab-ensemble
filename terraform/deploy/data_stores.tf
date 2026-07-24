@@ -87,19 +87,25 @@ resource "aws_dynamodb_table" "outfits" {
   }
 }
 
-# User accounts (spec #14). A dedicated table -- email partition key (normalized
-# to lowercase by the app), generated userId + bcrypt passwordHash as non-key
-# attributes -- deliberately separate from the items/outfits tables, matching the
-# single-item, no-GSI data pattern. The running app reaches it through the same
-# instance-role grant, already scoped to table/${local.prefix}-* (iam.tf), so
-# this adds no IAM diff.
+# User accounts (spec #14; username migration spec #34). A dedicated table --
+# username partition key (normalized to lowercase by the app), generated userId +
+# bcrypt passwordHash as non-key attributes -- deliberately separate from the
+# items/outfits tables, matching the single-item, no-GSI data pattern. The running
+# app reaches it through the same instance-role grant, already scoped to
+# table/${local.prefix}-* (iam.tf), so this adds no IAM diff.
+#
+# NOTE (spec #34): the partition key moved from "email" to "username". DynamoDB
+# cannot change a key schema in place, so applying this change DESTROYS AND
+# RECREATES the table -- any existing cloud accounts are wiped (recreate, not
+# migrate; acceptable at demo scale per Resolved Decision D2). Deliberate,
+# operator-run apply only.
 resource "aws_dynamodb_table" "users" {
   name         = "${local.prefix}-users"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "email"
+  hash_key     = "username"
 
   attribute {
-    name = "email"
+    name = "username"
     type = "S"
   }
 }
