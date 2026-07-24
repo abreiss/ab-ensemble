@@ -144,7 +144,7 @@ describe('AuthGate', () => {
     expect(await screen.findByText('Enter a valid email and password.')).toBeInTheDocument()
   })
 
-  it('shows "Password must be at least 8 characters." for a signup 400', async () => {
+  it('shows "Check your email, password, and signup code." for a signup 400', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: 'bad_request' }, 400))
     const user = userEvent.setup()
     render(
@@ -159,7 +159,9 @@ describe('AuthGate', () => {
     await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
     await user.click(screen.getByRole('button', { name: /^sign up$/i }))
 
-    expect(await screen.findByText('Password must be at least 8 characters.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Check your email, password, and signup code.'),
+    ).toBeInTheDocument()
   })
 
   it('shows "That signup code isn\'t valid." for a signup 401', async () => {
