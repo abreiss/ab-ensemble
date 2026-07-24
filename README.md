@@ -252,11 +252,25 @@ created before this change must be **recreated**, not migrated — the same
 4. Set `ENSEMBLE_SEED_USERNAME` and `ENSEMBLE_SEED_PASSWORD` in `.env` and
    restart once more to reseed the default account.
 
-**Operator follow-up (cloud, out-of-band).** The deployed seed account is
-Terraform-owned: `terraform/deploy/apprunner.tf` (and `secrets.tf`) still
-declare and inject `ENSEMBLE_SEED_EMAIL`. Renaming that env var to
-`ENSEMBLE_SEED_USERNAME` is a separate out-of-band Terraform change for the
-operator to make — it is not part of this code change.
+**Migrating the cloud `ensemble-users` table (operator-run Terraform).** The
+cloud users table is Terraform-owned, so its key schema does **not** change when
+CI deploys the new app image — the username app would then fail against the old
+`email`-keyed table. `terraform/deploy/data_stores.tf` now declares the
+`username` partition key, and the seed secret/env var have been renamed
+`ENSEMBLE_SEED_EMAIL` → `ENSEMBLE_SEED_USERNAME` (`apprunner.tf`, `secrets.tf`,
+`variables.tf`). Because DynamoDB cannot alter a key schema in place, applying
+this **destroys and recreates** `<prefix>-users`, wiping any existing cloud
+accounts (recreate, not migrate; acceptable at demo scale per Resolved Decision
+D2). Run as the scoped `abreiss-ensemble-terraform` identity:
+
+1. `terraform plan` — expect the `aws_dynamodb_table.users` **replacement**, plus
+   (with `seed_account_enabled` left `false`) no seed-secret resources and no
+   seed env vars on the service.
+2. `terraform apply` — do this promptly: until it runs, the CI-deployed username
+   app is broken against the still-`email`-keyed table (account calls 500).
+3. Optional: to seed a cloud account, set `seed_account_enabled = true`, populate
+   the `<prefix>-seed-username` / `<prefix>-seed-password` secret values
+   out-of-band, then apply — otherwise use invite-only signup (`ENSEMBLE_PASSCODE`).
 
 Either `/api/auth` or `/api/accounts` returns a signed, expiring (default 12h)
 session token carrying an opaque `userId` (no username/PII). Send it as the

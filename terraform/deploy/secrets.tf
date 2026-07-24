@@ -25,10 +25,10 @@ resource "aws_secretsmanager_secret" "session_secret" {
 # runtime_environment_secrets never references an empty container -- an
 # unresolvable secret fails the App Runner revision and rolls the service back.
 # See apprunner.tf and variables.tf.
-resource "aws_secretsmanager_secret" "seed_email" {
+resource "aws_secretsmanager_secret" "seed_username" {
   count       = var.seed_account_enabled ? 1 : 0
-  name        = "${local.prefix}-seed-email"
-  description = "Email for the idempotent startup-seeded account (issue #14). Terraform manages the container only; the value is set out-of-band."
+  name        = "${local.prefix}-seed-username"
+  description = "Username for the idempotent startup-seeded account (issues #14, #34). Terraform manages the container only; the value is set out-of-band."
 }
 
 resource "aws_secretsmanager_secret" "seed_password" {

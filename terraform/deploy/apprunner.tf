@@ -77,7 +77,7 @@ resource "aws_apprunner_service" "app" {
             ENSEMBLE_SESSION_SECRET    = aws_secretsmanager_secret.session_secret.arn
           },
           var.seed_account_enabled ? {
-            ENSEMBLE_SEED_EMAIL    = aws_secretsmanager_secret.seed_email[0].arn
+            ENSEMBLE_SEED_USERNAME = aws_secretsmanager_secret.seed_username[0].arn
             ENSEMBLE_SEED_PASSWORD = aws_secretsmanager_secret.seed_password[0].arn
           } : {}
         )
