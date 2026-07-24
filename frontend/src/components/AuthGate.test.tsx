@@ -146,7 +146,10 @@ describe('AuthGate', () => {
     expect(await screen.findByText('Enter a valid username and password.')).toBeInTheDocument()
   })
 
-  it('shows "Check your username, password, and signup code." for a signup 400', async () => {
+  it('shows the generic 400 backstop for a signup 400 that passes client validation', async () => {
+    // With client-side validation catching bad usernames/passwords pre-submit, a
+    // server 400 is now the rare client/server rule-drift case: all fields pass the
+    // browser rules, the request goes out, and the server still rejects it.
     fetchMock.mockResolvedValue(jsonResponse({ error: 'bad_request' }, 400))
     const user = userEvent.setup()
     render(
@@ -157,14 +160,15 @@ describe('AuthGate', () => {
 
     await user.click(screen.getByRole('button', { name: /sign up/i }))
     await user.type(screen.getByLabelText(/^username$/i), 'new_user')
-    await user.type(screen.getByLabelText(/^password$/i), 'short')
-    await user.type(screen.getByLabelText(/^confirm password$/i), 'short')
+    await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
+    await user.type(screen.getByLabelText(/^confirm password$/i), 'a-strong-password')
     await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
     await user.click(screen.getByRole('button', { name: /^sign up$/i }))
 
     expect(
       await screen.findByText('Check your username, password, and signup code.'),
     ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('shows "That signup code isn\'t valid." for a signup 401', async () => {
@@ -288,5 +292,112 @@ describe('AuthGate', () => {
       password: 'a-strong-password',
       passcode: 'invite-code',
     })
+  })
+
+  it('shows an inline username error on blur when the username is too short', async () => {
+    const user = userEvent.setup()
+    render(
+      <AuthGate>
+        <div>secret content</div>
+      </AuthGate>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /sign up/i }))
+    await user.type(screen.getByLabelText(/^username$/i), 'ab')
+    await user.tab()
+
+    expect(await screen.findByText('Username must be 3–30 characters.')).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('blocks signup on submit and shows the username error when the username is too short', async () => {
+    const user = userEvent.setup()
+    render(
+      <AuthGate>
+        <div>secret content</div>
+      </AuthGate>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /sign up/i }))
+    await user.type(screen.getByLabelText(/^username$/i), 'ab')
+    await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
+    await user.type(screen.getByLabelText(/^confirm password$/i), 'a-strong-password')
+    await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
+    await user.click(screen.getByRole('button', { name: /^sign up$/i }))
+
+    expect(await screen.findByText('Username must be 3–30 characters.')).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('shows an inline username error on blur for a bad charset ("bad name")', async () => {
+    const user = userEvent.setup()
+    render(
+      <AuthGate>
+        <div>secret content</div>
+      </AuthGate>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /sign up/i }))
+    await user.type(screen.getByLabelText(/^username$/i), 'bad name')
+    await user.tab()
+
+    expect(await screen.findByText(/only use letters, numbers/i)).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('shows an inline username error on blur for a leading separator ("_bad")', async () => {
+    const user = userEvent.setup()
+    render(
+      <AuthGate>
+        <div>secret content</div>
+      </AuthGate>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /sign up/i }))
+    await user.type(screen.getByLabelText(/^username$/i), '_bad')
+    await user.tab()
+
+    expect(await screen.findByText(/only use letters, numbers/i)).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('shows an inline password error on blur and blocks submit when the password is too short', async () => {
+    const user = userEvent.setup()
+    render(
+      <AuthGate>
+        <div>secret content</div>
+      </AuthGate>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /sign up/i }))
+    await user.type(screen.getByLabelText(/^password$/i), 'short')
+    await user.tab()
+
+    expect(await screen.findByText('Password must be at least 8 characters.')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/^username$/i), 'new_user')
+    await user.type(screen.getByLabelText(/^confirm password$/i), 'short')
+    await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
+    await user.click(screen.getByRole('button', { name: /^sign up$/i }))
+
+    expect(screen.getByText('Password must be at least 8 characters.')).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('does not show per-field validation messages in login mode', async () => {
+    const user = userEvent.setup()
+    render(
+      <AuthGate>
+        <div>secret content</div>
+      </AuthGate>,
+    )
+
+    await user.type(screen.getByLabelText(/^username$/i), 'ab')
+    await user.tab()
+    await user.type(screen.getByLabelText(/^password$/i), 'short')
+    await user.tab()
+
+    expect(screen.queryByText('Username must be 3–30 characters.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Password must be at least 8 characters.')).not.toBeInTheDocument()
   })
 })

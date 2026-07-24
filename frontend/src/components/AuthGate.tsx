@@ -3,6 +3,12 @@ import type { FormEvent, ReactNode } from 'react'
 
 import { getToken, login, signup } from '../api/auth'
 import { onAuthRequired } from '../api/http'
+import {
+  validateConfirmPassword,
+  validatePasscode,
+  validatePassword,
+  validateUsername,
+} from '../lib/authValidation'
 
 interface AuthGateProps {
   children: ReactNode
@@ -29,9 +35,10 @@ function errorMessageFor(mode: Mode, err: unknown): string {
     if (status === 400) return 'Enter a valid username and password.'
   } else {
     if (status === 409) return 'That username is already registered.'
-    // A signup 400 can come from a bad username, a too-short password, or a blank
-    // invite code; HttpError only carries the status, so use a generic message
-    // (mirrors the login-400 copy) rather than blaming one field.
+    // Client-side validation (see `lib/authValidation`) now catches bad usernames,
+    // short/long passwords, and a blank invite code before submit, so a signup 400
+    // is a rare client/server rule-drift backstop; HttpError only carries the status,
+    // so use a generic message (mirrors the login-400 copy) rather than blaming a field.
     if (status === 400) return 'Check your username, password, and signup code.'
     if (status === 401) return "That signup code isn't valid."
   }
@@ -47,10 +54,13 @@ export default function AuthGate({ children }: AuthGateProps) {
   const [authenticated, setAuthenticated] = useState(() => getToken() !== null)
   const [mode, setMode] = useState<Mode>('login')
   const [username, setUsername] = useState('')
+  const [usernameTouched, setUsernameTouched] = useState(false)
   const [password, setPassword] = useState('')
+  const [passwordTouched, setPasswordTouched] = useState(false)
   const [confirmPassword, setConfirmPassword] = useState('')
   const [confirmTouched, setConfirmTouched] = useState(false)
   const [passcode, setPasscode] = useState('')
+  const [passcodeTouched, setPasscodeTouched] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -63,19 +73,38 @@ export default function AuthGate({ children }: AuthGateProps) {
   function toggleMode() {
     setMode((current) => (current === 'login' ? 'signup' : 'login'))
     setError(null)
+    setUsernameTouched(false)
     setPassword('')
+    setPasswordTouched(false)
     setConfirmPassword('')
     setConfirmTouched(false)
     setPasscode('')
+    setPasscodeTouched(false)
   }
+
+  // Per-field validation runs only in signup mode (login has no such rules); each
+  // helper returns a user-facing message or null. These feed both the inline field
+  // errors and the submit-time guard below. Login mode leaves every error null.
+  const isSignup = mode === 'signup'
+  const usernameError = isSignup ? validateUsername(username) : null
+  const passwordError = isSignup ? validatePassword(password) : null
+  const confirmError = isSignup ? validateConfirmPassword(password, confirmPassword) : null
+  const passcodeError = isSignup ? validatePasscode(passcode) : null
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    // Guard the confirm-password match here too: pressing Enter submits the form
-    // even while the button is disabled, so the button gate alone is not enough.
-    if (mode === 'signup' && password !== confirmPassword) {
+    // Guard all signup field rules here too: pressing Enter submits the form even
+    // while the button is disabled, so the button gate alone is not enough. Mark
+    // every field touched (surfacing its inline error) and block the request if any
+    // field is invalid, so a bad value never round-trips to the generic server 400.
+    if (isSignup) {
+      setUsernameTouched(true)
+      setPasswordTouched(true)
       setConfirmTouched(true)
-      return
+      setPasscodeTouched(true)
+      if (usernameError || passwordError || confirmError || passcodeError) {
+        return
+      }
     }
     setSubmitting(true)
     setError(null)
@@ -97,13 +126,11 @@ export default function AuthGate({ children }: AuthGateProps) {
     }
   }
 
-  const isSignup = mode === 'signup'
-  const confirmMismatch = isSignup && confirmPassword !== password
   const canSubmit =
     !submitting &&
     username.length > 0 &&
     password.length > 0 &&
-    (!isSignup || (passcode.length > 0 && !confirmMismatch))
+    (!isSignup || (passcode.length > 0 && confirmError === null))
 
   return (
     <div className="auth-gate">
@@ -123,7 +150,12 @@ export default function AuthGate({ children }: AuthGateProps) {
               value={username}
               disabled={submitting}
               onChange={(event) => setUsername(event.target.value)}
+              onBlur={() => setUsernameTouched(true)}
+              aria-invalid={usernameTouched && usernameError ? true : undefined}
             />
+            {usernameTouched && usernameError && (
+              <span className="field-error">{usernameError}</span>
+            )}
           </div>
           <div className="field">
             <label className="field-label" htmlFor="auth-password">
@@ -137,7 +169,12 @@ export default function AuthGate({ children }: AuthGateProps) {
               value={password}
               disabled={submitting}
               onChange={(event) => setPassword(event.target.value)}
+              onBlur={() => setPasswordTouched(true)}
+              aria-invalid={passwordTouched && passwordError ? true : undefined}
             />
+            {passwordTouched && passwordError && (
+              <span className="field-error">{passwordError}</span>
+            )}
           </div>
           {isSignup && (
             <div className="field">
@@ -153,10 +190,10 @@ export default function AuthGate({ children }: AuthGateProps) {
                 disabled={submitting}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 onBlur={() => setConfirmTouched(true)}
-                aria-invalid={confirmTouched && confirmMismatch ? true : undefined}
+                aria-invalid={confirmTouched && confirmError ? true : undefined}
               />
-              {confirmTouched && confirmMismatch && (
-                <span className="field-error">Passwords don&apos;t match.</span>
+              {confirmTouched && confirmError && (
+                <span className="field-error">{confirmError}</span>
               )}
             </div>
           )}
@@ -173,7 +210,12 @@ export default function AuthGate({ children }: AuthGateProps) {
                 value={passcode}
                 disabled={submitting}
                 onChange={(event) => setPasscode(event.target.value)}
+                onBlur={() => setPasscodeTouched(true)}
+                aria-invalid={passcodeTouched && passcodeError ? true : undefined}
               />
+              {passcodeTouched && passcodeError && (
+                <span className="field-error">{passcodeError}</span>
+              )}
             </div>
           )}
           {error && (
