@@ -17,6 +17,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import com.ensemble.config.DynamoDbProperties;
 import com.ensemble.config.DynamoDbTableInitializer;
+import com.ensemble.config.DynamoDbTableInitializer.GsiSpec;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -58,7 +59,7 @@ class OutfitRepositoryIT {
 
 		String outfitsTable = "outfits-" + UUID.randomUUID();
 		DynamoDbProperties props = new DynamoDbProperties(endpoint, "us-east-1", "unused-items", outfitsTable, "unused-users", true);
-		new DynamoDbTableInitializer(client, props).ensureTable(outfitsTable, "outfitId", "userId", "userId-index");
+		new DynamoDbTableInitializer(client, props).ensureTable(outfitsTable, "outfitId", new GsiSpec("userId", "userId-index"));
 		repository = new OutfitRepository(enhanced, props);
 	}
 

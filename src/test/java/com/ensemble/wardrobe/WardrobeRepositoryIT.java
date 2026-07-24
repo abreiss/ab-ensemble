@@ -17,6 +17,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import com.ensemble.config.DynamoDbProperties;
 import com.ensemble.config.DynamoDbTableInitializer;
+import com.ensemble.config.DynamoDbTableInitializer.GsiSpec;
 import com.ensemble.storage.PhotoStorage;
 import com.ensemble.wardrobe.dto.ItemResponse;
 
@@ -58,7 +59,7 @@ class WardrobeRepositoryIT {
 
 		String tableName = "items-" + UUID.randomUUID();
 		DynamoDbProperties props = new DynamoDbProperties(endpoint, "us-east-1", tableName, "unused-outfits", "unused-users", true);
-		new DynamoDbTableInitializer(client, props).ensureTable(tableName, "itemId", "userId", "userId-index");
+		new DynamoDbTableInitializer(client, props).ensureTable(tableName, "itemId", new GsiSpec("userId", "userId-index"));
 		repository = new WardrobeRepository(enhanced, props);
 	}
 

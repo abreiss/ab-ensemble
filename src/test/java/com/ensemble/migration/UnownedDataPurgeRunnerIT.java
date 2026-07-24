@@ -16,6 +16,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import com.ensemble.config.DynamoDbProperties;
 import com.ensemble.config.DynamoDbTableInitializer;
+import com.ensemble.config.DynamoDbTableInitializer.GsiSpec;
 import com.ensemble.outfit.OutfitRepository;
 import com.ensemble.outfit.SavedOutfit;
 import com.ensemble.storage.PhotoStorage;
@@ -67,8 +68,8 @@ class UnownedDataPurgeRunnerIT {
 		DynamoDbProperties props =
 			new DynamoDbProperties(endpoint, "us-east-1", itemsTable, outfitsTable, "unused-users", true);
 		DynamoDbTableInitializer init = new DynamoDbTableInitializer(client, props);
-		init.ensureTable(itemsTable, "itemId", "userId", "userId-index");
-		init.ensureTable(outfitsTable, "outfitId", "userId", "userId-index");
+		init.ensureTable(itemsTable, "itemId", new GsiSpec("userId", "userId-index"));
+		init.ensureTable(outfitsTable, "outfitId", new GsiSpec("userId", "userId-index"));
 		wardrobeRepository = new WardrobeRepository(enhanced, props);
 		outfitRepository = new OutfitRepository(enhanced, props);
 	}
