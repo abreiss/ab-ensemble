@@ -372,7 +372,7 @@ leak a real account id or a secret value.
 
 ```bash
 grep -rEn "[^0-9][0-9]{12}[^0-9]" *.tf
-grep -rn "$AWS_ACCOUNT_ID" policies/*.json   # the real 12-digit account id (redacted here)
+grep -rn "<REDACTED_12_DIGIT_ACCOUNT_ID>" policies/*.json   # placeholder for the real account id, redacted here so this doc can't leak it or accidentally match via an unset shell var
 grep -rEni "sk-ant|AKIA[0-9A-Z]{16}|secret_string|password\s*=" *.tf policies/*.json
 ```
 
