@@ -9,6 +9,8 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 
 import com.ensemble.security.web.SessionAuthFilter;
 
@@ -28,6 +30,14 @@ import jakarta.annotation.PostConstruct;
  * {@code @SpringBootTest} contexts (see {@code SessionAuthFilterTest}) load the whole
  * application and do apply it, scoped to {@code /api/*} and ordered first so no
  * downstream check (e.g. the daily cap) runs before authentication.
+ *
+ * <p><strong>Fail-closed session secret.</strong> When {@code ENSEMBLE_SESSION_SECRET} is
+ * blank the token-signing HMAC key falls back to the shared {@code ENSEMBLE_PASSCODE}
+ * invite code — a key every invited user knows, so any of them could forge a session token
+ * for an arbitrary {@code userId} (issue #35). Under the {@code cloud} profile (the deployed
+ * App Runner service) that fallback is unacceptable, so {@link #logGateState()}
+ * <strong>aborts startup</strong> instead of merely warning. Local dev keeps the
+ * fallback-plus-warning so a single {@code ENSEMBLE_PASSCODE} is still enough to run.
  */
 @Configuration
 @EnableConfigurationProperties(SecurityProperties.class)
@@ -36,9 +46,11 @@ public class SecurityConfig {
 	private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
 	private final SecurityProperties properties;
+	private final Environment environment;
 
-	public SecurityConfig(SecurityProperties properties) {
+	public SecurityConfig(SecurityProperties properties, Environment environment) {
 		this.properties = properties;
+		this.environment = environment;
 	}
 
 	@PostConstruct
@@ -49,6 +61,14 @@ public class SecurityConfig {
 				+ "Existing accounts can still log in via POST /api/auth");
 		}
 		if (!properties.sessionSecretConfigured()) {
+			if (environment.acceptsProfiles(Profiles.of("cloud"))) {
+				throw new IllegalStateException(
+					"ENSEMBLE_SESSION_SECRET is not set under the 'cloud' profile — refusing to start. "
+						+ "The session-token signing key would otherwise be derived from the shared "
+						+ "ENSEMBLE_PASSCODE invite code, letting any invited user forge session tokens for "
+						+ "arbitrary userIds and defeat per-user data scoping (#15). Set a distinct "
+						+ "ENSEMBLE_SESSION_SECRET for this deployment.");
+			}
 			log.warn("ensemble.security.session-secret is not set — the session-token signing key is "
 				+ "being derived from the shared ENSEMBLE_PASSCODE invite code. Every invited user knows "
 				+ "that code and could therefore forge session tokens for arbitrary userIds. Set a distinct "
