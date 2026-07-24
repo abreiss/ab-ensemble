@@ -37,3 +37,9 @@ variable "purge_unowned_data" {
   type        = bool
   default     = false
 }
+
+variable "seed_account_enabled" {
+  description = "Opt-in startup seeding of a single default account (issue #14). When true, this module provisions the ENSEMBLE_SEED_EMAIL / ENSEMBLE_SEED_PASSWORD secret containers (values populated out-of-band) and wires them into the service, so SeedAccountRunner seeds an account on boot. When false (default) the seed secrets are neither created nor referenced -- the service never depends on out-of-band seed values, and invite-only signup (POST /api/accounts, gated by ENSEMBLE_PASSCODE) is the only account-creation path. Enabling REQUIRES populating both secret values, or the App Runner revision fails to resolve them and rolls back."
+  type        = bool
+  default     = false
+}

@@ -362,19 +362,25 @@ AWS_PROFILE=abreiss-ensemble-terraform terraform apply
 **3. Populate the secret values out-of-band.** Terraform declares only
 empty Secrets Manager containers, so no plaintext ever enters state or git.
 Three are required — `abreiss-ensemble-anthropic-key`, `-passcode` (the
-signup/invite code), and `-session-secret` — and two are optional:
-`-seed-email` / `-seed-password`, which auto-seed a default cloud account on
-startup (leave them empty to skip seeding). Paste each value in the AWS console
+signup/invite code), and `-session-secret`. Paste each value in the AWS console
 (Secrets Manager → secret → *Set secret value*), or use the CLI with a
 git-ignored file so the value stays out of shell history:
 
 ```bash
 # required: abreiss-ensemble-anthropic-key, -passcode, -session-secret
-# optional: abreiss-ensemble-seed-email, -seed-password (auto-seed a cloud account)
 AWS_PROFILE=abreiss-ensemble-terraform aws secretsmanager put-secret-value \
   --secret-id abreiss-ensemble-anthropic-key --secret-string file://secret.txt
 rm secret.txt
 ```
+
+Startup seeding of a default account is **opt-in and off by default**: with
+`seed_account_enabled = false` the `-seed-email` / `-seed-password` secrets are
+not created and are not referenced by the service, so the deploy never depends
+on them and invite-only signup (`POST /api/accounts`, gated by the passcode) is
+the account-creation path. To seed a default account instead, apply with
+`-var seed_account_enabled=true` **and** populate both `-seed-email` /
+`-seed-password` values before/at apply — an enabled-but-empty seed secret is
+unresolvable and fails the App Runner revision (it rolls back to the prior one).
 
 **4. One-time — push the `linux/amd64` seed image.** The service is pinned to
 `:latest` exactly once before CI takes over; App Runner only runs amd64

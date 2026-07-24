@@ -65,14 +65,22 @@ resource "aws_apprunner_service" "app" {
         }
 
         # Sourced by ARN, never by value -- App Runner resolves these via the
-        # instance role's secretsmanager:GetSecretValue (Task 4.0).
-        runtime_environment_secrets = {
-          ENSEMBLE_ANTHROPIC_API_KEY = aws_secretsmanager_secret.anthropic_key.arn
-          ENSEMBLE_PASSCODE          = aws_secretsmanager_secret.passcode.arn
-          ENSEMBLE_SESSION_SECRET    = aws_secretsmanager_secret.session_secret.arn
-          ENSEMBLE_SEED_EMAIL        = aws_secretsmanager_secret.seed_email.arn
-          ENSEMBLE_SEED_PASSWORD     = aws_secretsmanager_secret.seed_password.arn
-        }
+        # instance role's secretsmanager:GetSecretValue (Task 4.0). The
+        # seed-account pair is merged in only when var.seed_account_enabled is true;
+        # otherwise it is omitted entirely, so the revision never references an empty
+        # container (an unresolvable secret fails the deployment and rolls it back).
+        # Invite-only signup (POST /api/accounts) does not depend on seeding.
+        runtime_environment_secrets = merge(
+          {
+            ENSEMBLE_ANTHROPIC_API_KEY = aws_secretsmanager_secret.anthropic_key.arn
+            ENSEMBLE_PASSCODE          = aws_secretsmanager_secret.passcode.arn
+            ENSEMBLE_SESSION_SECRET    = aws_secretsmanager_secret.session_secret.arn
+          },
+          var.seed_account_enabled ? {
+            ENSEMBLE_SEED_EMAIL    = aws_secretsmanager_secret.seed_email[0].arn
+            ENSEMBLE_SEED_PASSWORD = aws_secretsmanager_secret.seed_password[0].arn
+          } : {}
+        )
       }
     }
   }

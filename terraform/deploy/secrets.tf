@@ -20,12 +20,19 @@ resource "aws_secretsmanager_secret" "session_secret" {
   description = "HMAC key for signing session tokens. Terraform manages the container only; the value is set out-of-band."
 }
 
+# Seed-account secrets are provisioned only when var.seed_account_enabled is true
+# (opt-in, default off). Omitted otherwise so the service's
+# runtime_environment_secrets never references an empty container -- an
+# unresolvable secret fails the App Runner revision and rolls the service back.
+# See apprunner.tf and variables.tf.
 resource "aws_secretsmanager_secret" "seed_email" {
+  count       = var.seed_account_enabled ? 1 : 0
   name        = "${local.prefix}-seed-email"
   description = "Email for the idempotent startup-seeded account (issue #14). Terraform manages the container only; the value is set out-of-band."
 }
 
 resource "aws_secretsmanager_secret" "seed_password" {
+  count       = var.seed_account_enabled ? 1 : 0
   name        = "${local.prefix}-seed-password"
   description = "Password for the idempotent startup-seeded account (issue #14). Terraform manages the container only; the value is set out-of-band."
 }
