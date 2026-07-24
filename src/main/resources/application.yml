@@ -27,7 +27,7 @@ ensemble:
     # Dedicated saved-outfits table (issue #26), separate from the items table.
     # The cloud table is Terraform-owned; the env var is injected by App Runner.
     outfits-table-name: ${ENSEMBLE_OUTFITS_TABLE_NAME:ensemble-outfits}
-    # Dedicated user-accounts table (issue #14), keyed on the normalized email.
+    # Dedicated user-accounts table (issue #14), keyed on the normalized username.
     # The cloud table is Terraform-owned; the env var is injected by App Runner.
     users-table-name: ${ENSEMBLE_USERS_TABLE_NAME:ensemble-users}
     # Create the tables on startup if absent. Disabled in tests (see
@@ -67,9 +67,9 @@ ensemble:
     session-ttl: PT12H
   seed:
     # One-time default account seeded on startup when BOTH are set (issue #14).
-    # Bypasses the signup passcode server-side; idempotent (skips if the email
+    # Bypasses the signup passcode server-side; idempotent (skips if the username
     # already exists). Blank/unset -> no seeding. Never commit real values.
-    email: ${ENSEMBLE_SEED_EMAIL:}
+    username: ${ENSEMBLE_SEED_USERNAME:}
     password: ${ENSEMBLE_SEED_PASSWORD:}
   migration:
     # One-time, opt-in cleanup of pre-existing "unowned" data (spec #15) -- items

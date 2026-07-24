@@ -7,22 +7,22 @@ import org.junit.jupiter.api.Test;
 /**
  * Unit tests for the {@link User} DynamoDB bean. The one piece of behavior worth
  * testing (the rest is plain accessors for the bean mapper) is that the
- * {@code email} partition key is normalized — trimmed and lowercased — so that
- * {@code Foo@X.com} and {@code foo@x.com} resolve to the same account.
+ * {@code username} partition key is normalized — trimmed and lowercased — so that
+ * {@code Foo_Bar} and {@code foo_bar} resolve to the same account.
  */
 class UserTest {
 
 	@Test
-	void emailIsNormalizedToLowercaseTrimmed() {
+	void usernameIsNormalizedToLowercaseTrimmed() {
 		User user = new User();
 
-		user.setEmail("  Foo@X.com  ");
+		user.setUsername("  Foo_Bar  ");
 
-		assertThat(user.getEmail()).isEqualTo("foo@x.com");
+		assertThat(user.getUsername()).isEqualTo("foo_bar");
 	}
 
 	@Test
-	void normalizeEmail_isNullSafe() {
-		assertThat(User.normalizeEmail(null)).isNull();
+	void normalizeUsername_isNullSafe() {
+		assertThat(User.normalizeUsername(null)).isNull();
 	}
 }

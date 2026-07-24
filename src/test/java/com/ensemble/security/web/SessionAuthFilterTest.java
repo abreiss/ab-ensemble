@@ -46,10 +46,10 @@ class SessionAuthFilterTest {
 	@MockitoBean
 	UserRepository userRepository;
 
-	private static User userWith(String userId, String email) {
+	private static User userWith(String userId, String username) {
 		User user = new User();
 		user.setUserId(userId);
-		user.setEmail(email);
+		user.setUsername(username);
 		return user;
 	}
 
@@ -87,14 +87,14 @@ class SessionAuthFilterTest {
 			.andExpect(status().isOk());
 
 		// POST /api/auth is open: it reaches AuthController (which returns the *login* 401
-		// with the "invalid email or password" body) rather than being short-circuited by
+		// with the "invalid username or password" body) rather than being short-circuited by
 		// the gate filter (whose 401 body is "authentication required").
-		when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+		when(userRepository.findByUsername("nobody_user")).thenReturn(Optional.empty());
 		mockMvc.perform(post("/api/auth")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"nobody@example.com\",\"password\":\"whatever\"}"))
+				.content("{\"username\":\"nobody_user\",\"password\":\"whatever\"}"))
 			.andExpect(status().isUnauthorized())
-			.andExpect(jsonPath("$.message").value("invalid email or password"));
+			.andExpect(jsonPath("$.message").value("invalid username or password"));
 	}
 
 	@Test
@@ -106,7 +106,7 @@ class SessionAuthFilterTest {
 		// "authentication required" 401.
 		mockMvc.perform(post("/api/accounts")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"new@example.com\",\"password\":\"correcthorse\",\"passcode\":\"whatever\"}"))
+				.content("{\"username\":\"new_user\",\"password\":\"correcthorse\",\"passcode\":\"whatever\"}"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.message").value("invalid passcode"));
 	}
@@ -118,14 +118,15 @@ class SessionAuthFilterTest {
 	}
 
 	@Test
-	void me_withValidToken_returns200WithUserIdAndEmail() throws Exception {
+	void me_withValidToken_returns200WithUserIdAndUsername() throws Exception {
 		when(userRepository.findByUserId("user-42"))
-			.thenReturn(Optional.of(userWith("user-42", "demo@example.com")));
+			.thenReturn(Optional.of(userWith("user-42", "demo_user")));
 
 		mockMvc.perform(get("/api/me").header("X-Ensemble-Session", tokenService.issue("user-42")))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.userId").value("user-42"))
-			.andExpect(jsonPath("$.email").value("demo@example.com"));
+			.andExpect(jsonPath("$.username").value("demo_user"))
+			.andExpect(jsonPath("$.email").doesNotExist());
 	}
 
 	@Test
@@ -133,7 +134,7 @@ class SessionAuthFilterTest {
 		when(userRepository.findByUserId("ghost")).thenReturn(Optional.empty());
 
 		// An orphaned but valid token gets the gate's generic "authentication required" 401
-		// (re-authenticate) — not the login "invalid email or password", which would misdescribe
+		// (re-authenticate) — not the login "invalid username or password", which would misdescribe
 		// a request that carried a valid token and no credentials.
 		mockMvc.perform(get("/api/me").header("X-Ensemble-Session", tokenService.issue("ghost")))
 			.andExpect(status().isUnauthorized())

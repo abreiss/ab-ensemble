@@ -16,7 +16,7 @@ import com.ensemble.config.SeedProperties;
 
 /**
  * Idempotently seeds a single default account on startup from
- * {@code ensemble.seed.email} / {@code ensemble.seed.password} (issue #14), bypassing
+ * {@code ensemble.seed.username} / {@code ensemble.seed.password} (issue #14), bypassing
  * the signup passcode gate server-side — there is no HTTP round trip, so
  * {@code SignupPasscodeVerifier} is never involved.
  *
@@ -24,7 +24,7 @@ import com.ensemble.config.SeedProperties;
  * a half-configured seed (one set, one blank) is deliberately treated the same as fully
  * unconfigured. This no-op path is critical: every existing {@code @SpringBootTest} context
  * runs this runner with no seed config and no live DynamoDB, so it must return before touching
- * either collaborator. When configured, creation is skipped if the (normalized) email already
+ * either collaborator. When configured, creation is skipped if the (normalized) username already
  * has an account — safe to run on every startup. The raw password is hashed before storage and
  * never logged; success/skip messages omit it entirely.
  *
@@ -54,16 +54,16 @@ public class SeedAccountRunner implements ApplicationRunner {
 	@Override
 	public void run(ApplicationArguments args) {
 		if (!props.configured()) {
-			log.debug("Seed account not configured (ensemble.seed.email/password unset); skipping");
+			log.debug("Seed account not configured (ensemble.seed.username/password unset); skipping");
 			return;
 		}
-		if (userRepository.findByEmail(props.email()).isPresent()) {
+		if (userRepository.findByUsername(props.username()).isPresent()) {
 			log.info("Seed account already exists; skipping");
 			return;
 		}
 		User user = new User();
 		user.setUserId(UUID.randomUUID().toString());
-		user.setEmail(props.email());
+		user.setUsername(props.username());
 		user.setPasswordHash(passwordHasher.hash(props.password()));
 		user.setCreatedAt(Instant.now(clock));
 		userRepository.create(user);

@@ -22,7 +22,7 @@ import com.ensemble.stylist.StylistUnavailableException;
 import com.ensemble.stylist.web.StyleController;
 import com.ensemble.tagging.web.TaggingController;
 import com.ensemble.usage.DailyCapExceededException;
-import com.ensemble.user.DuplicateEmailException;
+import com.ensemble.user.DuplicateUsernameException;
 import com.ensemble.user.web.AccountController;
 import com.ensemble.user.web.MeController;
 import com.ensemble.wardrobe.ItemNotFoundException;
@@ -33,7 +33,7 @@ import jakarta.validation.ConstraintViolationException;
  * Maps domain and request errors to HTTP responses for the wardrobe, tagging,
  * stylist, auth, and account APIs: unknown ids → 404, invalid input (validation, bad range,
  * missing/invalid photo, malformed JSON) → 400, an unavailable/ungroundable
- * stylist → 503, a wrong/blank passcode or bad login → 401, a duplicate sign-up email → 409.
+ * stylist → 503, a wrong/blank passcode or bad login → 401, a duplicate sign-up username → 409.
  * Returns a small sanitized error body. The tag-preview, style, auth, account, me, and outfit
  * controllers are covered here too, so their failures reuse the same sanitized error shape.
  */
@@ -125,19 +125,19 @@ public class ApiExceptionHandler {
 	}
 
 	/**
-	 * Login failed — unknown email or wrong password. The same generic message is returned
-	 * for both so the response never reveals whether an email is registered (no enumeration).
+	 * Login failed — unknown username or wrong password. The same generic message is returned
+	 * for both so the response never reveals whether a username is registered (no enumeration).
 	 */
 	@ExceptionHandler(InvalidCredentialsException.class)
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)
 	public ErrorResponse handleInvalidCredentials(InvalidCredentialsException ex) {
-		return new ErrorResponse("unauthorized", "invalid email or password");
+		return new ErrorResponse("unauthorized", "invalid username or password");
 	}
 
 	/**
 	 * A cryptographically valid session token whose account no longer exists (orphaned token).
 	 * Not a login failure, so it returns the gate's generic {@code 401 "authentication required"}
-	 * — telling the client to re-authenticate — rather than the login "invalid email or password",
+	 * — telling the client to re-authenticate — rather than the login "invalid username or password",
 	 * which would misdescribe a request that carried a valid token and no credentials.
 	 */
 	@ExceptionHandler(SessionUserNotFoundException.class)
@@ -147,13 +147,13 @@ public class ApiExceptionHandler {
 	}
 
 	/**
-	 * Sign-up hit an email that is already registered (the atomic {@code attribute_not_exists}
+	 * Sign-up hit a username that is already registered (the atomic {@code attribute_not_exists}
 	 * conditional put failed). The message is a fixed, user-safe string — it echoes no internals.
 	 */
-	@ExceptionHandler(DuplicateEmailException.class)
+	@ExceptionHandler(DuplicateUsernameException.class)
 	@ResponseStatus(HttpStatus.CONFLICT)
-	public ErrorResponse handleDuplicateEmail(DuplicateEmailException ex) {
-		return new ErrorResponse("conflict", "email already registered");
+	public ErrorResponse handleDuplicateUsername(DuplicateUsernameException ex) {
+		return new ErrorResponse("conflict", "username already registered");
 	}
 
 	/** The global daily call cap has been exceeded; Claude was not called for this request. */

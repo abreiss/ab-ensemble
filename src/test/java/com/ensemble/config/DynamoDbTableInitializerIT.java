@@ -61,6 +61,8 @@ class DynamoDbTableInitializerIT {
 		initializer.run(new DefaultApplicationArguments());
 
 		assertThat(client.listTables().tableNames()).contains(ITEMS_TABLE, OUTFITS_TABLE, USERS_TABLE);
+		// The users table is keyed on the normalized username partition key (issue #34).
+		assertThat(partitionKey(client, USERS_TABLE)).isEqualTo("username");
 	}
 
 	@Test
@@ -97,8 +99,17 @@ class DynamoDbTableInitializerIT {
 		// The per-user GSI (spec #15) is declared on the items and outfits tables...
 		assertThat(indexNames(client, ITEMS_TABLE)).contains("userId-index");
 		assertThat(indexNames(client, OUTFITS_TABLE)).contains("userId-index");
-		// ...but the users table stays plain (email partition key only, no GSI).
+		// ...but the users table stays plain (username partition key only, no GSI).
 		assertThat(indexNames(client, USERS_TABLE)).isEmpty();
+	}
+
+	private static String partitionKey(DynamoDbClient client, String tableName) {
+		var table = client.describeTable(b -> b.tableName(tableName)).table();
+		return table.keySchema().stream()
+			.filter(k -> k.keyType() == software.amazon.awssdk.services.dynamodb.model.KeyType.HASH)
+			.map(software.amazon.awssdk.services.dynamodb.model.KeySchemaElement::attributeName)
+			.findFirst()
+			.orElseThrow();
 	}
 
 	private static List<String> indexNames(DynamoDbClient client, String tableName) {

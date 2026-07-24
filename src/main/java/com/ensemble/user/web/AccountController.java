@@ -15,7 +15,7 @@ import com.ensemble.security.InvalidPasscodeException;
 import com.ensemble.security.SessionTokenService;
 import com.ensemble.security.SignupPasscodeVerifier;
 import com.ensemble.security.dto.AuthResponse;
-import com.ensemble.user.DuplicateEmailException;
+import com.ensemble.user.DuplicateUsernameException;
 import com.ensemble.user.PasswordHasher;
 import com.ensemble.user.User;
 import com.ensemble.user.UserRepository;
@@ -24,12 +24,13 @@ import jakarta.validation.Valid;
 
 /**
  * {@code POST /api/accounts} — invite-only sign-up (issue #14). Validates the request
- * ({@link SignupRequest}: {@code @Email}, password 8–72 UTF-8 bytes, non-blank passcode) on bind,
- * verifies the shared signup passcode with a constant-time compare
- * ({@link SignupPasscodeVerifier}), hashes the password (bcrypt), and atomically creates the
- * account (a duplicate email fails at the datastore, surfaced as {@link DuplicateEmailException}
- * → {@code 409}). On success it <strong>auto-logs the user in</strong> by minting a session token
- * for the new {@code userId} and returning {@code 201 { token }}.
+ * ({@link SignupRequest}: username 3–30 chars matching the allowed pattern, password 8–72 UTF-8
+ * bytes, non-blank passcode) on bind, verifies the shared signup passcode with a constant-time
+ * compare ({@link SignupPasscodeVerifier}), hashes the password (bcrypt), and atomically creates
+ * the account (a duplicate username fails at the datastore, surfaced as
+ * {@link DuplicateUsernameException} → {@code 409}). On success it <strong>auto-logs the user
+ * in</strong> by minting a session token for the new {@code userId} and returning
+ * {@code 201 { token }}.
  *
  * <p>Order matters for the invite gate: the passcode is checked <em>before</em> any hashing or
  * persistence, so a wrong or blank passcode throws {@link InvalidPasscodeException} ({@code 401},
@@ -64,7 +65,7 @@ public class AccountController {
 		}
 		User user = new User();
 		user.setUserId(UUID.randomUUID().toString());
-		user.setEmail(request.email());
+		user.setUsername(request.username());
 		user.setPasswordHash(passwordHasher.hash(request.password()));
 		user.setCreatedAt(clock.instant());
 		users.create(user);

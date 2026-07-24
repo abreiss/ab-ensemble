@@ -7,28 +7,28 @@ import org.junit.jupiter.api.Test;
 /**
  * Unit tests for {@link SeedProperties} (issue #14): null-normalization, the
  * {@code configured()} decision, and that {@link SeedProperties#toString()} never
- * echoes the raw email/password.
+ * echoes the raw username/password.
  */
 class SeedPropertiesTest {
 
 	@Test
-	void nullEmailAndPassword_normalizeToBlank() {
+	void nullUsernameAndPassword_normalizeToBlank() {
 		SeedProperties props = new SeedProperties(null, null);
 
-		assertThat(props.email()).isEmpty();
+		assertThat(props.username()).isEmpty();
 		assertThat(props.password()).isEmpty();
 		assertThat(props.configured()).isFalse();
 	}
 
 	@Test
 	void bothSet_isConfigured() {
-		assertThat(new SeedProperties("seed@example.com", "seed-password").configured()).isTrue();
+		assertThat(new SeedProperties("seed_user", "seed-password").configured()).isTrue();
 	}
 
 	@Test
-	void onlyEmailSet_isNotConfigured() {
-		assertThat(new SeedProperties("seed@example.com", "").configured()).isFalse();
-		assertThat(new SeedProperties("seed@example.com", "   ").configured()).isFalse();
+	void onlyUsernameSet_isNotConfigured() {
+		assertThat(new SeedProperties("seed_user", "").configured()).isFalse();
+		assertThat(new SeedProperties("seed_user", "   ").configured()).isFalse();
 	}
 
 	@Test
@@ -38,10 +38,10 @@ class SeedPropertiesTest {
 	}
 
 	@Test
-	void toString_masksEmailAndPassword() {
-		String rendered = new SeedProperties("seed@example.com", "super-secret-pw").toString();
+	void toString_masksUsernameAndPassword() {
+		String rendered = new SeedProperties("seed_user", "super-secret-pw").toString();
 
-		assertThat(rendered).doesNotContain("seed@example.com");
+		assertThat(rendered).doesNotContain("seed_user");
 		assertThat(rendered).doesNotContain("super-secret-pw");
 	}
 
