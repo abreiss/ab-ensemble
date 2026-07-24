@@ -49,4 +49,14 @@ class SecurityConfigTest {
 		runner.withPropertyValues("ensemble.security.session-secret=")
 			.run(context -> assertThat(context).hasNotFailed());
 	}
+
+	// Covers the passcode-configured (no-warn) side of logGateState()'s passcode branch —
+	// the other tests in this class all leave the passcode blank and only exercise the warn side.
+	@Test
+	void localProfile_configuredPasscode_startsCleanlyWithoutWarning() {
+		runner.withPropertyValues(
+				"ensemble.security.passcode=demo-invite-code",
+				"ensemble.security.session-secret=")
+			.run(context -> assertThat(context).hasNotFailed());
+	}
 }
