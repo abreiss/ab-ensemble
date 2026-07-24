@@ -101,6 +101,19 @@ class LocalDiskPhotoStorageTest {
 	}
 
 	@Test
+	void save_nestedKey_createsParentDirsAndStores() throws IOException {
+		// Per-user photo keys are nested (<userId>/<itemId>.jpg). Saving under a key whose
+		// parent directory does not yet exist must create it, not fail with NoSuchFileException;
+		// the bytes then round-trip back through load as a stored JPEG.
+		storage.save("user1/abc.jpg", pngOf(100, 100));
+
+		byte[] stored = storage.load("user1/abc.jpg");
+		assertThat(decode(stored)).isNotNull();
+		assertThat(stored[0] & 0xFF).isEqualTo(0xFF);
+		assertThat(stored[1] & 0xFF).isEqualTo(0xD8);
+	}
+
+	@Test
 	void resolve_pathTraversalKey_isRejected() {
 		assertThatThrownBy(() -> storage.load("../escape.jpg"))
 			.isInstanceOf(IllegalArgumentException.class);

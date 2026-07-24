@@ -12,8 +12,11 @@ import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.BillingMode;
+import software.amazon.awssdk.services.dynamodb.model.GlobalSecondaryIndex;
 import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
 import software.amazon.awssdk.services.dynamodb.model.KeyType;
+import software.amazon.awssdk.services.dynamodb.model.Projection;
+import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
 
@@ -44,6 +47,10 @@ public class DynamoDbTableInitializer implements ApplicationRunner {
 	static final String OUTFITS_PARTITION_KEY = "outfitId";
 	static final String USERS_PARTITION_KEY = "email";
 
+	/** Sparse per-user GSI (spec #15): items/outfits carry {@code userId}; the users table does not. */
+	static final String USER_ID_ATTRIBUTE = "userId";
+	static final String USER_ID_INDEX = "userId-index";
+
 	private final DynamoDbClient client;
 	private final DynamoDbProperties props;
 
@@ -54,28 +61,62 @@ public class DynamoDbTableInitializer implements ApplicationRunner {
 
 	@Override
 	public void run(ApplicationArguments args) {
-		ensureTable(props.tableName(), ITEMS_PARTITION_KEY);
-		ensureTable(props.outfitsTableName(), OUTFITS_PARTITION_KEY);
+		// items + outfits are per-user queryable (spec #15) -> declare the userId GSI;
+		// the users table is looked up by email only and stays plain.
+		ensureTable(props.tableName(), ITEMS_PARTITION_KEY, USER_ID_ATTRIBUTE, USER_ID_INDEX);
+		ensureTable(props.outfitsTableName(), OUTFITS_PARTITION_KEY, USER_ID_ATTRIBUTE, USER_ID_INDEX);
 		ensureTable(props.usersTableName(), USERS_PARTITION_KEY);
 	}
 
 	/**
-	 * Creates the named table (keyed on {@code partitionKey}) if it is absent.
-	 * Idempotent: a no-op when the table already exists, so it is safe to run on
-	 * every startup.
+	 * Creates the named table (keyed on {@code partitionKey}) with no secondary
+	 * index if it is absent. Idempotent: a no-op when the table already exists.
 	 */
 	public void ensureTable(String tableName, String partitionKey) {
+		ensureTable(tableName, partitionKey, null, null);
+	}
+
+	/**
+	 * Creates the named table if it is absent, additionally declaring a sparse
+	 * global secondary index (HASH {@code gsiPartitionKey}, projection ALL) when
+	 * both {@code gsiPartitionKey} and {@code gsiIndexName} are non-null. Under
+	 * {@code PAY_PER_REQUEST} the GSI needs no throughput.
+	 *
+	 * <p>Idempotent: when the table already exists this is a no-op, except it logs
+	 * a WARN if a requested GSI is missing — a pre-#15 local table is skipped here
+	 * (initializers never mutate existing tables), so per-user queries would fail
+	 * at runtime; the WARN turns that silent footgun into an actionable message
+	 * (drop the table so it is recreated with the index). Deployed tables get the
+	 * index via Terraform's in-place {@code UpdateTable}.
+	 */
+	public void ensureTable(String tableName, String partitionKey, String gsiPartitionKey, String gsiIndexName) {
+		boolean withGsi = gsiPartitionKey != null && gsiIndexName != null;
 		if (tableExists(tableName)) {
 			log.info("DynamoDB table '{}' already exists", tableName);
+			if (withGsi) {
+				warnIfMissingIndex(tableName, gsiIndexName);
+			}
 			return;
 		}
 		log.info("Creating DynamoDB table '{}'", tableName);
-		client.createTable(b -> b
-			.tableName(tableName)
-			.keySchema(KeySchemaElement.builder().attributeName(partitionKey).keyType(KeyType.HASH).build())
-			.attributeDefinitions(AttributeDefinition.builder()
-				.attributeName(partitionKey).attributeType(ScalarAttributeType.S).build())
-			.billingMode(BillingMode.PAY_PER_REQUEST));
+		client.createTable(b -> {
+			b.tableName(tableName)
+				.keySchema(KeySchemaElement.builder().attributeName(partitionKey).keyType(KeyType.HASH).build())
+				.billingMode(BillingMode.PAY_PER_REQUEST);
+			if (withGsi) {
+				b.attributeDefinitions(
+						AttributeDefinition.builder().attributeName(partitionKey).attributeType(ScalarAttributeType.S).build(),
+						AttributeDefinition.builder().attributeName(gsiPartitionKey).attributeType(ScalarAttributeType.S).build())
+					.globalSecondaryIndexes(GlobalSecondaryIndex.builder()
+						.indexName(gsiIndexName)
+						.keySchema(KeySchemaElement.builder().attributeName(gsiPartitionKey).keyType(KeyType.HASH).build())
+						.projection(Projection.builder().projectionType(ProjectionType.ALL).build())
+						.build());
+			} else {
+				b.attributeDefinitions(AttributeDefinition.builder()
+					.attributeName(partitionKey).attributeType(ScalarAttributeType.S).build());
+			}
+		});
 		client.waiter().waitUntilTableExists(w -> w.tableName(tableName));
 		log.info("DynamoDB table '{}' created", tableName);
 	}
@@ -86,6 +127,17 @@ public class DynamoDbTableInitializer implements ApplicationRunner {
 			return true;
 		} catch (ResourceNotFoundException e) {
 			return false;
+		}
+	}
+
+	private void warnIfMissingIndex(String tableName, String indexName) {
+		var table = client.describeTable(b -> b.tableName(tableName)).table();
+		boolean hasIndex = table.hasGlobalSecondaryIndexes()
+			&& table.globalSecondaryIndexes().stream().anyMatch(gsi -> indexName.equals(gsi.indexName()));
+		if (!hasIndex) {
+			log.warn("DynamoDB table '{}' predates the '{}' index; per-user queries will fail. "
+				+ "Drop the table so it is recreated with the index (local dev), or apply the "
+				+ "Terraform GSI (deploy).", tableName, indexName);
 		}
 	}
 }

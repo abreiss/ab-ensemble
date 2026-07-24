@@ -58,7 +58,7 @@ class OutfitRepositoryIT {
 
 		String outfitsTable = "outfits-" + UUID.randomUUID();
 		DynamoDbProperties props = new DynamoDbProperties(endpoint, "us-east-1", "unused-items", outfitsTable, "unused-users", true);
-		new DynamoDbTableInitializer(client, props).ensureTable(outfitsTable, "outfitId");
+		new DynamoDbTableInitializer(client, props).ensureTable(outfitsTable, "outfitId", "userId", "userId-index");
 		repository = new OutfitRepository(enhanced, props);
 	}
 
@@ -107,6 +107,39 @@ class OutfitRepositoryIT {
 		List<SavedOutfit> all = repository.findAll();
 
 		assertThat(all).extracting(SavedOutfit::getOutfitId).containsExactlyInAnyOrder("a", "b", "c");
+	}
+
+	@Test
+	void findByUserId_returnsOnlyThatUsersOutfits() {
+		SavedOutfit a1 = sample("a1");
+		a1.setUserId("userA");
+		SavedOutfit a2 = sample("a2");
+		a2.setUserId("userA");
+		SavedOutfit b1 = sample("b1");
+		b1.setUserId("userB");
+		repository.save(a1);
+		repository.save(a2);
+		repository.save(b1);
+
+		List<SavedOutfit> found = repository.findByUserId("userA");
+
+		assertThat(found).extracting(SavedOutfit::getOutfitId).containsExactlyInAnyOrder("a1", "a2");
+	}
+
+	@Test
+	void findUnowned_returnsOnlyOutfitsWithNoOrBlankUserId() {
+		SavedOutfit orphan = sample("orphan");
+		SavedOutfit blankOwner = sample("blank");
+		blankOwner.setUserId("   ");
+		SavedOutfit owned = sample("owned");
+		owned.setUserId("userA");
+		repository.save(orphan);
+		repository.save(blankOwner);
+		repository.save(owned);
+
+		List<SavedOutfit> unowned = repository.findUnowned();
+
+		assertThat(unowned).extracting(SavedOutfit::getOutfitId).containsExactlyInAnyOrder("orphan", "blank");
 	}
 
 	@Test

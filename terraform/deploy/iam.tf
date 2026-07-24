@@ -41,9 +41,10 @@ data "aws_iam_policy_document" "instance_permissions" {
   }
 
   # local.dynamodb_arn is table/${local.prefix}-* -- a wildcard that already
-  # covers both the items table and the outfits table (spec #26), so adding
-  # saved outfits needs no statement/resource change here, only the description
-  # update below.
+  # covers both the items table and the outfits table (spec #26). Per-user
+  # scoping (spec #15) added a userId-index GSI to the items/outfits tables, so
+  # this statement's resources now also list the /index/* wildcard -- Query
+  # against a GSI is authorized against the index ARN, not the table ARN.
   statement {
     sid    = "RuntimeDynamoDb"
     effect = "Allow"
@@ -55,7 +56,10 @@ data "aws_iam_policy_document" "instance_permissions" {
       "dynamodb:Query",
       "dynamodb:Scan",
     ]
-    resources = [local.dynamodb_arn]
+    resources = [
+      local.dynamodb_arn,
+      "${local.dynamodb_arn}/index/*",
+    ]
   }
 
   statement {

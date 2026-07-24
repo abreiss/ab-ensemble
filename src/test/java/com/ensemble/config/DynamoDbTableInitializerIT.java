@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.net.URI;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.DefaultApplicationArguments;
@@ -84,5 +85,29 @@ class DynamoDbTableInitializerIT {
 		initializer.ensureTable("adhoc-table", "outfitId");
 
 		assertThat(client.listTables().tableNames()).contains("adhoc-table");
+	}
+
+	@Test
+	void run_createsItemsAndOutfitsTablesWithUserIdIndex() {
+		DynamoDbClient client = client();
+		DynamoDbTableInitializer initializer = new DynamoDbTableInitializer(client, props());
+
+		initializer.run(new DefaultApplicationArguments());
+
+		// The per-user GSI (spec #15) is declared on the items and outfits tables...
+		assertThat(indexNames(client, ITEMS_TABLE)).contains("userId-index");
+		assertThat(indexNames(client, OUTFITS_TABLE)).contains("userId-index");
+		// ...but the users table stays plain (email partition key only, no GSI).
+		assertThat(indexNames(client, USERS_TABLE)).isEmpty();
+	}
+
+	private static List<String> indexNames(DynamoDbClient client, String tableName) {
+		var table = client.describeTable(b -> b.tableName(tableName)).table();
+		if (!table.hasGlobalSecondaryIndexes()) {
+			return List.of();
+		}
+		return table.globalSecondaryIndexes().stream()
+			.map(software.amazon.awssdk.services.dynamodb.model.GlobalSecondaryIndexDescription::indexName)
+			.toList();
 	}
 }

@@ -58,7 +58,7 @@ class WardrobeRepositoryIT {
 
 		String tableName = "items-" + UUID.randomUUID();
 		DynamoDbProperties props = new DynamoDbProperties(endpoint, "us-east-1", tableName, "unused-outfits", "unused-users", true);
-		new DynamoDbTableInitializer(client, props).ensureTable(tableName, "itemId");
+		new DynamoDbTableInitializer(client, props).ensureTable(tableName, "itemId", "userId", "userId-index");
 		repository = new WardrobeRepository(enhanced, props);
 	}
 
@@ -105,22 +105,6 @@ class WardrobeRepositoryIT {
 	}
 
 	@Test
-	void findAll_whenEmptyWardrobe_returnsEmptyList() {
-		assertThat(repository.findAll()).isEmpty();
-	}
-
-	@Test
-	void findAll_returnsEverySavedItem() {
-		repository.save(sampleItem("a"));
-		repository.save(sampleItem("b"));
-		repository.save(sampleItem("c"));
-
-		List<Item> all = repository.findAll();
-
-		assertThat(all).extracting(Item::getItemId).containsExactlyInAnyOrder("a", "b", "c");
-	}
-
-	@Test
 	void save_existingId_replacesTheItem() {
 		repository.save(sampleItem("x"));
 
@@ -132,7 +116,6 @@ class WardrobeRepositoryIT {
 		Item found = repository.findById("x").orElseThrow();
 		assertThat(found.getPrimaryColor()).isEqualTo("black");
 		assertThat(found.getDescriptors()).containsExactly("wool");
-		assertThat(repository.findAll()).hasSize(1);
 	}
 
 	@Test
@@ -145,15 +128,61 @@ class WardrobeRepositoryIT {
 	}
 
 	@Test
-	void findAll_excludesUsageRows() {
+	void findByUserId_returnsOnlyThatUsersItems() {
+		Item a1 = sampleItem("a1");
+		a1.setUserId("userA");
+		Item a2 = sampleItem("a2");
+		a2.setUserId("userA");
+		Item b1 = sampleItem("b1");
+		b1.setUserId("userB");
+		repository.save(a1);
+		repository.save(a2);
+		repository.save(b1);
+
+		List<Item> found = repository.findByUserId("userA");
+
+		assertThat(found).extracting(Item::getItemId).containsExactlyInAnyOrder("a1", "a2");
+	}
+
+	@Test
+	void findByUserId_excludesUsageCounterRows() {
+		// usage#<date> daily-cap counter rows carry no userId, so the sparse GSI
+		// must never surface them in a per-user query.
 		Item usageRow = new Item();
 		usageRow.setItemId("usage#2026-07-16");
 		repository.save(usageRow);
-		repository.save(sampleItem("real-item"));
+		Item owned = sampleItem("real");
+		owned.setUserId("userA");
+		repository.save(owned);
 
-		List<Item> all = repository.findAll();
+		List<Item> found = repository.findByUserId("userA");
 
-		assertThat(all).extracting(Item::getItemId).containsExactly("real-item");
+		assertThat(found).extracting(Item::getItemId).containsExactly("real");
+	}
+
+	@Test
+	void findUnowned_returnsRowsWithNoOrBlankUserId_excludingUsageCounterRows() {
+		// A legacy pre-ownership row (no userId), a malformed row whose userId is
+		// blank (whitespace — a non-empty GSI key value, so it persists, but still
+		// unowned), an owned row, and a reserved usage#<date> counter row (also no
+		// userId, but legitimate) share the table.
+		Item orphan = sampleItem("orphan");
+		Item blankOwner = sampleItem("blank");
+		blankOwner.setUserId("   ");
+		Item owned = sampleItem("owned");
+		owned.setUserId("userA");
+		Item usageRow = new Item();
+		usageRow.setItemId("usage#2026-07-16");
+		repository.save(orphan);
+		repository.save(blankOwner);
+		repository.save(owned);
+		repository.save(usageRow);
+
+		List<Item> unowned = repository.findUnowned();
+
+		// The null-userId orphan and the blank-userId row surface; the owned row and
+		// the usage counter are excluded.
+		assertThat(unowned).extracting(Item::getItemId).containsExactlyInAnyOrder("orphan", "blank");
 	}
 
 	@Test
@@ -176,10 +205,11 @@ class WardrobeRepositoryIT {
 		};
 		WardrobeService service = new WardrobeService(repository, noPhotos);
 		Item seed = sampleItem("worn-1");
+		seed.setUserId("userA");
 		Instant createdAt = seed.getCreatedAt();
 		repository.save(seed);
 
-		ItemResponse worn = service.markWorn("worn-1");
+		ItemResponse worn = service.markWorn("userA", "worn-1");
 
 		assertThat(worn.wornCount()).isEqualTo(1);
 		assertThat(worn.lastWorn()).isNotNull();

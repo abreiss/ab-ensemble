@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.ensemble.security.web.CurrentUserId;
 import com.ensemble.wardrobe.WardrobeService;
 import com.ensemble.wardrobe.dto.ItemResponse;
 import com.ensemble.wardrobe.dto.TagRequest;
@@ -30,6 +31,11 @@ import jakarta.validation.Valid;
  * persistence model and storage internals never cross this boundary — the
  * service returns {@link ItemResponse}. Error mapping (404 / 400) lives in
  * {@link ApiExceptionHandler}.
+ *
+ * <p>Every handler resolves the authenticated caller's {@code userId} via
+ * {@link CurrentUserId} and forwards it to the service, so all reads and writes are
+ * scoped to the caller (spec #15) — a cross-user id returns the same non-enumerating
+ * 404 as a missing one.
  */
 @RestController
 @RequestMapping("/api/items")
@@ -43,44 +49,46 @@ public class WardrobeController {
 
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<ItemResponse> create(
+			@CurrentUserId String userId,
 			@RequestPart("photo") MultipartFile photo,
 			@Valid TagRequest tags) throws IOException {
-		ItemResponse created = service.create(tags, photo.getBytes());
+		ItemResponse created = service.create(userId, tags, photo.getBytes());
 		return ResponseEntity
 			.created(URI.create("/api/items/" + created.itemId()))
 			.body(created);
 	}
 
 	@GetMapping
-	public List<ItemResponse> list() {
-		return service.list();
+	public List<ItemResponse> list(@CurrentUserId String userId) {
+		return service.list(userId);
 	}
 
 	@GetMapping("/{id}")
-	public ItemResponse get(@PathVariable String id) {
-		return service.get(id);
+	public ItemResponse get(@CurrentUserId String userId, @PathVariable String id) {
+		return service.get(userId, id);
 	}
 
 	@GetMapping("/{id}/photo")
-	public ResponseEntity<byte[]> photo(@PathVariable String id) {
+	public ResponseEntity<byte[]> photo(@CurrentUserId String userId, @PathVariable String id) {
 		return ResponseEntity.ok()
 			.contentType(MediaType.IMAGE_JPEG)
-			.body(service.loadPhoto(id));
+			.body(service.loadPhoto(userId, id));
 	}
 
 	@PutMapping(value = "/{id}/tags", consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ItemResponse updateTags(@PathVariable String id, @Valid @RequestBody TagRequest tags) {
-		return service.updateTags(id, tags);
+	public ItemResponse updateTags(
+			@CurrentUserId String userId, @PathVariable String id, @Valid @RequestBody TagRequest tags) {
+		return service.updateTags(userId, id, tags);
 	}
 
 	@PostMapping("/{id}/worn")
-	public ItemResponse markWorn(@PathVariable String id) {
-		return service.markWorn(id);
+	public ItemResponse markWorn(@CurrentUserId String userId, @PathVariable String id) {
+		return service.markWorn(userId, id);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void delete(@PathVariable String id) {
-		service.delete(id);
+	public void delete(@CurrentUserId String userId, @PathVariable String id) {
+		service.delete(userId, id);
 	}
 }

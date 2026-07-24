@@ -21,10 +21,9 @@ import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedExce
  * <p>{@link #create} is a <em>conditional</em> put ({@code attribute_not_exists(email)})
  * so registering an already-taken email fails atomically at the datastore rather
  * than via a read-then-write race, and surfaces as {@link DuplicateEmailException}.
- * {@link #findByUserId} is a full scan filtered in memory — the same demo-scale
- * approach {@code WardrobeRepository.findAll()} uses — because the table is
- * email-keyed with no {@code userId} GSI (see the {@code /api/me} note in the
- * task list; a GSI is the scale path if frequent userId lookups ever appear).
+ * {@link #findByUserId} is a full scan filtered in memory — a demo-scale approach —
+ * because the table is email-keyed with no {@code userId} GSI (see the {@code /api/me}
+ * note in the task list; a GSI is the scale path if frequent userId lookups ever appear).
  */
 @Repository
 public class UserRepository {

@@ -18,6 +18,11 @@ ensemble:
     outfits-table-name: ensemble-outfits
     users-table-name: ensemble-users
     auto-create-table: false
+  migration:
+    # Keep the one-time unowned-data purge (spec #15) off in tests so a Spring
+    # context never fires the runner against a non-existent DynamoDB. (The record
+    # default is already false; set here explicitly to document the guarantee.)
+    purge-unowned: false
   photos:
     dir: build/test-photos
   security:

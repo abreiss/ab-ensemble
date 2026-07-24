@@ -29,6 +29,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.ensemble.security.web.SessionAuthFilter;
 import com.ensemble.storage.InvalidImageException;
 import com.ensemble.storage.PhotoNotFoundException;
 import com.ensemble.wardrobe.ItemNotFoundException;
@@ -38,6 +39,14 @@ import com.ensemble.wardrobe.dto.TagRequest;
 
 @WebMvcTest(WardrobeController.class)
 class WardrobeControllerTest {
+
+	/**
+	 * The authenticated caller. Set on each request via {@code .requestAttr(...)} — the same
+	 * attribute {@link SessionAuthFilter} sets from a valid token — so {@code @CurrentUserId}
+	 * resolves through {@code CurrentUserWebConfig} (auto-loaded by {@code @WebMvcTest}).
+	 */
+	private static final String USER = "userA";
+	private static final String OTHER = "userB";
 
 	@Autowired
 	MockMvc mockMvc;
@@ -56,14 +65,15 @@ class WardrobeControllerTest {
 
 	@Test
 	void createItem_multipart_returns201WithBodyAndLocation() throws Exception {
-		when(service.create(any(), any())).thenReturn(response("new-id"));
+		when(service.create(any(), any(), any())).thenReturn(response("new-id"));
 
 		mockMvc.perform(multipart("/api/items")
 				.file(photoPart())
 				.param("category", "top")
 				.param("primaryColor", "navy")
 				.param("formality", "3")
-				.param("warmth", "2"))
+				.param("warmth", "2")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isCreated())
 			.andExpect(header().string("Location", "/api/items/new-id"))
 			.andExpect(jsonPath("$.itemId").value("new-id"))
@@ -71,40 +81,60 @@ class WardrobeControllerTest {
 	}
 
 	@Test
-	void createItem_missingPhoto_returns400() throws Exception {
-		mockMvc.perform(multipart("/api/items")
-				.param("category", "top")
-				.param("formality", "3")
-				.param("warmth", "2"))
-			.andExpect(status().isBadRequest());
-	}
-
-	@Test
-	void createItem_invalidImage_returns400() throws Exception {
-		when(service.create(any(), any())).thenThrow(new InvalidImageException("not an image"));
+	void createItem_forwardsCallerUserId_toService() throws Exception {
+		// Proves the create handler threads the authenticated caller into the service as the
+		// owner of the new item (the write side of per-user scoping).
+		when(service.create(any(), any(), any())).thenReturn(response("new-id"));
 
 		mockMvc.perform(multipart("/api/items")
 				.file(photoPart())
 				.param("category", "top")
 				.param("formality", "3")
-				.param("warmth", "2"))
+				.param("warmth", "2")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
+			.andExpect(status().isCreated());
+
+		verify(service).create(eq(USER), any(), any());
+	}
+
+	@Test
+	void createItem_missingPhoto_returns400() throws Exception {
+		mockMvc.perform(multipart("/api/items")
+				.param("category", "top")
+				.param("formality", "3")
+				.param("warmth", "2")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void createItem_invalidImage_returns400() throws Exception {
+		when(service.create(any(), any(), any())).thenThrow(new InvalidImageException("not an image"));
+
+		mockMvc.perform(multipart("/api/items")
+				.file(photoPart())
+				.param("category", "top")
+				.param("formality", "3")
+				.param("warmth", "2")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isBadRequest());
 	}
 
 	@Test
 	void createItem_bindsMultipartTagFields_intoTagRequest() throws Exception {
-		when(service.create(any(), any())).thenReturn(response("new-id"));
+		when(service.create(any(), any(), any())).thenReturn(response("new-id"));
 
 		mockMvc.perform(multipart("/api/items")
 				.file(photoPart())
 				.param("category", "top")
 				.param("primaryColor", "navy")
 				.param("formality", "4")
-				.param("warmth", "2"))
+				.param("warmth", "2")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isCreated());
 
 		ArgumentCaptor<TagRequest> captor = ArgumentCaptor.forClass(TagRequest.class);
-		verify(service).create(captor.capture(), any());
+		verify(service).create(any(), captor.capture(), any());
 		TagRequest bound = captor.getValue();
 		assertThat(bound.category()).isEqualTo("top");
 		assertThat(bound.primaryColor()).isEqualTo("navy");
@@ -116,16 +146,17 @@ class WardrobeControllerTest {
 	void createItem_jewelryWithoutFormalityOrWarmth_returns201() throws Exception {
 		// Jewelry has no formality/warmth — TagRequest must accept a null for each
 		// (only category remains required), so the item still saves.
-		when(service.create(any(), any())).thenReturn(response("new-id"));
+		when(service.create(any(), any(), any())).thenReturn(response("new-id"));
 
 		mockMvc.perform(multipart("/api/items")
 				.file(photoPart())
 				.param("category", "Jewelry")
-				.param("primaryColor", "gold"))
+				.param("primaryColor", "gold")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isCreated());
 
 		ArgumentCaptor<TagRequest> captor = ArgumentCaptor.forClass(TagRequest.class);
-		verify(service).create(captor.capture(), any());
+		verify(service).create(any(), captor.capture(), any());
 		assertThat(captor.getValue().formality()).isNull();
 		assertThat(captor.getValue().warmth()).isNull();
 	}
@@ -136,7 +167,8 @@ class WardrobeControllerTest {
 				.file(photoPart())
 				.param("category", "top")
 				.param("formality", "9")
-				.param("warmth", "2"))
+				.param("warmth", "2")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isBadRequest());
 	}
 
@@ -146,15 +178,17 @@ class WardrobeControllerTest {
 				.file(photoPart())
 				.param("category", "top")
 				.param("formality", "3")
-				.param("warmth", "9"))
+				.param("warmth", "9")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isBadRequest());
 	}
 
 	@Test
-	void listItems_returnsArray() throws Exception {
-		when(service.list()).thenReturn(List.of(response("a"), response("b")));
+	void listItems_returnsOnlyCallersItems() throws Exception {
+		when(service.list(USER)).thenReturn(List.of(response("a"), response("b")));
 
-		mockMvc.perform(get("/api/items"))
+		mockMvc.perform(get("/api/items")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.length()").value(2))
 			.andExpect(jsonPath("$[0].itemId").value("a"));
@@ -162,9 +196,10 @@ class WardrobeControllerTest {
 
 	@Test
 	void getItem_returnsItem() throws Exception {
-		when(service.get("a")).thenReturn(response("a"));
+		when(service.get(USER, "a")).thenReturn(response("a"));
 
-		mockMvc.perform(get("/api/items/a"))
+		mockMvc.perform(get("/api/items/a")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.itemId").value("a"))
 			.andExpect(jsonPath("$.photoUrl").value("/api/items/a/photo"));
@@ -172,18 +207,32 @@ class WardrobeControllerTest {
 
 	@Test
 	void getItem_unknownId_returns404() throws Exception {
-		when(service.get("nope")).thenThrow(new ItemNotFoundException("nope"));
+		when(service.get(USER, "nope")).thenThrow(new ItemNotFoundException("nope"));
 
-		mockMvc.perform(get("/api/items/nope"))
+		mockMvc.perform(get("/api/items/nope")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("not_found"));
+	}
+
+	@Test
+	void getItem_otherUsersItem_returns404() throws Exception {
+		// The service rejects a cross-user id exactly like a missing one; the controller must
+		// forward the caller (userB) so the request 404s rather than returning userA's item.
+		when(service.get(OTHER, "a")).thenThrow(new ItemNotFoundException("a"));
+
+		mockMvc.perform(get("/api/items/a")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, OTHER))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.error").value("not_found"));
 	}
 
 	@Test
 	void getPhoto_returnsJpegBytes() throws Exception {
-		when(service.loadPhoto("a")).thenReturn(new byte[]{10, 20, 30});
+		when(service.loadPhoto(USER, "a")).thenReturn(new byte[]{10, 20, 30});
 
-		mockMvc.perform(get("/api/items/a/photo"))
+		mockMvc.perform(get("/api/items/a/photo")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isOk())
 			.andExpect(content().contentType(MediaType.IMAGE_JPEG))
 			.andExpect(content().bytes(new byte[]{10, 20, 30}));
@@ -191,9 +240,10 @@ class WardrobeControllerTest {
 
 	@Test
 	void getPhoto_unknownId_returns404() throws Exception {
-		when(service.loadPhoto("nope")).thenThrow(new ItemNotFoundException("nope"));
+		when(service.loadPhoto(USER, "nope")).thenThrow(new ItemNotFoundException("nope"));
 
-		mockMvc.perform(get("/api/items/nope/photo"))
+		mockMvc.perform(get("/api/items/nope/photo")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.error").value("not_found"));
 	}
@@ -202,21 +252,36 @@ class WardrobeControllerTest {
 	void getPhoto_whenPhotoFileMissing_returns404() throws Exception {
 		// Record exists but its photo file is gone (inconsistent state) — degrade to a
 		// clean 404 rather than an unhandled 500, and don't leak the internal key.
-		when(service.loadPhoto("a")).thenThrow(new PhotoNotFoundException("a.jpg"));
+		when(service.loadPhoto(USER, "a")).thenThrow(new PhotoNotFoundException("a.jpg"));
 
-		mockMvc.perform(get("/api/items/a/photo"))
+		mockMvc.perform(get("/api/items/a/photo")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.error").value("not_found"))
 			.andExpect(jsonPath("$.message").value("not found"));
 	}
 
 	@Test
+	void photo_otherUsersItem_returns404() throws Exception {
+		// A cross-user photo request must 404 — never return the owner's image bytes. The
+		// handler forwards the caller (userB) into loadPhoto → find(userId, itemId), so the
+		// ownership choke point rejects it exactly like a missing id.
+		when(service.loadPhoto(OTHER, "a")).thenThrow(new ItemNotFoundException("a"));
+
+		mockMvc.perform(get("/api/items/a/photo")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, OTHER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("not_found"));
+	}
+
+	@Test
 	void updateTags_returnsUpdatedItem() throws Exception {
-		when(service.updateTags(eq("a"), any())).thenReturn(response("a"));
+		when(service.updateTags(eq(USER), eq("a"), any())).thenReturn(response("a"));
 
 		mockMvc.perform(put("/api/items/a/tags")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"category\":\"top\",\"formality\":4,\"warmth\":2}"))
+				.content("{\"category\":\"top\",\"formality\":4,\"warmth\":2}")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.itemId").value("a"));
 	}
@@ -225,7 +290,8 @@ class WardrobeControllerTest {
 	void updateTags_formalityOutOfRange_returns400() throws Exception {
 		mockMvc.perform(put("/api/items/a/tags")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"category\":\"top\",\"formality\":9,\"warmth\":2}"))
+				.content("{\"category\":\"top\",\"formality\":9,\"warmth\":2}")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isBadRequest());
 	}
 
@@ -233,7 +299,8 @@ class WardrobeControllerTest {
 	void updateTags_warmthOutOfRange_returns400() throws Exception {
 		mockMvc.perform(put("/api/items/a/tags")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"category\":\"top\",\"formality\":3,\"warmth\":9}"))
+				.content("{\"category\":\"top\",\"formality\":3,\"warmth\":9}")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isBadRequest());
 	}
 
@@ -242,7 +309,8 @@ class WardrobeControllerTest {
 		// The error body must not echo verbose binding/validation internals.
 		mockMvc.perform(put("/api/items/a/tags")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"category\":\"top\",\"formality\":9,\"warmth\":2}"))
+				.content("{\"category\":\"top\",\"formality\":9,\"warmth\":2}")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.error").value("bad_request"))
 			.andExpect(jsonPath("$.message").value("invalid request"));
@@ -250,12 +318,25 @@ class WardrobeControllerTest {
 
 	@Test
 	void updateTags_unknownId_returns404() throws Exception {
-		when(service.updateTags(eq("nope"), any())).thenThrow(new ItemNotFoundException("nope"));
+		when(service.updateTags(eq(USER), eq("nope"), any())).thenThrow(new ItemNotFoundException("nope"));
 
 		mockMvc.perform(put("/api/items/nope/tags")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"category\":\"top\",\"formality\":3,\"warmth\":2}"))
+				.content("{\"category\":\"top\",\"formality\":3,\"warmth\":2}")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void updateTags_otherUsersItem_returns404() throws Exception {
+		when(service.updateTags(eq(OTHER), eq("a"), any())).thenThrow(new ItemNotFoundException("a"));
+
+		mockMvc.perform(put("/api/items/a/tags")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"category\":\"top\",\"formality\":3,\"warmth\":2}")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, OTHER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("not_found"));
 	}
 
 	@Test
@@ -263,9 +344,10 @@ class WardrobeControllerTest {
 		ItemResponse worn = new ItemResponse("a", "top", "navy", null, 3, null, 2, List.of("cotton"),
 			"/api/items/a/photo", Instant.parse("2026-07-13T00:00:00Z"),
 			Instant.parse("2026-07-16T00:00:00Z"), 8);
-		when(service.markWorn("a")).thenReturn(worn);
+		when(service.markWorn(USER, "a")).thenReturn(worn);
 
-		mockMvc.perform(post("/api/items/a/worn"))
+		mockMvc.perform(post("/api/items/a/worn")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.itemId").value("a"))
 			.andExpect(jsonPath("$.wornCount").value(8))
@@ -274,26 +356,49 @@ class WardrobeControllerTest {
 
 	@Test
 	void postWorn_unknownId_returns404() throws Exception {
-		when(service.markWorn("nope")).thenThrow(new ItemNotFoundException("nope"));
+		when(service.markWorn(USER, "nope")).thenThrow(new ItemNotFoundException("nope"));
 
-		mockMvc.perform(post("/api/items/nope/worn"))
+		mockMvc.perform(post("/api/items/nope/worn")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("not_found"));
+	}
+
+	@Test
+	void postWorn_otherUsersItem_returns404() throws Exception {
+		when(service.markWorn(OTHER, "a")).thenThrow(new ItemNotFoundException("a"));
+
+		mockMvc.perform(post("/api/items/a/worn")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, OTHER))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.error").value("not_found"));
 	}
 
 	@Test
 	void deleteItem_returns204() throws Exception {
-		doNothing().when(service).delete("a");
+		doNothing().when(service).delete(USER, "a");
 
-		mockMvc.perform(delete("/api/items/a"))
+		mockMvc.perform(delete("/api/items/a")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isNoContent());
 	}
 
 	@Test
 	void deleteItem_unknownId_returns404() throws Exception {
-		doThrow(new ItemNotFoundException("nope")).when(service).delete("nope");
+		doThrow(new ItemNotFoundException("nope")).when(service).delete(USER, "nope");
 
-		mockMvc.perform(delete("/api/items/nope"))
+		mockMvc.perform(delete("/api/items/nope")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, USER))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void deleteItem_otherUsersItem_returns404() throws Exception {
+		doThrow(new ItemNotFoundException("a")).when(service).delete(OTHER, "a");
+
+		mockMvc.perform(delete("/api/items/a")
+				.requestAttr(SessionAuthFilter.USER_ID_ATTRIBUTE, OTHER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("not_found"));
 	}
 }

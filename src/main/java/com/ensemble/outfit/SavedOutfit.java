@@ -5,6 +5,7 @@ import java.util.List;
 
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
 /**
  * A saved outfit — a look the user chose to keep, persisted as a first-class
@@ -24,6 +25,7 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
 public class SavedOutfit {
 
 	private String outfitId;
+	private String userId;
 	private List<String> itemIds;
 	private String source;
 	private String reason;
@@ -36,6 +38,20 @@ public class SavedOutfit {
 
 	public void setOutfitId(String outfitId) {
 		this.outfitId = outfitId;
+	}
+
+	/**
+	 * The owning account's opaque userId (spec #15). Partition key of the sparse
+	 * {@code userId-index} GSI, so {@code findByUserId} returns only this owner's
+	 * saved outfits.
+	 */
+	@DynamoDbSecondaryPartitionKey(indexNames = "userId-index")
+	public String getUserId() {
+		return userId;
+	}
+
+	public void setUserId(String userId) {
+		this.userId = userId;
 	}
 
 	public List<String> getItemIds() {

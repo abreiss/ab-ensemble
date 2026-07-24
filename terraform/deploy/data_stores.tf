@@ -34,6 +34,22 @@ resource "aws_dynamodb_table" "items" {
     name = "itemId"
     type = "S"
   }
+
+  # Per-user scoping (spec #15): a sparse GSI keyed on userId so the app queries
+  # only the caller's items instead of a full-table scan. Sparse by nature -- the
+  # reserved usage#<date> daily-cap counter rows carry no userId attribute and so
+  # never appear in this index. projection_type = "ALL" so a per-user query returns
+  # full item attributes without a follow-up GetItem.
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "userId-index"
+    hash_key        = "userId"
+    projection_type = "ALL"
+  }
 }
 
 # Saved outfits (spec #26 Part A). A dedicated table -- outfitId partition key,
@@ -50,6 +66,22 @@ resource "aws_dynamodb_table" "outfits" {
   attribute {
     name = "outfitId"
     type = "S"
+  }
+
+  # Per-user scoping (spec #15): a sparse GSI keyed on userId so the app queries
+  # only the caller's items instead of a full-table scan. Sparse by nature -- the
+  # reserved usage#<date> daily-cap counter rows carry no userId attribute and so
+  # never appear in this index. projection_type = "ALL" so a per-user query returns
+  # full item attributes without a follow-up GetItem.
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "userId-index"
+    hash_key        = "userId"
+    projection_type = "ALL"
   }
 }
 

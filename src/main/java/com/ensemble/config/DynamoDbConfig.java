@@ -6,6 +6,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.ensemble.migration.MigrationProperties;
+
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -26,7 +28,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
  * Spring context can start without a live DynamoDB.
  */
 @Configuration
-@EnableConfigurationProperties({DynamoDbProperties.class, PhotoProperties.class, SeedProperties.class})
+@EnableConfigurationProperties({DynamoDbProperties.class, PhotoProperties.class, SeedProperties.class,
+	MigrationProperties.class})
 public class DynamoDbConfig {
 
 	@Bean

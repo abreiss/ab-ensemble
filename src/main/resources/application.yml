@@ -71,6 +71,15 @@ ensemble:
     # already exists). Blank/unset -> no seeding. Never commit real values.
     email: ${ENSEMBLE_SEED_EMAIL:}
     password: ${ENSEMBLE_SEED_PASSWORD:}
+  migration:
+    # One-time, opt-in cleanup of pre-existing "unowned" data (spec #15) -- items
+    # and outfits written before per-user ownership existed, so they carry no
+    # userId. Default OFF: the startup runner is a no-op on every ordinary boot
+    # (and in tests, which have no live DynamoDB). An operator flips this to true
+    # for a single deploy to purge legacy rows + their photos -- leaving owned rows
+    # and the reserved usage#<date> counters untouched -- then flips it back. The
+    # purge is idempotent, so a re-run is always safe.
+    purge-unowned: ${ENSEMBLE_MIGRATION_PURGE_UNOWNED:false}
   usage:
     # Global daily cap on Claude-backed calls (POST /api/style, POST /api/items/tag).
     # Counted before the call so a failed/timed-out upstream call still consumes

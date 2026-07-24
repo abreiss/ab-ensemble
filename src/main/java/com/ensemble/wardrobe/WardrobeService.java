@@ -13,11 +13,19 @@ import com.ensemble.wardrobe.dto.TagRequest;
 
 /**
  * Wardrobe business logic: coordinates the repository (item records) and photo
- * storage. Owns id generation, the derived photo key, and the not-found rule
+ * storage. Owns id generation, the derived photo key, and the ownership rule
  * that every id-based operation shares. The {@link Item} persistence model stays
  * inside this service — callers pass {@link TagRequest} and receive
  * {@link ItemResponse} DTOs, so the {@code @DynamoDbBean} never crosses into the
  * controller layer.
+ *
+ * <p><strong>Per-user scoping (spec #15).</strong> Every operation takes the
+ * authenticated caller's {@code userId}: {@link #create} stamps it as the owner,
+ * {@link #list(String)} returns only that owner's items via the {@code userId-index}
+ * GSI, and the single {@link #find(String, String)} choke point rejects any id the
+ * caller does not own with {@link ItemNotFoundException} — so a cross-user id is
+ * indistinguishable from a missing one (non-enumerating 404), never that item's
+ * contents.
  */
 @Service
 public class WardrobeService {
@@ -31,17 +39,21 @@ public class WardrobeService {
 	}
 
 	/**
-	 * Creates an item: generates the id, stores the (compressed) photo under a
-	 * derived key, and persists the record. The photo is validated by storage —
-	 * invalid bytes raise {@code InvalidImageException}.
+	 * Creates an item owned by {@code userId}: generates the id, stamps the owner,
+	 * stores the (compressed) photo under a derived key, and persists the record.
+	 * The photo is validated by storage — invalid bytes raise
+	 * {@code InvalidImageException}.
 	 */
-	public ItemResponse create(TagRequest tags, byte[] photoBytes) {
+	public ItemResponse create(String userId, TagRequest tags, byte[] photoBytes) {
 		String itemId = UUID.randomUUID().toString();
-		String photoKey = itemId + ".jpg";
+		// Namespace the photo under its owner so one user's photos live under a per-user
+		// prefix (<userId>/<itemId>.jpg) and can never be reached under another user's id.
+		String photoKey = userId + "/" + itemId + ".jpg";
 		photoStorage.save(photoKey, photoBytes);
 
 		Item item = new Item();
 		item.setItemId(itemId);
+		item.setUserId(userId);
 		item.setPhotoKey(photoKey);
 		item.setCreatedAt(Instant.now());
 		item.setWornCount(0);
@@ -56,56 +68,66 @@ public class WardrobeService {
 		}
 	}
 
-	public List<ItemResponse> list() {
-		return repository.findAll().stream().map(ItemMapper::toResponse).toList();
+	/** Returns only the items owned by {@code userId} (GSI query, no full-table scan). */
+	public List<ItemResponse> list(String userId) {
+		return repository.findByUserId(userId).stream().map(ItemMapper::toResponse).toList();
 	}
 
-	/** Returns the item as a DTO or throws {@link ItemNotFoundException}. */
-	public ItemResponse get(String itemId) {
-		return ItemMapper.toResponse(find(itemId));
+	/** Returns the caller's item as a DTO or throws {@link ItemNotFoundException}. */
+	public ItemResponse get(String userId, String itemId) {
+		return ItemMapper.toResponse(find(userId, itemId));
 	}
 
-	/** Replaces the tag fields of an existing item. */
-	public ItemResponse updateTags(String itemId, TagRequest tags) {
-		Item item = find(itemId);
+	/** Replaces the tag fields of an existing item the caller owns. */
+	public ItemResponse updateTags(String userId, String itemId, TagRequest tags) {
+		Item item = find(userId, itemId);
 		ItemMapper.applyTags(item, tags);
 		return ItemMapper.toResponse(repository.save(item));
 	}
 
 	/**
-	 * Removes an existing item and its photo. The record is deleted first: if the
-	 * photo delete then fails, the item is already gone (a later get returns 404)
-	 * rather than leaving a record whose photo is missing.
+	 * Removes an existing item the caller owns and its photo. The record is deleted
+	 * first: if the photo delete then fails, the item is already gone (a later get
+	 * returns 404) rather than leaving a record whose photo is missing.
 	 */
-	public void delete(String itemId) {
-		Item item = find(itemId);
+	public void delete(String userId, String itemId) {
+		Item item = find(userId, itemId);
 		repository.deleteById(itemId);
 		photoStorage.delete(item.getPhotoKey());
 	}
 
 	/**
-	 * Records that an item was worn: increments {@code wornCount} (an absent/null
-	 * count is treated as 0) and sets {@code lastWorn} to now. Both values are
-	 * computed here in application code — never by the model — so wear-history stays
-	 * deterministic. A read-modify-write; an unknown id throws
+	 * Records that the caller's item was worn: increments {@code wornCount} (an
+	 * absent/null count is treated as 0) and sets {@code lastWorn} to now. Both values
+	 * are computed here in application code — never by the model — so wear-history stays
+	 * deterministic. A read-modify-write; an unknown or unowned id throws
 	 * {@link ItemNotFoundException}.
 	 */
-	public ItemResponse markWorn(String itemId) {
-		Item item = find(itemId);
+	public ItemResponse markWorn(String userId, String itemId) {
+		Item item = find(userId, itemId);
 		int count = (item.getWornCount() == null ? 0 : item.getWornCount()) + 1;
 		item.setWornCount(count);
 		item.setLastWorn(Instant.now());
 		return ItemMapper.toResponse(repository.save(item));
 	}
 
-	/** Loads the stored photo bytes for an existing item. */
-	public byte[] loadPhoto(String itemId) {
-		Item item = find(itemId);
+	/** Loads the stored photo bytes for an existing item the caller owns. */
+	public byte[] loadPhoto(String userId, String itemId) {
+		Item item = find(userId, itemId);
 		return photoStorage.load(item.getPhotoKey());
 	}
 
-	/** Fetches the persistence model for internal use, or throws {@link ItemNotFoundException}. */
-	private Item find(String itemId) {
-		return repository.findById(itemId).orElseThrow(() -> new ItemNotFoundException(itemId));
+	/**
+	 * Fetches the persistence model for internal use. Throws {@link ItemNotFoundException}
+	 * when the id is unknown <em>or</em> the item is owned by another user — the two cases
+	 * are deliberately indistinguishable so ownership failures never enumerate other users'
+	 * items.
+	 */
+	private Item find(String userId, String itemId) {
+		Item item = repository.findById(itemId).orElseThrow(() -> new ItemNotFoundException(itemId));
+		if (!userId.equals(item.getUserId())) {
+			throw new ItemNotFoundException(itemId);
+		}
+		return item;
 	}
 }

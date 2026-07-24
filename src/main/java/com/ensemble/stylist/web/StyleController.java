@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ensemble.security.web.CurrentUserId;
 import com.ensemble.stylist.Outfit;
 import com.ensemble.stylist.StylistMessage;
 import com.ensemble.stylist.StylistService;
@@ -56,10 +57,10 @@ public class StyleController {
 	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public StyleResponse style(@Valid @RequestBody StyleRequest request) {
+	public StyleResponse style(@CurrentUserId String userId, @Valid @RequestBody StyleRequest request) {
 		callCapService.reserve();
-		Outfit outfit = service.style(request.prompt(), toHistory(request.history()));
-		List<OutfitItem> items = enrich(outfit);
+		Outfit outfit = service.style(userId, request.prompt(), toHistory(request.history()));
+		List<OutfitItem> items = enrich(outfit, userId);
 		return new StyleResponse(outfit.itemIds(), outfit.reason(), items);
 	}
 
@@ -69,13 +70,15 @@ public class StyleController {
 	 * wardrobe, keyed by id). The wardrobe is read once and looked up by id; a
 	 * grounded id with no matching item (a benign race) degrades to null tags rather
 	 * than failing the request. An empty outfit yields an empty list without a
-	 * wardrobe read cost that matters at demo scale.
+	 * wardrobe read cost that matters at demo scale. The wardrobe is read
+	 * <strong>scoped to the caller</strong> ({@code userId}), matching the scoped list
+	 * the stylist already grounded against — no unscoped read remains (spec #15).
 	 */
-	private List<OutfitItem> enrich(Outfit outfit) {
+	private List<OutfitItem> enrich(Outfit outfit, String userId) {
 		if (outfit.itemIds().isEmpty()) {
 			return List.of();
 		}
-		Map<String, ItemResponse> byId = wardrobe.list().stream()
+		Map<String, ItemResponse> byId = wardrobe.list(userId).stream()
 			.collect(Collectors.toMap(ItemResponse::itemId, Function.identity(), (first, second) -> first));
 		return outfit.itemIds().stream()
 			.map(id -> toOutfitItem(id, outfit.rationaleFor(id), byId.get(id)))

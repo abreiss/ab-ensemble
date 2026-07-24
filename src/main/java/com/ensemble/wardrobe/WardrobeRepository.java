@@ -10,6 +10,7 @@ import com.ensemble.config.DynamoDbProperties;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 
 /**
  * Persists {@link Item}s via the DynamoDB Enhanced Client against the single
@@ -19,6 +20,12 @@ import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
  */
 @Repository
 public class WardrobeRepository {
+
+	/** Name of the sparse per-user GSI declared on {@link Item#getUserId()} (spec #15). */
+	private static final String USER_ID_INDEX = "userId-index";
+
+	/** Partition-key prefix of the reserved {@code usage#<date>} daily-cap counter rows. */
+	private static final String USAGE_ROW_PREFIX = "usage#";
 
 	private final DynamoDbTable<Item> table;
 
@@ -37,14 +44,32 @@ public class WardrobeRepository {
 		return Optional.ofNullable(table.getItem(r -> r.key(k -> k.partitionValue(itemId))));
 	}
 
-	private static final String USAGE_ROW_PREFIX = "usage#";
+	/**
+	 * Returns only the items owned by {@code userId} via the sparse
+	 * {@code userId-index} GSI query — not a full-table scan (spec #15). Reserved
+	 * {@code usage#<date>} counter rows carry no {@code userId}, so they are absent
+	 * from the index and never surface here.
+	 */
+	public List<Item> findByUserId(String userId) {
+		return table.index(USER_ID_INDEX)
+			.query(QueryConditional.keyEqualTo(k -> k.partitionValue(userId)))
+			.stream()
+			.flatMap(page -> page.items().stream())
+			.toList();
+	}
 
 	/**
-	 * Returns every item in the wardrobe (demo scale — a full scan), excluding the
-	 * reserved {@code usage#<UTC-date>} daily-cap counter rows that share this table.
+	 * Returns every "unowned" item — legacy rows written before per-user ownership
+	 * (spec #15) that carry no {@code userId} — for the one-time purge
+	 * ({@link com.ensemble.migration.UnownedDataPurgeRunner}). A full-table scan: the
+	 * sparse {@code userId-index} deliberately cannot surface null-{@code userId} rows,
+	 * so it is unusable here, and this is never called on a request path. Reserved
+	 * {@code usage#<date>} daily-cap counter rows also carry no {@code userId} but are
+	 * legitimate, so they are excluded by partition-key prefix.
 	 */
-	public List<Item> findAll() {
+	public List<Item> findUnowned() {
 		return table.scan().items().stream()
+			.filter(item -> item.getUserId() == null || item.getUserId().isBlank())
 			.filter(item -> !item.getItemId().startsWith(USAGE_ROW_PREFIX))
 			.toList();
 	}
