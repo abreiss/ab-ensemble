@@ -34,7 +34,7 @@ describe('AuthGate', () => {
       </AuthGate>,
     )
 
-    expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^username$/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument()
     expect(screen.queryByText('secret content')).not.toBeInTheDocument()
   })
@@ -49,7 +49,7 @@ describe('AuthGate', () => {
 
     await user.click(screen.getByRole('button', { name: /sign up/i }))
 
-    expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^username$/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/signup code/i)).toBeInTheDocument()
 
@@ -67,7 +67,7 @@ describe('AuthGate', () => {
       </AuthGate>,
     )
 
-    await user.type(screen.getByLabelText(/^email$/i), 'jane@example.com')
+    await user.type(screen.getByLabelText(/^username$/i), 'jane_doe')
     await user.type(screen.getByLabelText(/^password$/i), 'correct-horse-battery')
     await user.click(screen.getByRole('button', { name: /log in/i }))
 
@@ -84,7 +84,7 @@ describe('AuthGate', () => {
     )
 
     await user.click(screen.getByRole('button', { name: /sign up/i }))
-    await user.type(screen.getByLabelText(/^email$/i), 'new@example.com')
+    await user.type(screen.getByLabelText(/^username$/i), 'new_user')
     await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
     await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
     await user.click(screen.getByRole('button', { name: /^sign up$/i }))
@@ -92,7 +92,7 @@ describe('AuthGate', () => {
     expect(await screen.findByText('secret content')).toBeInTheDocument()
   })
 
-  it('shows "Invalid email or password." for a login 401', async () => {
+  it('shows "Invalid username or password." for a login 401', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: 'unauthorized' }, 401))
     const user = userEvent.setup()
     render(
@@ -101,15 +101,15 @@ describe('AuthGate', () => {
       </AuthGate>,
     )
 
-    await user.type(screen.getByLabelText(/^email$/i), 'jane@example.com')
+    await user.type(screen.getByLabelText(/^username$/i), 'jane_doe')
     await user.type(screen.getByLabelText(/^password$/i), 'wrong-password')
     await user.click(screen.getByRole('button', { name: /log in/i }))
 
-    expect(await screen.findByText('Invalid email or password.')).toBeInTheDocument()
+    expect(await screen.findByText('Invalid username or password.')).toBeInTheDocument()
     expect(screen.queryByText('secret content')).not.toBeInTheDocument()
   })
 
-  it('shows "That email is already registered." for a signup 409', async () => {
+  it('shows "That username is already registered." for a signup 409', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: 'conflict' }, 409))
     const user = userEvent.setup()
     render(
@@ -119,16 +119,16 @@ describe('AuthGate', () => {
     )
 
     await user.click(screen.getByRole('button', { name: /sign up/i }))
-    await user.type(screen.getByLabelText(/^email$/i), 'taken@example.com')
+    await user.type(screen.getByLabelText(/^username$/i), 'taken_user')
     await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
     await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
     await user.click(screen.getByRole('button', { name: /^sign up$/i }))
 
-    expect(await screen.findByText('That email is already registered.')).toBeInTheDocument()
+    expect(await screen.findByText('That username is already registered.')).toBeInTheDocument()
     expect(screen.queryByText('secret content')).not.toBeInTheDocument()
   })
 
-  it('shows "Enter a valid email and password." for a login 400', async () => {
+  it('shows "Enter a valid username and password." for a login 400', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: 'bad_request' }, 400))
     const user = userEvent.setup()
     render(
@@ -137,14 +137,14 @@ describe('AuthGate', () => {
       </AuthGate>,
     )
 
-    await user.type(screen.getByLabelText(/^email$/i), 'jane@example.com')
+    await user.type(screen.getByLabelText(/^username$/i), 'jane_doe')
     await user.type(screen.getByLabelText(/^password$/i), 'correct-horse-battery')
     await user.click(screen.getByRole('button', { name: /log in/i }))
 
-    expect(await screen.findByText('Enter a valid email and password.')).toBeInTheDocument()
+    expect(await screen.findByText('Enter a valid username and password.')).toBeInTheDocument()
   })
 
-  it('shows "Check your email, password, and signup code." for a signup 400', async () => {
+  it('shows "Check your username, password, and signup code." for a signup 400', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: 'bad_request' }, 400))
     const user = userEvent.setup()
     render(
@@ -154,13 +154,13 @@ describe('AuthGate', () => {
     )
 
     await user.click(screen.getByRole('button', { name: /sign up/i }))
-    await user.type(screen.getByLabelText(/^email$/i), 'new@example.com')
+    await user.type(screen.getByLabelText(/^username$/i), 'new_user')
     await user.type(screen.getByLabelText(/^password$/i), 'short')
     await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
     await user.click(screen.getByRole('button', { name: /^sign up$/i }))
 
     expect(
-      await screen.findByText('Check your email, password, and signup code.'),
+      await screen.findByText('Check your username, password, and signup code.'),
     ).toBeInTheDocument()
   })
 
@@ -174,7 +174,7 @@ describe('AuthGate', () => {
     )
 
     await user.click(screen.getByRole('button', { name: /sign up/i }))
-    await user.type(screen.getByLabelText(/^email$/i), 'new@example.com')
+    await user.type(screen.getByLabelText(/^username$/i), 'new_user')
     await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
     await user.type(screen.getByLabelText(/signup code/i), 'wrong-code')
     await user.click(screen.getByRole('button', { name: /^sign up$/i }))
@@ -191,7 +191,7 @@ describe('AuthGate', () => {
         <div>secret content</div>
       </AuthGate>,
     )
-    await user.type(screen.getByLabelText(/^email$/i), 'jane@example.com')
+    await user.type(screen.getByLabelText(/^username$/i), 'jane_doe')
     await user.type(screen.getByLabelText(/^password$/i), 'correct-horse-battery')
     await user.click(screen.getByRole('button', { name: /log in/i }))
     expect(await screen.findByText('secret content')).toBeInTheDocument()
@@ -201,7 +201,7 @@ describe('AuthGate', () => {
       await authedFetch('/api/items')
     })
 
-    expect(await screen.findByLabelText(/^email$/i)).toBeInTheDocument()
+    expect(await screen.findByLabelText(/^username$/i)).toBeInTheDocument()
     expect(screen.queryByText('secret content')).not.toBeInTheDocument()
   })
 })

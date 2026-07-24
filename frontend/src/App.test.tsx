@@ -134,13 +134,13 @@ describe('App shell — /assemble is gated', () => {
 
   it('shows the login screen instead of /assemble when no session token is stored', async () => {
     renderAt('/assemble')
-    expect(await screen.findByLabelText(/^email$/i)).toBeInTheDocument()
+    expect(await screen.findByLabelText(/^username$/i)).toBeInTheDocument()
     expect(screen.queryByTestId('assemble')).not.toBeInTheDocument()
   })
 
   it('shows the login screen instead of /saved when no session token is stored', async () => {
     renderAt('/saved')
-    expect(await screen.findByLabelText(/^email$/i)).toBeInTheDocument()
+    expect(await screen.findByLabelText(/^username$/i)).toBeInTheDocument()
     expect(screen.queryByTestId('saved-outfits')).not.toBeInTheDocument()
   })
 })

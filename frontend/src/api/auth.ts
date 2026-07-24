@@ -1,4 +1,4 @@
-// Typed client for the account endpoints: `POST /api/auth` (email/password login) and
+// Typed client for the account endpoints: `POST /api/auth` (username/password login) and
 // `POST /api/accounts` (invite-passcode-gated signup). Follows the `api/items.ts` pattern:
 // resolve on a 2xx response, throw on any non-2xx or network/transport failure. The
 // returned session token is held in `sessionStorage` (cleared on tab close, unlike
@@ -48,17 +48,21 @@ async function postForToken(
   sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, token)
 }
 
-/** Trades an email/password for a signed session token, storing it in `sessionStorage`. */
-export async function login(email: string, password: string): Promise<void> {
-  await postForToken(LOGIN_URL, { email, password }, 'Login')
+/** Trades a username/password for a signed session token, storing it in `sessionStorage`. */
+export async function login(username: string, password: string): Promise<void> {
+  await postForToken(LOGIN_URL, { username, password }, 'Login')
 }
 
 /**
- * Trades an email/password plus the invite passcode for a signed session token
+ * Trades a username/password plus the invite passcode for a signed session token
  * (`POST /api/accounts`), storing it in `sessionStorage`.
  */
-export async function signup(email: string, password: string, passcode: string): Promise<void> {
-  await postForToken(SIGNUP_URL, { email, password, passcode }, 'Signup')
+export async function signup(
+  username: string,
+  password: string,
+  passcode: string,
+): Promise<void> {
+  await postForToken(SIGNUP_URL, { username, password, passcode }, 'Signup')
 }
 
 /** The stored session token, or `null` if not authenticated. */
