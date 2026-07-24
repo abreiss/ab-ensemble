@@ -48,6 +48,8 @@ export default function AuthGate({ children }: AuthGateProps) {
   const [mode, setMode] = useState<Mode>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [confirmTouched, setConfirmTouched] = useState(false)
   const [passcode, setPasscode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -62,11 +64,19 @@ export default function AuthGate({ children }: AuthGateProps) {
     setMode((current) => (current === 'login' ? 'signup' : 'login'))
     setError(null)
     setPassword('')
+    setConfirmPassword('')
+    setConfirmTouched(false)
     setPasscode('')
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    // Guard the confirm-password match here too: pressing Enter submits the form
+    // even while the button is disabled, so the button gate alone is not enough.
+    if (mode === 'signup' && password !== confirmPassword) {
+      setConfirmTouched(true)
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
@@ -78,6 +88,7 @@ export default function AuthGate({ children }: AuthGateProps) {
       setAuthenticated(true)
       setUsername('')
       setPassword('')
+      setConfirmPassword('')
       setPasscode('')
     } catch (err) {
       setError(errorMessageFor(mode, err))
@@ -87,11 +98,12 @@ export default function AuthGate({ children }: AuthGateProps) {
   }
 
   const isSignup = mode === 'signup'
+  const confirmMismatch = isSignup && confirmPassword !== password
   const canSubmit =
     !submitting &&
     username.length > 0 &&
     password.length > 0 &&
-    (!isSignup || passcode.length > 0)
+    (!isSignup || (passcode.length > 0 && !confirmMismatch))
 
   return (
     <div className="auth-gate">
@@ -127,6 +139,27 @@ export default function AuthGate({ children }: AuthGateProps) {
               onChange={(event) => setPassword(event.target.value)}
             />
           </div>
+          {isSignup && (
+            <div className="field">
+              <label className="field-label" htmlFor="auth-confirm-password">
+                Confirm password
+              </label>
+              <input
+                id="auth-confirm-password"
+                className="input"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                disabled={submitting}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                onBlur={() => setConfirmTouched(true)}
+                aria-invalid={confirmTouched && confirmMismatch ? true : undefined}
+              />
+              {confirmTouched && confirmMismatch && (
+                <span className="field-error">Passwords don&apos;t match.</span>
+              )}
+            </div>
+          )}
           {isSignup && (
             <div className="field">
               <label className="field-label" htmlFor="auth-passcode">

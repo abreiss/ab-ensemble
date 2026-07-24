@@ -86,6 +86,7 @@ describe('AuthGate', () => {
     await user.click(screen.getByRole('button', { name: /sign up/i }))
     await user.type(screen.getByLabelText(/^username$/i), 'new_user')
     await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
+    await user.type(screen.getByLabelText(/^confirm password$/i), 'a-strong-password')
     await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
     await user.click(screen.getByRole('button', { name: /^sign up$/i }))
 
@@ -121,6 +122,7 @@ describe('AuthGate', () => {
     await user.click(screen.getByRole('button', { name: /sign up/i }))
     await user.type(screen.getByLabelText(/^username$/i), 'taken_user')
     await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
+    await user.type(screen.getByLabelText(/^confirm password$/i), 'a-strong-password')
     await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
     await user.click(screen.getByRole('button', { name: /^sign up$/i }))
 
@@ -156,6 +158,7 @@ describe('AuthGate', () => {
     await user.click(screen.getByRole('button', { name: /sign up/i }))
     await user.type(screen.getByLabelText(/^username$/i), 'new_user')
     await user.type(screen.getByLabelText(/^password$/i), 'short')
+    await user.type(screen.getByLabelText(/^confirm password$/i), 'short')
     await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
     await user.click(screen.getByRole('button', { name: /^sign up$/i }))
 
@@ -176,6 +179,7 @@ describe('AuthGate', () => {
     await user.click(screen.getByRole('button', { name: /sign up/i }))
     await user.type(screen.getByLabelText(/^username$/i), 'new_user')
     await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
+    await user.type(screen.getByLabelText(/^confirm password$/i), 'a-strong-password')
     await user.type(screen.getByLabelText(/signup code/i), 'wrong-code')
     await user.click(screen.getByRole('button', { name: /^sign up$/i }))
 
@@ -203,5 +207,86 @@ describe('AuthGate', () => {
 
     expect(await screen.findByLabelText(/^username$/i)).toBeInTheDocument()
     expect(screen.queryByText('secret content')).not.toBeInTheDocument()
+  })
+
+  it('shows the confirm-password field only in signup mode', async () => {
+    const user = userEvent.setup()
+    render(
+      <AuthGate>
+        <div>secret content</div>
+      </AuthGate>,
+    )
+
+    expect(screen.queryByLabelText(/^confirm password$/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /sign up/i }))
+
+    expect(screen.getByLabelText(/^confirm password$/i)).toBeInTheDocument()
+  })
+
+  it('blocks signup and shows an inline error when the confirmation does not match', async () => {
+    const user = userEvent.setup()
+    render(
+      <AuthGate>
+        <div>secret content</div>
+      </AuthGate>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /sign up/i }))
+    await user.type(screen.getByLabelText(/^username$/i), 'new_user')
+    await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
+    await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
+    await user.type(screen.getByLabelText(/^confirm password$/i), 'a-strong-passWORD')
+    await user.tab()
+
+    expect(await screen.findByText("Passwords don't match.")).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^sign up$/i })).toBeDisabled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('submits the signup when the confirmation matches', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ token: 'tok-456' }, 201))
+    const user = userEvent.setup()
+    render(
+      <AuthGate>
+        <div>secret content</div>
+      </AuthGate>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /sign up/i }))
+    await user.type(screen.getByLabelText(/^username$/i), 'new_user')
+    await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
+    await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
+    await user.type(screen.getByLabelText(/^confirm password$/i), 'a-strong-password')
+    await user.click(screen.getByRole('button', { name: /^sign up$/i }))
+
+    expect(await screen.findByText('secret content')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('never sends the confirmation value to the API', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ token: 'tok-456' }, 201))
+    const user = userEvent.setup()
+    render(
+      <AuthGate>
+        <div>secret content</div>
+      </AuthGate>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /sign up/i }))
+    await user.type(screen.getByLabelText(/^username$/i), 'new_user')
+    await user.type(screen.getByLabelText(/^password$/i), 'a-strong-password')
+    await user.type(screen.getByLabelText(/signup code/i), 'invite-code')
+    await user.type(screen.getByLabelText(/^confirm password$/i), 'a-strong-password')
+    await user.click(screen.getByRole('button', { name: /^sign up$/i }))
+
+    expect(await screen.findByText('secret content')).toBeInTheDocument()
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/accounts')
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body).toEqual({
+      username: 'new_user',
+      password: 'a-strong-password',
+      passcode: 'invite-code',
+    })
   })
 })
