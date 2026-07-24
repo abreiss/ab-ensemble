@@ -24,6 +24,9 @@ public class WardrobeRepository {
 	/** Name of the sparse per-user GSI declared on {@link Item#getUserId()} (spec #15). */
 	private static final String USER_ID_INDEX = "userId-index";
 
+	/** Partition-key prefix of the reserved {@code usage#<date>} daily-cap counter rows. */
+	private static final String USAGE_ROW_PREFIX = "usage#";
+
 	private final DynamoDbTable<Item> table;
 
 	public WardrobeRepository(DynamoDbEnhancedClient enhancedClient, DynamoDbProperties props) {
@@ -52,6 +55,22 @@ public class WardrobeRepository {
 			.query(QueryConditional.keyEqualTo(k -> k.partitionValue(userId)))
 			.stream()
 			.flatMap(page -> page.items().stream())
+			.toList();
+	}
+
+	/**
+	 * Returns every "unowned" item — legacy rows written before per-user ownership
+	 * (spec #15) that carry no {@code userId} — for the one-time purge
+	 * ({@link com.ensemble.migration.UnownedDataPurgeRunner}). A full-table scan: the
+	 * sparse {@code userId-index} deliberately cannot surface null-{@code userId} rows,
+	 * so it is unusable here, and this is never called on a request path. Reserved
+	 * {@code usage#<date>} daily-cap counter rows also carry no {@code userId} but are
+	 * legitimate, so they are excluded by partition-key prefix.
+	 */
+	public List<Item> findUnowned() {
+		return table.scan().items().stream()
+			.filter(item -> item.getUserId() == null || item.getUserId().isBlank())
+			.filter(item -> !item.getItemId().startsWith(USAGE_ROW_PREFIX))
 			.toList();
 	}
 

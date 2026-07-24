@@ -18,9 +18,9 @@ import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
  * create/read/list/delete keyed on {@code outfitId}. {@link #save} doubles as
  * create and replace (full-item put).
  *
- * <p>Unlike {@code WardrobeRepository.findAll}, {@link #findAll} needs no
- * reserved-prefix filtering: the outfits table is dedicated, so it holds no
- * daily-cap counter rows to exclude.
+ * <p>Unlike {@link com.ensemble.wardrobe.WardrobeRepository#findUnowned()},
+ * {@link #findUnowned()} needs no reserved-prefix filtering: the outfits table is
+ * dedicated, so it holds no daily-cap counter rows to exclude.
  */
 @Repository
 public class OutfitRepository {
@@ -59,6 +59,19 @@ public class OutfitRepository {
 			.query(QueryConditional.keyEqualTo(k -> k.partitionValue(userId)))
 			.stream()
 			.flatMap(page -> page.items().stream())
+			.toList();
+	}
+
+	/**
+	 * Returns every "unowned" outfit — legacy rows written before per-user ownership
+	 * (spec #15) that carry no {@code userId} — for the one-time purge
+	 * ({@link com.ensemble.migration.UnownedDataPurgeRunner}). A full-table scan, used
+	 * only by the purge, never on a request path. The dedicated outfits table holds no
+	 * reserved counter rows, so (unlike the wardrobe scan) no prefix filtering is needed.
+	 */
+	public List<SavedOutfit> findUnowned() {
+		return table.scan().items().stream()
+			.filter(outfit -> outfit.getUserId() == null || outfit.getUserId().isBlank())
 			.toList();
 	}
 

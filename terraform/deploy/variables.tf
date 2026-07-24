@@ -31,3 +31,9 @@ variable "github_ref" {
   type        = string
   default     = "refs/heads/main"
 }
+
+variable "purge_unowned_data" {
+  description = "One-time, opt-in cleanup (spec #15). When true, the deployed container's startup runner purges every pre-existing 'unowned' item/outfit (rows written before per-user ownership, so they carry no userId) plus each such item's photo, leaving owned rows and the reserved usage#<date> counters untouched. The purge is idempotent. Set true for a single deploy to clear legacy data, then set back to false (App Runner drops empty-string env values, so this is wired as an explicit \"true\"/\"false\" literal)."
+  type        = bool
+  default     = false
+}

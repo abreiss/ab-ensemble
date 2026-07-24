@@ -161,6 +161,31 @@ class WardrobeRepositoryIT {
 	}
 
 	@Test
+	void findUnowned_returnsRowsWithNoOrBlankUserId_excludingUsageCounterRows() {
+		// A legacy pre-ownership row (no userId), a malformed row whose userId is
+		// blank (whitespace — a non-empty GSI key value, so it persists, but still
+		// unowned), an owned row, and a reserved usage#<date> counter row (also no
+		// userId, but legitimate) share the table.
+		Item orphan = sampleItem("orphan");
+		Item blankOwner = sampleItem("blank");
+		blankOwner.setUserId("   ");
+		Item owned = sampleItem("owned");
+		owned.setUserId("userA");
+		Item usageRow = new Item();
+		usageRow.setItemId("usage#2026-07-16");
+		repository.save(orphan);
+		repository.save(blankOwner);
+		repository.save(owned);
+		repository.save(usageRow);
+
+		List<Item> unowned = repository.findUnowned();
+
+		// The null-userId orphan and the blank-userId row surface; the owned row and
+		// the usage counter are excluded.
+		assertThat(unowned).extracting(Item::getItemId).containsExactlyInAnyOrder("orphan", "blank");
+	}
+
+	@Test
 	void markWorn_roundTrip_persistsIncrementAndLastWornLeavingTagsUntouched() {
 		// A no-op storage: markWorn never touches photos, so this exercises only the
 		// wear-history read-modify-write through the real repository/table.

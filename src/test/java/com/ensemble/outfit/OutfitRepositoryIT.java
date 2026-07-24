@@ -127,6 +127,22 @@ class OutfitRepositoryIT {
 	}
 
 	@Test
+	void findUnowned_returnsOnlyOutfitsWithNoOrBlankUserId() {
+		SavedOutfit orphan = sample("orphan");
+		SavedOutfit blankOwner = sample("blank");
+		blankOwner.setUserId("   ");
+		SavedOutfit owned = sample("owned");
+		owned.setUserId("userA");
+		repository.save(orphan);
+		repository.save(blankOwner);
+		repository.save(owned);
+
+		List<SavedOutfit> unowned = repository.findUnowned();
+
+		assertThat(unowned).extracting(SavedOutfit::getOutfitId).containsExactlyInAnyOrder("orphan", "blank");
+	}
+
+	@Test
 	void deleteById_removesTheOutfit() {
 		repository.save(sample("gone"));
 

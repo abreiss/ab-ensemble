@@ -56,6 +56,12 @@ resource "aws_apprunner_service" "app" {
           ENSEMBLE_DYNAMODB_TABLE_NAME = aws_dynamodb_table.items.name
           ENSEMBLE_OUTFITS_TABLE_NAME  = aws_dynamodb_table.outfits.name
           ENSEMBLE_USERS_TABLE_NAME    = aws_dynamodb_table.users.name
+
+          # One-time unowned-data purge (spec #15), off by default. Flip
+          # var.purge_unowned_data to true for a single deploy to clear legacy
+          # pre-ownership rows, then set it back. Emitted as an explicit
+          # "true"/"false" literal because App Runner drops empty-string values.
+          ENSEMBLE_MIGRATION_PURGE_UNOWNED = var.purge_unowned_data ? "true" : "false"
         }
 
         # Sourced by ARN, never by value -- App Runner resolves these via the

@@ -293,7 +293,7 @@ now covering the cross-user rejection.
 - [x] 4.7 (REFACTOR) `./gradlew test -PskipFrontend` green; ensure the `StyleController`'s single scoped
   wardrobe read is reused (no second unscoped read).
 
-### [ ] 5.0 One-time cleanup of pre-existing unowned data
+### [x] 5.0 One-time cleanup of pre-existing unowned data
 
 **Demoable outcome:** An opt-in, idempotent startup runner (default **off**)
 deletes every pre-existing `Item` and `SavedOutfit` row that has **no** `userId`
@@ -314,35 +314,41 @@ re-run.
 
 #### 5.0 Tasks
 
-- [ ] 5.1 (RED) Add `UnownedDataPurgeRunnerTest` (Mockito): `purge_whenDisabled_isNoOp` (flag false →
+- [x] 5.1 (RED) Add `UnownedDataPurgeRunnerTest` (Mockito): `purge_whenDisabled_isNoOp` (flag false →
   repositories/photoStorage never touched) and `purge_secondRun_isNoOp` (empty unowned result → no
-  deletes). Confirm failing (class does not exist yet).
-- [ ] 5.2 (GREEN) Create `MigrationProperties` (`@ConfigurationProperties(prefix = "ensemble.migration")`,
+  deletes). Confirm failing (class does not exist yet). *(Also added a delete-photos-then-rows happy
+  path and a `purge_whenPhotoDeleteFails_stillDeletesRowAndContinues` resilience case for full branch
+  coverage.)*
+- [x] 5.2 (GREEN) Create `MigrationProperties` (`@ConfigurationProperties(prefix = "ensemble.migration")`,
   `boolean purgeUnowned` default false) and register it in `DynamoDbConfig`'s
   `@EnableConfigurationProperties`.
-- [ ] 5.3 (GREEN) Add `WardrobeRepository.findUnowned()` (scan → items with null/blank `userId` **and**
+- [x] 5.3 (GREEN) Add `WardrobeRepository.findUnowned()` (scan → items with null/blank `userId` **and**
   not `usage#`-prefixed) and `OutfitRepository.findUnowned()` (scan → outfits with null `userId`).
-- [ ] 5.4 (GREEN) Create `com.ensemble.migration.UnownedDataPurgeRunner implements ApplicationRunner`,
+- [x] 5.4 (GREEN) Create `com.ensemble.migration.UnownedDataPurgeRunner implements ApplicationRunner`,
   `@Component`, `@Order(Ordered.LOWEST_PRECEDENCE - 40)` (after `DynamoDbTableInitializer`). Self-gate
   inside `run(...)`: return immediately if `!props.purgeUnowned()` (mirrors `SeedAccountRunner`, so
   `@SpringBootTest` contexts no-op by default). When enabled: for each unowned item,
   `photoStorage.delete(item.getPhotoKey())` then `wardrobeRepository.deleteById(...)`; delete each
   unowned outfit; log counts. Never delete `usage#` or owned rows.
-- [ ] 5.5 (RED→GREEN) Add `UnownedDataPurgeRunnerIT` against DynamoDB Local: seed 1 unowned item (+its
+- [x] 5.5 (RED→GREEN) Add `UnownedDataPurgeRunnerIT` against DynamoDB Local: seed 1 unowned item (+its
   photo via a real/anonymous `PhotoStorage`), 1 unowned outfit, 1 owned item (`userId=userA`), and a
   `usage#<date>` row; run the purge with the flag on; assert only the unowned item/outfit and the
   unowned photo are gone, and the owned item + usage row survive. Add a `findUnowned` round-trip
   assertion to `OutfitRepositoryIT` if not covered by the IT. Also add a resilience case:
   an unowned item whose photo is **already missing** — assert the runner still deletes the row and
   continues to the next (a `PhotoNotFoundException`/no-op delete must not abort the migration).
-- [ ] 5.6 (GREEN) Add `ensemble.migration.purge-unowned: ${ENSEMBLE_MIGRATION_PURGE_UNOWNED:false}` to
+- [x] 5.6 (GREEN) Add `ensemble.migration.purge-unowned: ${ENSEMBLE_MIGRATION_PURGE_UNOWNED:false}` to
   `application.yml` and a commented `ENSEMBLE_MIGRATION_PURGE_UNOWNED=` block to `.env.example`
-  explaining it is default-off and opt-in (operator flips it once to clear legacy data).
-- [ ] 5.7 (Optional) Wire `ENSEMBLE_MIGRATION_PURGE_UNOWNED` into `terraform/deploy/apprunner.tf`
+  explaining it is default-off and opt-in (operator flips it once to clear legacy data). *(Also set
+  `purge-unowned: false` in `src/test/resources/application.yml` to document the tests-are-a-no-op guarantee.)*
+- [x] 5.7 (Optional) Wire `ENSEMBLE_MIGRATION_PURGE_UNOWNED` into `terraform/deploy/apprunner.tf`
   `runtime_environment_variables` via a tfvar defaulting to `"false"`, so an operator can opt in for a
   single deploy then flip it back.
-- [ ] 5.8 (Proof / regression) Run the full gate: `./gradlew test -PskipFrontend`, `./gradlew jacocoTestReport`,
+- [x] 5.8 (Proof / regression) Run the full gate: `./gradlew test -PskipFrontend`, `./gradlew jacocoTestReport`,
   `cd frontend && npm test -- --run`, and `cd terraform/deploy && terraform fmt -check -recursive && terraform validate`.
-  Capture green output (success metric #5).
-- [ ] 5.9 (REFACTOR) Keep tests green; ensure the purge logs a clear "N unowned items / M unowned outfits
-  removed" summary and is a visible no-op when disabled.
+  Capture green output (success metric #5). *(Backend BUILD SUCCESSFUL; frontend 374/374; terraform valid;
+  migration classes + touched repos at 100% line / 100% branch — see `15-proofs/15-task-05-proofs.md`.)*
+- [x] 5.9 (REFACTOR) Keep tests green; ensure the purge logs a clear "N unowned items / M unowned outfits
+  removed" summary and is a visible no-op when disabled. *(Runner logs an INFO count summary on the
+  enabled path and a DEBUG skip when disabled — mirroring `SeedAccountRunner` so ordinary boots stay
+  quiet; also fixed the stale `WardrobeRepository.findAll` reference in `OutfitRepository`'s javadoc.)*
