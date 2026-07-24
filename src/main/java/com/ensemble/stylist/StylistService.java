@@ -61,16 +61,19 @@ public class StylistService {
 
 	/**
 	 * Builds a grounded outfit for the given vibe — a single-turn request with no
-	 * prior conversation. Delegates to {@link #style(String, List)} with an empty
-	 * history.
+	 * prior conversation. Delegates to {@link #style(String, String, List)} with an
+	 * empty history.
 	 *
+	 * @param userId the authenticated caller; the outfit is built only from this user's
+	 *     wardrobe (spec #15) — an item owned by anyone else is out of scope and rejected
+	 *     exactly like a hallucinated id
 	 * @param vibe the free-text style request
 	 * @return an outfit of owned item ids + a reason; an empty outfit (with a friendly
 	 *     reason) when the wardrobe is empty
 	 * @throws StylistUnavailableException on an upstream failure or an ungroundable pick
 	 */
-	public Outfit style(String vibe) {
-		return style(vibe, List.of());
+	public Outfit style(String userId, String vibe) {
+		return style(userId, vibe, List.of());
 	}
 
 	/**
@@ -85,6 +88,13 @@ public class StylistService {
 	 * seam is nudged to produce a <em>different</em> look (see
 	 * {@code AnthropicStylistModelClient}).
 	 *
+	 * <p>The wardrobe is read <strong>scoped to {@code userId}</strong> via
+	 * {@link WardrobeService#list(String)}, so {@code validIds} contains only the
+	 * caller's items. An id belonging to a different user is therefore never valid and
+	 * is rejected through the same grounding path as a hallucinated id — the cross-user
+	 * privacy boundary (spec #15).
+	 *
+	 * @param userId the authenticated caller; the outfit is built only from this user's wardrobe
 	 * @param vibe the newest free-text style request (pushback / "show me another")
 	 * @param history prior conversation turns to replay before the current vibe;
 	 *     text only, never image bytes
@@ -92,8 +102,8 @@ public class StylistService {
 	 *     reason) when the wardrobe is empty
 	 * @throws StylistUnavailableException on an upstream failure or an ungroundable pick
 	 */
-	public Outfit style(String vibe, List<StylistMessage> history) {
-		List<ItemResponse> items = wardrobe.list();
+	public Outfit style(String userId, String vibe, List<StylistMessage> history) {
+		List<ItemResponse> items = wardrobe.list(userId);
 		if (items.isEmpty()) {
 			return new Outfit(List.of(), EMPTY_WARDROBE_REASON);
 		}

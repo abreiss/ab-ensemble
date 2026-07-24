@@ -246,7 +246,7 @@ owned by another user returns **404**, never the image bytes.
   native S3 prefix; `key` stays an opaque `String`) — note this in the commit body.
 - [x] 3.7 (REFACTOR) `./gradlew test -PskipFrontend` green.
 
-### [ ] 4.0 User-scoped stylist + cross-user grounding guardrail
+### [x] 4.0 User-scoped stylist + cross-user grounding guardrail
 
 **Demoable outcome:** The stylist builds outfits only from the caller's wardrobe;
 an item id belonging to a **different** user is rejected, fed back, retried once,
@@ -268,29 +268,29 @@ now covering the cross-user rejection.
 
 #### 4.0 Tasks
 
-- [ ] 4.1 (RED) In `StylistServiceTest`, add `styleRequest_withOtherUsersId_retriesOnceThenRejects`:
+- [x] 4.1 (RED) In `StylistServiceTest`, add `styleRequest_withOtherUsersId_retriesOnceThenRejects`:
   stub `wardrobe.list("userA")` to return only A's items, have the model return B's id, assert one
   retry then the id is dropped (identical handling to a hallucinated id). Confirm failing against the
   current unscoped signature.
-- [ ] 4.2 (GREEN) `StylistService`: change `style(String vibe, List<StylistMessage> history)` →
+- [x] 4.2 (GREEN) `StylistService`: change `style(String vibe, List<StylistMessage> history)` →
   `style(String userId, String vibe, List<StylistMessage> history)` (and the one-arg convenience to
   `style(userId, vibe)`); read `wardrobe.list(userId)` at the top; build `wardrobeText` + `validIds`
   from that scoped list. The reject → one-retry → drop → `StylistUnavailableException` mechanism is
   unchanged.
-- [ ] 4.3 (GREEN) Migrate the existing `StylistServiceTest` cases to the new signature: pass a `userId`
+- [x] 4.3 (GREEN) Migrate the existing `StylistServiceTest` cases to the new signature: pass a `userId`
   and change `when(wardrobe.list())` stubs to `when(wardrobe.list(userId))`. Keep every assertion
   (including `sendsNoImageBytesToModel` and the re-pick no-image case) intact.
-- [ ] 4.4 (RED→GREEN) `StyleControllerTest`: thread `userId` via `.requestAttr("ensemble.userId", …)`;
+- [x] 4.4 (RED→GREEN) `StyleControllerTest`: thread `userId` via `.requestAttr("ensemble.userId", …)`;
   then add `@CurrentUserId String userId` to `StyleController.style`, pass it to
   `service.style(userId, prompt, history)`, and change `enrich(outfit)` →
   `enrich(outfit, userId)` using `wardrobe.list(userId)`.
-- [ ] 4.5 (GREEN) Remove the now-unused no-arg `WardrobeService.list()` and
+- [x] 4.5 (GREEN) Remove the now-unused no-arg `WardrobeService.list()` and
   `WardrobeRepository.findAll()` (the last unscoped readers are gone). Confirm the whole suite compiles,
   and verify no unscoped reader remains: `grep -rn "\.findAll()\|\.list()" src/main/java/com/ensemble/{wardrobe,outfit,stylist}`
   returns no wardrobe/outfit callers (the migration `findUnowned` scan is the only sanctioned full-table read).
-- [ ] 4.6 (Proof) `./gradlew jacocoTestReport`; confirm grounding/id-validation branch coverage is 100%
+- [x] 4.6 (Proof) `./gradlew jacocoTestReport`; confirm grounding/id-validation branch coverage is 100%
   including the cross-user branch; capture the report path/percentage.
-- [ ] 4.7 (REFACTOR) `./gradlew test -PskipFrontend` green; ensure the `StyleController`'s single scoped
+- [x] 4.7 (REFACTOR) `./gradlew test -PskipFrontend` green; ensure the `StyleController`'s single scoped
   wardrobe read is reused (no second unscoped read).
 
 ### [ ] 5.0 One-time cleanup of pre-existing unowned data

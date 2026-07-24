@@ -41,18 +41,6 @@ public class WardrobeRepository {
 		return Optional.ofNullable(table.getItem(r -> r.key(k -> k.partitionValue(itemId))));
 	}
 
-	private static final String USAGE_ROW_PREFIX = "usage#";
-
-	/**
-	 * Returns every item in the wardrobe (demo scale — a full scan), excluding the
-	 * reserved {@code usage#<UTC-date>} daily-cap counter rows that share this table.
-	 */
-	public List<Item> findAll() {
-		return table.scan().items().stream()
-			.filter(item -> !item.getItemId().startsWith(USAGE_ROW_PREFIX))
-			.toList();
-	}
-
 	/**
 	 * Returns only the items owned by {@code userId} via the sparse
 	 * {@code userId-index} GSI query — not a full-table scan (spec #15). Reserved

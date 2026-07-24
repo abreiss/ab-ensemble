@@ -126,14 +126,6 @@ class WardrobeServiceTest {
 	}
 
 	@Test
-	void list_returnsAllItems() {
-		// The unscoped list() is retained only for the stylist until Unit 4.
-		when(repository.findAll()).thenReturn(List.of(existing("a"), existing("b")));
-
-		assertThat(service.list()).extracting(ItemResponse::itemId).containsExactly("a", "b");
-	}
-
-	@Test
 	void list_returnsOnlyCallersItems() {
 		// The scoped list delegates to the userId GSI query, so it can only ever return the
 		// caller's rows — no full-table scan, no other user's items.

@@ -68,15 +68,6 @@ public class WardrobeService {
 		}
 	}
 
-	/**
-	 * Unscoped list of every item. Retained only for the stylist tool-loop until
-	 * Unit 4 scopes it; callers that represent a single user must use
-	 * {@link #list(String)}.
-	 */
-	public List<ItemResponse> list() {
-		return repository.findAll().stream().map(ItemMapper::toResponse).toList();
-	}
-
 	/** Returns only the items owned by {@code userId} (GSI query, no full-table scan). */
 	public List<ItemResponse> list(String userId) {
 		return repository.findByUserId(userId).stream().map(ItemMapper::toResponse).toList();

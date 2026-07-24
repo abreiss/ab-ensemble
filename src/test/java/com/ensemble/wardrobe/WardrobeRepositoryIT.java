@@ -105,22 +105,6 @@ class WardrobeRepositoryIT {
 	}
 
 	@Test
-	void findAll_whenEmptyWardrobe_returnsEmptyList() {
-		assertThat(repository.findAll()).isEmpty();
-	}
-
-	@Test
-	void findAll_returnsEverySavedItem() {
-		repository.save(sampleItem("a"));
-		repository.save(sampleItem("b"));
-		repository.save(sampleItem("c"));
-
-		List<Item> all = repository.findAll();
-
-		assertThat(all).extracting(Item::getItemId).containsExactlyInAnyOrder("a", "b", "c");
-	}
-
-	@Test
 	void save_existingId_replacesTheItem() {
 		repository.save(sampleItem("x"));
 
@@ -132,7 +116,6 @@ class WardrobeRepositoryIT {
 		Item found = repository.findById("x").orElseThrow();
 		assertThat(found.getPrimaryColor()).isEqualTo("black");
 		assertThat(found.getDescriptors()).containsExactly("wool");
-		assertThat(repository.findAll()).hasSize(1);
 	}
 
 	@Test
@@ -142,18 +125,6 @@ class WardrobeRepositoryIT {
 		repository.deleteById("gone");
 
 		assertThat(repository.findById("gone")).isEmpty();
-	}
-
-	@Test
-	void findAll_excludesUsageRows() {
-		Item usageRow = new Item();
-		usageRow.setItemId("usage#2026-07-16");
-		repository.save(usageRow);
-		repository.save(sampleItem("real-item"));
-
-		List<Item> all = repository.findAll();
-
-		assertThat(all).extracting(Item::getItemId).containsExactly("real-item");
 	}
 
 	@Test
