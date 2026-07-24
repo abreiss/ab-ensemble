@@ -18,6 +18,15 @@ export function onAuthRequired(listener: () => void): () => void {
   return () => window.removeEventListener(AUTH_REQUIRED_EVENT, handler)
 }
 
+/**
+ * Fires the re-auth signal that drops the app back to the login gate. It is the single
+ * source of the event name (paired with `onAuthRequired`), so a 401 and an explicit
+ * sign-out share the exact machinery rather than duplicating the literal.
+ */
+export function signalAuthRequired(): void {
+  window.dispatchEvent(new CustomEvent(AUTH_REQUIRED_EVENT))
+}
+
 /** `fetch`, with the stored session token injected and a `401` clearing client auth state. */
 export async function authedFetch(input: string, init: RequestInit = {}): Promise<Response> {
   const token = getToken()
@@ -28,7 +37,7 @@ export async function authedFetch(input: string, init: RequestInit = {}): Promis
   const response = await fetch(input, { ...init, headers })
   if (response.status === 401) {
     clearToken()
-    window.dispatchEvent(new CustomEvent(AUTH_REQUIRED_EVENT))
+    signalAuthRequired()
   }
   return response
 }

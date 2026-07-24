@@ -1,5 +1,7 @@
 import { Link, Navigate, Route, Routes } from 'react-router-dom'
 
+import { clearToken } from './api/auth'
+import { signalAuthRequired } from './api/http'
 import AuthGate from './components/AuthGate'
 import AddItem from './routes/AddItem'
 import Assemble from './routes/Assemble'
@@ -18,6 +20,14 @@ import WardrobeGrid from './routes/WardrobeGrid'
  * screen until a valid session token is stored.
  */
 export default function App() {
+  // Sign out is a client-side token discard: drop the stored token, then fire the
+  // same re-auth signal a 401 uses so AuthGate flips back to the login form. No
+  // backend call — the stateless token simply expires at its TTL (Resolved Decision D3).
+  function signOut() {
+    clearToken()
+    signalAuthRequired()
+  }
+
   return (
     <AuthGate>
       <div className="app-shell">
@@ -38,6 +48,9 @@ export default function App() {
             <Link to="/add" className="btn btn-add">
               + Add
             </Link>
+            <button type="button" className="btn" onClick={signOut}>
+              Sign out
+            </button>
           </nav>
         </header>
         <main className="app-main">

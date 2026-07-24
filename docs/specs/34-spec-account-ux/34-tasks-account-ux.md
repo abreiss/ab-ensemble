@@ -109,7 +109,7 @@ Surface `username` in `AuthGate`, drop email from the client (`api/auth.ts`) and
 - [x] 2.7 (Migration) Write the operator-confirmed local-migration procedure (in `README.md` and/or `docs/DEVELOPMENT.md`): stop the app → drop the DynamoDB-Local `ensemble-users` table (explicit operator command, e.g. `aws dynamodb delete-table` against the local endpoint) → restart so dev startup auto-recreates it with the username key → set `ENSEMBLE_SEED_USERNAME`/`ENSEMBLE_SEED_PASSWORD` and restart to reseed. Confirm by inspection/grep that the implementation adds **no** automatic table-drop code and **no** enumerate-and-delete of rows against the shared/dev store.
 - [x] 2.8 (Verify) With DynamoDB Local recreated and a seed username configured, log in via the UI, then capture the `/api/me` curl proof returning `{"userId":"…","username":"…"}` (synthetic credentials). Re-run the backend suite to confirm no regressions.
 
-### [ ] 3.0 Sign-out control
+### [x] 3.0 Sign-out control
 
 Add a visible **Sign out** control to the app nav (`App.tsx`), shown only when signed in. Clicking it calls `clearToken()` then dispatches the existing `ensemble:auth-required` window event, reusing the exact 401 re-auth machinery so `AuthGate` returns to the login form. No backend change (stateless-token discard; Resolved Decision D3). Depends on 2.0 (login form is now username-anchored). Demoable via RTL.
 
@@ -120,9 +120,9 @@ Add a visible **Sign out** control to the app nav (`App.tsx`), shown only when s
 
 #### 3.0 Tasks
 
-- [ ] 3.1 (RED) Add `signOut_clearsTokenAndReturnsToLogin` to `frontend/src/App.test.tsx`: seed a token (`sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, 'test-token')`), render `<App>` in the router, assert the shell is shown, click the **Sign out** control (`getByRole('button', { name: /sign out/i })`), then assert `getToken()` is `null`, `sessionStorage.getItem('ensemble.session.token')` is `null`, and `findByLabelText(/^username$/i)` (the login form) is shown. Run and confirm RED.
-- [ ] 3.2 (GREEN) In `App.tsx`, add a **Sign out** control to `<nav className="app-nav">` (styled with the existing `.btn` class), rendered as part of the gated shell (only reachable when signed in). Its `onClick` calls `clearToken()` (imported from `api/auth`) then `window.dispatchEvent(new CustomEvent('ensemble:auth-required'))`, using the exact event name `api/http.ts` already dispatches/subscribes to. Make the test green.
-- [ ] 3.3 (REFACTOR) Confirm the event-name string matches the single source in `api/http.ts` (reuse an exported constant if one exists rather than duplicating the literal); add minimal CSS only if the button needs it. Run `npm test -- --run` + `npm run lint`.
+- [x] 3.1 (RED) Add `signOut_clearsTokenAndReturnsToLogin` to `frontend/src/App.test.tsx`: seed a token (`sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, 'test-token')`), render `<App>` in the router, assert the shell is shown, click the **Sign out** control (`getByRole('button', { name: /sign out/i })`), then assert `getToken()` is `null`, `sessionStorage.getItem('ensemble.session.token')` is `null`, and `findByLabelText(/^username$/i)` (the login form) is shown. Run and confirm RED.
+- [x] 3.2 (GREEN) In `App.tsx`, add a **Sign out** control to `<nav className="app-nav">` (styled with the existing `.btn` class), rendered as part of the gated shell (only reachable when signed in). Its `onClick` calls `clearToken()` (imported from `api/auth`) then `window.dispatchEvent(new CustomEvent('ensemble:auth-required'))`, using the exact event name `api/http.ts` already dispatches/subscribes to. Make the test green.
+- [x] 3.3 (REFACTOR) Confirm the event-name string matches the single source in `api/http.ts` (reuse an exported constant if one exists rather than duplicating the literal); add minimal CSS only if the button needs it. Run `npm test -- --run` + `npm run lint`.
 
 ### [ ] 4.0 Password confirmation on signup
 

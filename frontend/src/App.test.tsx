@@ -1,9 +1,10 @@
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
-import { SESSION_TOKEN_STORAGE_KEY } from './api/auth'
+import { getToken, SESSION_TOKEN_STORAGE_KEY } from './api/auth'
 
 // Keep the routed screens off the network; this suite only proves routing + shell.
 // The stub item is inlined in the factory because `vi.mock` is hoisted above the
@@ -124,6 +125,27 @@ describe('App shell + routing', () => {
     expect(savedLink.compareDocumentPosition(buildLink)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
+  })
+})
+
+describe('App shell — sign out', () => {
+  afterEach(() => {
+    sessionStorage.clear()
+  })
+
+  it('signOut_clearsTokenAndReturnsToLogin', async () => {
+    // Arrange: a signed-in session renders the app shell.
+    sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, 'test-token')
+    renderAt('/')
+    expect(await screen.findByTestId('stylist')).toBeInTheDocument()
+
+    // Act: click the Sign out control.
+    await userEvent.click(screen.getByRole('button', { name: /sign out/i }))
+
+    // Assert: the token is discarded and the login gate is shown again.
+    expect(getToken()).toBeNull()
+    expect(sessionStorage.getItem('ensemble.session.token')).toBeNull()
+    expect(await screen.findByLabelText(/^username$/i)).toBeInTheDocument()
   })
 })
 
