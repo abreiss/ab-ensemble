@@ -25,9 +25,9 @@ import com.ensemble.user.User;
 import com.ensemble.user.UserRepository;
 
 /**
- * Slice test of the repurposed email/password login (issue #14). Verifies the success
- * contract, the non-enumerating generic {@code 401} for both unknown-email and wrong-password
- * (including that the timing-equalization bcrypt runs even when the email is absent), and the
+ * Slice test of the repurposed username/password login (issue #14). Verifies the success
+ * contract, the non-enumerating generic {@code 401} for both unknown-username and wrong-password
+ * (including that the timing-equalization bcrypt runs even when the username is absent), and the
  * sanitized {@code 400} on a malformed body. The {@code UserRepository}/{@code PasswordHasher}/
  * {@code SessionTokenService} collaborators are mocked so this proves our handling, not live
  * crypto or persistence.
@@ -47,57 +47,57 @@ class AuthControllerTest {
 	@MockitoBean
 	SessionTokenService tokenService;
 
-	private static User userWith(String userId, String email, String passwordHash) {
+	private static User userWith(String userId, String username, String passwordHash) {
 		User user = new User();
 		user.setUserId(userId);
-		user.setEmail(email);
+		user.setUsername(username);
 		user.setPasswordHash(passwordHash);
 		return user;
 	}
 
 	@Test
 	void validLogin_returns200WithToken() throws Exception {
-		when(users.findByEmail("demo@example.com"))
-			.thenReturn(Optional.of(userWith("user-1", "demo@example.com", "stored-hash")));
+		when(users.findByUsername("demo_user"))
+			.thenReturn(Optional.of(userWith("user-1", "demo_user", "stored-hash")));
 		when(passwordHasher.matches("correcthorse", "stored-hash")).thenReturn(true);
 		when(tokenService.issue("user-1")).thenReturn("token-xyz");
 
 		mockMvc.perform(post("/api/auth")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"demo@example.com\",\"password\":\"correcthorse\"}"))
+				.content("{\"username\":\"demo_user\",\"password\":\"correcthorse\"}"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.token").value("token-xyz"));
 	}
 
 	@Test
 	void wrongPassword_returns401Generic() throws Exception {
-		when(users.findByEmail("demo@example.com"))
-			.thenReturn(Optional.of(userWith("user-1", "demo@example.com", "stored-hash")));
+		when(users.findByUsername("demo_user"))
+			.thenReturn(Optional.of(userWith("user-1", "demo_user", "stored-hash")));
 		when(passwordHasher.matches("wrong", "stored-hash")).thenReturn(false);
 
 		mockMvc.perform(post("/api/auth")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"demo@example.com\",\"password\":\"wrong\"}"))
+				.content("{\"username\":\"demo_user\",\"password\":\"wrong\"}"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.error").value("unauthorized"))
-			.andExpect(jsonPath("$.message").value("invalid email or password"))
+			.andExpect(jsonPath("$.message").value("invalid username or password"))
 			.andExpect(jsonPath("$.token").doesNotExist());
 		verify(tokenService, never()).issue(anyString());
 	}
 
 	@Test
-	void unknownEmail_returns401Generic() throws Exception {
-		when(users.findByEmail("ghost@example.com")).thenReturn(Optional.empty());
+	void unknownUsername_returns401Generic() throws Exception {
+		when(users.findByUsername("ghost_user")).thenReturn(Optional.empty());
 
 		mockMvc.perform(post("/api/auth")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"ghost@example.com\",\"password\":\"whatever\"}"))
+				.content("{\"username\":\"ghost_user\",\"password\":\"whatever\"}"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.error").value("unauthorized"))
-			.andExpect(jsonPath("$.message").value("invalid email or password"))
+			.andExpect(jsonPath("$.message").value("invalid username or password"))
 			.andExpect(jsonPath("$.token").doesNotExist());
-		// Non-enumeration: a bcrypt comparison still runs for an unknown email (dummy hash),
-		// so response timing does not reveal whether the email is registered.
+		// Non-enumeration: a bcrypt comparison still runs for an unknown username (dummy hash),
+		// so response timing does not reveal whether the username is registered.
 		verify(passwordHasher).matches(eq("whatever"), any());
 		verify(tokenService, never()).issue(anyString());
 	}

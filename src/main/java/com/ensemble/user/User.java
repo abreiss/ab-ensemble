@@ -9,14 +9,14 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
 /**
  * A user account, persisted as a first-class DynamoDB item in its own dedicated
  * users table (issue #14). Mapped by the AWS SDK v2 Enhanced Client: the
- * normalized {@code email} is the partition key, so a conditional
- * {@code attribute_not_exists(email)} put enforces one account per email
+ * normalized {@code username} is the partition key, so a conditional
+ * {@code attribute_not_exists(username)} put enforces one account per username
  * atomically (see {@link UserRepository}).
  *
  * <p>{@code userId} is a generated UUID — the opaque, durable identity embedded
- * in session tokens and later used to scope wardrobe data (#15). {@code email}
- * is normalized (trimmed + lowercased) on set so {@code Foo@X.com} and
- * {@code foo@x.com} resolve to the same account. A no-arg constructor with
+ * in session tokens and later used to scope wardrobe data (#15). {@code username}
+ * is normalized (trimmed + lowercased) on set so {@code Foo_Bar} and
+ * {@code foo_bar} resolve to the same account. A no-arg constructor with
  * getters/setters is required by the bean mapper.
  *
  * <p>{@code passwordHash} holds only the bcrypt hash — never a raw password.
@@ -26,24 +26,24 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
 @DynamoDbBean
 public class User {
 
-	private String email;
+	private String username;
 	private String userId;
 	private String passwordHash;
 	private Instant createdAt;
 
-	/** Trims and lowercases an email for use as the key; null-safe (null → null). */
-	public static String normalizeEmail(String email) {
-		return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+	/** Trims and lowercases a username for use as the key; null-safe (null → null). */
+	public static String normalizeUsername(String username) {
+		return username == null ? null : username.trim().toLowerCase(Locale.ROOT);
 	}
 
 	@DynamoDbPartitionKey
-	public String getEmail() {
-		return email;
+	public String getUsername() {
+		return username;
 	}
 
 	/** Normalizes on set so the stored key and all lookups agree. */
-	public void setEmail(String email) {
-		this.email = normalizeEmail(email);
+	public void setUsername(String username) {
+		this.username = normalizeUsername(username);
 	}
 
 	public String getUserId() {

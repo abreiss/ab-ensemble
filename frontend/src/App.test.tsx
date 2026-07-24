@@ -1,9 +1,10 @@
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
-import { SESSION_TOKEN_STORAGE_KEY } from './api/auth'
+import { getToken, SESSION_TOKEN_STORAGE_KEY } from './api/auth'
 
 // Keep the routed screens off the network; this suite only proves routing + shell.
 // The stub item is inlined in the factory because `vi.mock` is hoisted above the
@@ -127,6 +128,27 @@ describe('App shell + routing', () => {
   })
 })
 
+describe('App shell — sign out', () => {
+  afterEach(() => {
+    sessionStorage.clear()
+  })
+
+  it('signOut_clearsTokenAndReturnsToLogin', async () => {
+    // Arrange: a signed-in session renders the app shell.
+    sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, 'test-token')
+    renderAt('/')
+    expect(await screen.findByTestId('stylist')).toBeInTheDocument()
+
+    // Act: click the Sign out control.
+    await userEvent.click(screen.getByRole('button', { name: /sign out/i }))
+
+    // Assert: the token is discarded and the login gate is shown again.
+    expect(getToken()).toBeNull()
+    expect(sessionStorage.getItem('ensemble.session.token')).toBeNull()
+    expect(await screen.findByLabelText(/^username$/i)).toBeInTheDocument()
+  })
+})
+
 describe('App shell — /assemble is gated', () => {
   afterEach(() => {
     sessionStorage.clear()
@@ -134,13 +156,13 @@ describe('App shell — /assemble is gated', () => {
 
   it('shows the login screen instead of /assemble when no session token is stored', async () => {
     renderAt('/assemble')
-    expect(await screen.findByLabelText(/^email$/i)).toBeInTheDocument()
+    expect(await screen.findByLabelText(/^username$/i)).toBeInTheDocument()
     expect(screen.queryByTestId('assemble')).not.toBeInTheDocument()
   })
 
   it('shows the login screen instead of /saved when no session token is stored', async () => {
     renderAt('/saved')
-    expect(await screen.findByLabelText(/^email$/i)).toBeInTheDocument()
+    expect(await screen.findByLabelText(/^username$/i)).toBeInTheDocument()
     expect(screen.queryByTestId('saved-outfits')).not.toBeInTheDocument()
   })
 })

@@ -19,15 +19,15 @@ import com.ensemble.user.UserRepository;
 import jakarta.validation.Valid;
 
 /**
- * {@code POST /api/auth} — email/password login (issue #14). On a valid email + password it
+ * {@code POST /api/auth} — username/password login (issue #14). On a valid username + password it
  * returns {@code 200} with a signed session token carrying that user's {@code userId}
- * (see {@link SessionTokenService}). An unknown email <strong>or</strong> a wrong password
+ * (see {@link SessionTokenService}). An unknown username <strong>or</strong> a wrong password
  * yields the <em>same</em> generic {@link InvalidCredentialsException} ({@code 401}), so the
- * response never reveals whether an email is registered.
+ * response never reveals whether a username is registered.
  *
  * <p>To close the user-enumeration <em>timing</em> side-channel, login performs a bcrypt
- * comparison even when the email is absent — against {@link #dummyHash}, a valid
- * work-factor-matching hash computed once at construction — so the unknown-email path costs
+ * comparison even when the username is absent — against {@link #dummyHash}, a valid
+ * work-factor-matching hash computed once at construction — so the unknown-username path costs
  * the same as the wrong-password path. Mirrors Spring Security's
  * {@code DaoAuthenticationProvider} idiom.
  */
@@ -56,13 +56,13 @@ public class AuthController {
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public AuthResponse authenticate(@Valid @RequestBody AuthRequest request) {
-		Optional<User> user = users.findByEmail(request.email());
+		Optional<User> user = users.findByUsername(request.username());
 		if (user.isPresent() && passwordHasher.matches(request.password(), user.get().getPasswordHash())) {
 			return new AuthResponse(tokenService.issue(user.get().getUserId()));
 		}
 		if (user.isEmpty()) {
-			// Timing equalization: run one bcrypt comparison even when the email is unknown,
-			// so response time does not leak whether the email is registered.
+			// Timing equalization: run one bcrypt comparison even when the username is unknown,
+			// so response time does not leak whether the username is registered.
 			passwordHasher.matches(request.password(), dummyHash);
 		}
 		throw new InvalidCredentialsException();

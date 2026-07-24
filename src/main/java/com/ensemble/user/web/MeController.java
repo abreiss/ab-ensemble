@@ -11,23 +11,23 @@ import com.ensemble.user.UserRepository;
 
 /**
  * {@code GET /api/me} — returns the authenticated caller's identity (issue #14): the opaque
- * {@code userId} the session token carries plus the account email. The demoable proof that
+ * {@code userId} the session token carries plus the account username. The demoable proof that
  * {@code SessionAuthFilter} resolves a concrete principal.
  *
- * <p>The token carries only the opaque {@code userId} (no email/PII — see the spec's
- * "Security"), so the email is looked up via {@link UserRepository#findByUserId} (a
- * demo-scale scan; the table is email-keyed with no {@code userId} GSI). A valid session
+ * <p>The token carries only the opaque {@code userId} (no username/PII — see the spec's
+ * "Security"), so the username is looked up via {@link UserRepository#findByUserId} (a
+ * demo-scale scan; the table is username-keyed with no {@code userId} GSI). A valid session
  * whose account no longer exists (deleted out-of-band) resolves to nothing and throws
  * {@link SessionUserNotFoundException} → a generic {@code 401} telling the caller to
- * re-authenticate (not the login "invalid email or password", which would misdescribe a
+ * re-authenticate (not the login "invalid username or password", which would misdescribe a
  * request that carried a valid token and no credentials).
  */
 @RestController
 @RequestMapping("/api/me")
 public class MeController {
 
-	/** The authenticated caller's identity. Opaque {@code userId} + account email; no other PII. */
-	public record MeResponse(String userId, String email) {
+	/** The authenticated caller's identity. Opaque {@code userId} + account username; no other PII. */
+	public record MeResponse(String userId, String username) {
 	}
 
 	private final UserRepository users;
@@ -39,7 +39,7 @@ public class MeController {
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public MeResponse me(@CurrentUserId String userId) {
 		return users.findByUserId(userId)
-			.map(user -> new MeResponse(user.getUserId(), user.getEmail()))
+			.map(user -> new MeResponse(user.getUserId(), user.getUsername()))
 			.orElseThrow(SessionUserNotFoundException::new);
 	}
 }

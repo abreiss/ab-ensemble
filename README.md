@@ -199,15 +199,15 @@ Because this app spends real Claude money and can show a private wardrobe, two
 guards wrap the API — both are transparent once you're logged in and under the
 limit.
 
-**Accounts.** Ensemble uses **email/password accounts** (issue #14) instead of a
+**Accounts.** Ensemble uses **username/password accounts** (issue #14) instead of a
 single shared login passcode. Every `/api/**` route except `POST /api/auth`,
 `POST /api/accounts`, and `GET /api/health` requires a valid session token.
 
-- `POST /api/auth` — **log in** to an existing account with `{"email", "password"}`.
-  An unknown email and a wrong password both return the same generic `401`
+- `POST /api/auth` — **log in** to an existing account with `{"username", "password"}`.
+  An unknown username and a wrong password both return the same generic `401`
   (non-enumerating); malformed input returns `400`.
 - `POST /api/accounts` — **invite-only sign-up** with
-  `{"email", "password", "passcode"}` and auto-login on success. The `passcode`
+  `{"username", "password", "passcode"}` and auto-login on success. The `passcode`
   here is the shared **signup/invite code** — set it in your git-ignored `.env`
   (see [Vision tagging](#vision-tagging-tag-preview) for the `cp .env.example .env`
   step):
@@ -220,24 +220,53 @@ single shared login passcode. Every `/api/**` route except `POST /api/auth`,
 
   A blank/unset `ENSEMBLE_PASSCODE` leaves **signup** closed — `POST /api/accounts`
   returns `401` and no account is created — but existing accounts can still log
-  in. A duplicate email returns `409`; an invalid email, a password under 8
-  characters, or a password over 72 bytes returns `400`; a wrong signup passcode
-  returns `401` (no user created).
-- **Seed account.** If both `ENSEMBLE_SEED_EMAIL` and `ENSEMBLE_SEED_PASSWORD`
+  in. Usernames are 3–30 chars, charset `[A-Za-z0-9._-]` with no leading/trailing
+  separator, normalized case-insensitively (lowercased). A duplicate username
+  returns `409`; an invalid username, a password under 8 characters, or a
+  password over 72 bytes returns `400`; a wrong signup passcode returns `401`
+  (no user created).
+- **Seed account.** If both `ENSEMBLE_SEED_USERNAME` and `ENSEMBLE_SEED_PASSWORD`
   are set in `.env`, a default account is created idempotently on startup
   (skipped if it already exists), bypassing the signup passcode — a way to get
   a usable login before you have (or want to share) an invite code. Leave both
   blank to skip seeding.
 
+**Migrating a local `ensemble-users` table (email → username).** The users
+table's partition key changed from `email` to `username`. DynamoDB cannot alter
+an existing table's key schema in place, so a local `ensemble-users` table
+created before this change must be **recreated**, not migrated — the same
+"drop the table so it's recreated" approach already used above for the
+`userId-index` GSI. This is a deliberate, operator-run step: the app performs
+**no automatic table drop** and **never enumerates-and-deletes rows**.
+
+1. Stop the app (stop the `./gradlew bootRun` process).
+2. Drop the old table against DynamoDB Local (the `docker-compose.yml` in this
+   repo publishes DynamoDB Local on `:8000`; adjust the port if yours differs):
+
+   ```bash
+   aws dynamodb delete-table --table-name ensemble-users --endpoint-url http://localhost:8000
+   ```
+3. Restart the app (`./gradlew bootRun`) — `DynamoDbTableInitializer` runs on
+   startup and auto-recreates `ensemble-users` with `username` as the partition
+   key.
+4. Set `ENSEMBLE_SEED_USERNAME` and `ENSEMBLE_SEED_PASSWORD` in `.env` and
+   restart once more to reseed the default account.
+
+**Operator follow-up (cloud, out-of-band).** The deployed seed account is
+Terraform-owned: `terraform/deploy/apprunner.tf` (and `secrets.tf`) still
+declare and inject `ENSEMBLE_SEED_EMAIL`. Renaming that env var to
+`ENSEMBLE_SEED_USERNAME` is a separate out-of-band Terraform change for the
+operator to make — it is not part of this code change.
+
 Either `/api/auth` or `/api/accounts` returns a signed, expiring (default 12h)
-session token carrying an opaque `userId` (no email/PII). Send it as the
+session token carrying an opaque `userId` (no username/PII). Send it as the
 `X-Ensemble-Session` header on every subsequent call:
 
 ```bash
 # log in with an existing (e.g. seeded) account
 TOKEN=$(curl -s -X POST localhost:8080/api/auth \
   -H 'Content-Type: application/json' \
-  -d '{"email":"<demo-email>","password":"<demo-password>"}' \
+  -d '{"username":"<demo-username>","password":"<demo-password>"}' \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["token"])')
 
 curl -s localhost:8080/api/items -H "X-Ensemble-Session: $TOKEN"
@@ -247,7 +276,7 @@ curl -s localhost:8080/api/items -H "X-Ensemble-Session: $TOKEN"
 # or sign up a new account with the invite passcode (auto-login)
 TOKEN=$(curl -s -X POST localhost:8080/api/accounts \
   -H 'Content-Type: application/json' \
-  -d '{"email":"<demo-email>","password":"<demo-password>","passcode":"<signup-code>"}' \
+  -d '{"username":"<demo-username>","password":"<demo-password>","passcode":"<signup-code>"}' \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["token"])')
 ```
 
@@ -256,7 +285,7 @@ token as a `?token=` query param (the frontend's `photoUrl(id)` does this
 automatically). The frontend itself renders a login/sign-up screen, stores the
 token in `sessionStorage`, and returns to that screen on any `401`, so day-to-day
 use just means logging in once per tab. `GET /api/me` returns
-`{"userId", "email"}` for the authenticated caller.
+`{"userId", "username"}` for the authenticated caller.
 
 **Per-user isolation (spec #15).** Every `/api/items` and `/api/outfits` route is
 scoped to the caller's `userId` from the token: two accounts see disjoint

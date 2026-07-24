@@ -17,7 +17,7 @@ import javax.crypto.spec.SecretKeySpec;
  * {@code base64url(payload)} + {@code "."} + {@code base64url(HMAC_SHA256(payload, key))},
  * where {@code payload} is the UTF-8 string {@code userId + ":" + expiryEpochSeconds}. The
  * token therefore carries <strong>who</strong> the caller is (an opaque {@code userId} — no
- * email/PII) alongside <strong>until when</strong> it is valid. Pure and Spring-free by
+ * username/PII) alongside <strong>until when</strong> it is valid. Pure and Spring-free by
  * design (see docs/specs/07) — {@code com.ensemble.security.SecurityConfig} wires it as a
  * bean using an injected {@link Clock} so expiry is deterministically testable.
  *

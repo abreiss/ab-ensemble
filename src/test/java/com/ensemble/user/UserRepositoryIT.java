@@ -28,8 +28,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
  * Real DynamoDB Local round-trips for {@link UserRepository} via TestContainers.
  * Each test runs against a fresh, uniquely-named users table so cases are fully
  * isolated — no Spring context. Mirrors {@code OutfitRepositoryIT}, and adds the
- * atomic {@code attribute_not_exists(email)} uniqueness guard and the case/space
- * insensitivity that the email partition key requires.
+ * atomic {@code attribute_not_exists(username)} uniqueness guard and the case/space
+ * insensitivity that the username partition key requires.
  */
 @Testcontainers
 class UserRepositoryIT {
@@ -59,13 +59,13 @@ class UserRepositoryIT {
 		String usersTable = "users-" + UUID.randomUUID();
 		DynamoDbProperties props =
 			new DynamoDbProperties(endpoint, "us-east-1", "unused-items", "unused-outfits", usersTable, true);
-		new DynamoDbTableInitializer(client, props).ensureTable(usersTable, "email");
+		new DynamoDbTableInitializer(client, props).ensureTable(usersTable, "username");
 		repository = new UserRepository(enhanced, props);
 	}
 
-	private User sample(String email) {
+	private User sample(String username) {
 		User user = new User();
-		user.setEmail(email);
+		user.setUsername(username);
 		user.setUserId(UUID.randomUUID().toString());
 		user.setPasswordHash("$2a$12$abcdefghijklmnopqrstuvHASHPLACEHOLDER0000000000000000000");
 		user.setCreatedAt(Instant.now().truncatedTo(ChronoUnit.MILLIS));
@@ -73,57 +73,59 @@ class UserRepositoryIT {
 	}
 
 	@Test
-	void createThenFindByEmail() {
-		User user = sample("alice@example.com");
+	void createThenFindByUsername() {
+		User user = sample("alice_user");
 
 		repository.create(user);
-		User found = repository.findByEmail("alice@example.com").orElseThrow();
+		User found = repository.findByUsername("alice_user").orElseThrow();
 
-		assertThat(found.getEmail()).isEqualTo("alice@example.com");
+		assertThat(found.getUsername()).isEqualTo("alice_user");
 		assertThat(found.getUserId()).isEqualTo(user.getUserId());
 		assertThat(found.getPasswordHash()).isEqualTo(user.getPasswordHash());
 		assertThat(found.getCreatedAt()).isEqualTo(user.getCreatedAt());
 	}
 
 	@Test
-	void findByEmail_whenMissing_returnsEmpty() {
-		assertThat(repository.findByEmail("nobody@example.com")).isEmpty();
+	void findByUsername_whenMissing_returnsEmpty() {
+		assertThat(repository.findByUsername("nobody_user")).isEmpty();
 	}
 
 	@Test
-	void create_duplicateEmail_throwsDuplicateEmailException() {
-		repository.create(sample("dup@example.com"));
+	void create_duplicateUsername_throwsDuplicateUsernameException() {
+		User first = sample("dup_user");
+		repository.create(first);
 
-		// Same normalized email, different userId → the conditional put must fail.
-		assertThatThrownBy(() -> repository.create(sample("dup@example.com")))
-			.isInstanceOf(DuplicateEmailException.class);
+		// Same normalized username, different userId → the conditional put must fail.
+		assertThatThrownBy(() -> repository.create(sample("dup_user")))
+			.isInstanceOf(DuplicateUsernameException.class);
 
-		// And it must not have overwritten the first row.
-		assertThat(repository.findByEmail("dup@example.com")).isPresent();
+		// And it must not have overwritten the first row — the original userId still stands.
+		assertThat(repository.findByUsername("dup_user").orElseThrow().getUserId())
+			.isEqualTo(first.getUserId());
 	}
 
 	@Test
-	void findByEmail_isCaseAndSpaceInsensitive() {
-		User user = sample("mixed@example.com");
+	void findByUsername_isCaseAndSpaceInsensitive() {
+		User user = sample("mixed_name");
 		repository.create(user);
 
-		assertThat(repository.findByEmail("  Mixed@Example.COM  ")).isPresent();
+		assertThat(repository.findByUsername("  Mixed_Name  ")).isPresent();
 	}
 
 	@Test
 	void findByUserId_returnsUser() {
-		User user = sample("byid@example.com");
+		User user = sample("byid_user");
 		repository.create(user);
 
 		User found = repository.findByUserId(user.getUserId()).orElseThrow();
 
-		assertThat(found.getEmail()).isEqualTo("byid@example.com");
+		assertThat(found.getUsername()).isEqualTo("byid_user");
 		assertThat(found.getUserId()).isEqualTo(user.getUserId());
 	}
 
 	@Test
 	void findByUserId_whenMissing_returnsEmpty() {
-		repository.create(sample("other@example.com"));
+		repository.create(sample("other_user"));
 
 		assertThat(repository.findByUserId("no-such-user-id")).isEmpty();
 	}

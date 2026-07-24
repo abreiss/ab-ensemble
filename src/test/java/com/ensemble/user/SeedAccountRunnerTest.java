@@ -41,8 +41,8 @@ class SeedAccountRunnerTest {
 
 	@Test
 	void seedsWhenAbsentAndConfigured() throws Exception {
-		SeedProperties props = new SeedProperties("Seed@Example.com", "seed-password");
-		when(userRepository.findByEmail("Seed@Example.com")).thenReturn(Optional.empty());
+		SeedProperties props = new SeedProperties("Seed_User", "seed-password");
+		when(userRepository.findByUsername("Seed_User")).thenReturn(Optional.empty());
 		when(passwordHasher.hash("seed-password")).thenReturn("hashed-value");
 		SeedAccountRunner runner = new SeedAccountRunner(userRepository, passwordHasher, props, FIXED_CLOCK);
 
@@ -52,7 +52,7 @@ class SeedAccountRunnerTest {
 		ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
 		verify(userRepository).create(captor.capture());
 		User created = captor.getValue();
-		assertThat(created.getEmail()).isEqualTo("seed@example.com");
+		assertThat(created.getUsername()).isEqualTo("seed_user");
 		assertThat(created.getUserId()).isNotBlank();
 		assertThat(created.getPasswordHash()).isEqualTo("hashed-value");
 		// The raw password must never reach the persisted record — only the hash.
@@ -62,8 +62,8 @@ class SeedAccountRunnerTest {
 
 	@Test
 	void skipsWhenAccountExists() throws Exception {
-		SeedProperties props = new SeedProperties("seed@example.com", "seed-password");
-		when(userRepository.findByEmail("seed@example.com")).thenReturn(Optional.of(new User()));
+		SeedProperties props = new SeedProperties("seed_user", "seed-password");
+		when(userRepository.findByUsername("seed_user")).thenReturn(Optional.of(new User()));
 		SeedAccountRunner runner = new SeedAccountRunner(userRepository, passwordHasher, props, FIXED_CLOCK);
 
 		runner.run(null);
@@ -75,7 +75,7 @@ class SeedAccountRunnerTest {
 	@Test
 	void noOpWhenUnconfigured() throws Exception {
 		SeedProperties bothBlank = new SeedProperties("", "");
-		SeedProperties halfConfigured = new SeedProperties("seed@example.com", "");
+		SeedProperties halfConfigured = new SeedProperties("seed_user", "");
 		SeedAccountRunner bothBlankRunner =
 			new SeedAccountRunner(userRepository, passwordHasher, bothBlank, FIXED_CLOCK);
 		SeedAccountRunner halfConfiguredRunner =

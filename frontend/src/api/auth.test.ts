@@ -31,17 +31,17 @@ afterEach(() => {
 
 describe('auth API client', () => {
   describe('login', () => {
-    it('POSTs email/password as JSON to /api/auth and stores the returned token', async () => {
+    it('POSTs username/password as JSON to /api/auth and stores the returned token', async () => {
       fetchMock.mockResolvedValue(jsonResponse({ token: 'abc.def' }))
 
-      await login('jane@example.com', 'correct-horse-battery')
+      await login('jane_doe', 'correct-horse-battery')
 
       const [url, init] = lastCall()
       expect(url).toBe('/api/auth')
       expect(init.method).toBe('POST')
       expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
       expect(JSON.parse(init.body as string)).toEqual({
-        email: 'jane@example.com',
+        username: 'jane_doe',
         password: 'correct-horse-battery',
       })
       expect(getToken()).toBe('abc.def')
@@ -52,7 +52,7 @@ describe('auth API client', () => {
         jsonResponse({ error: 'unauthorized', message: 'authentication required' }, 401),
       )
 
-      await expect(login('jane@example.com', 'wrong-password')).rejects.toMatchObject({
+      await expect(login('jane_doe', 'wrong-password')).rejects.toMatchObject({
         status: 401,
       })
       expect(getToken()).toBeNull()
@@ -60,34 +60,34 @@ describe('auth API client', () => {
 
     it('propagates a network/transport failure', async () => {
       fetchMock.mockRejectedValue(new TypeError('offline'))
-      await expect(login('jane@example.com', 'correct-horse-battery')).rejects.toThrow()
+      await expect(login('jane_doe', 'correct-horse-battery')).rejects.toThrow()
       expect(getToken()).toBeNull()
     })
   })
 
   describe('signup', () => {
-    it('POSTs email/password/passcode as JSON to /api/accounts and stores the returned token', async () => {
+    it('POSTs username/password/passcode as JSON to /api/accounts and stores the returned token', async () => {
       fetchMock.mockResolvedValue(jsonResponse({ token: 'new.tok' }, 201))
 
-      await signup('new@example.com', 'a-strong-password', 'invite-code')
+      await signup('new_user', 'a-strong-password', 'invite-code')
 
       const [url, init] = lastCall()
       expect(url).toBe('/api/accounts')
       expect(init.method).toBe('POST')
       expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
       expect(JSON.parse(init.body as string)).toEqual({
-        email: 'new@example.com',
+        username: 'new_user',
         password: 'a-strong-password',
         passcode: 'invite-code',
       })
       expect(getToken()).toBe('new.tok')
     })
 
-    it('throws with the response status and does not store a token on a 409 (duplicate email)', async () => {
+    it('throws with the response status and does not store a token on a 409 (duplicate username)', async () => {
       fetchMock.mockResolvedValue(jsonResponse({ error: 'conflict' }, 409))
 
       await expect(
-        signup('taken@example.com', 'a-strong-password', 'invite-code'),
+        signup('taken_user', 'a-strong-password', 'invite-code'),
       ).rejects.toMatchObject({ status: 409 })
       expect(getToken()).toBeNull()
     })
@@ -95,7 +95,7 @@ describe('auth API client', () => {
     it('throws with the response status and does not store a token on a 400 (invalid input)', async () => {
       fetchMock.mockResolvedValue(jsonResponse({ error: 'bad_request' }, 400))
 
-      await expect(signup('new@example.com', 'short', 'invite-code')).rejects.toMatchObject({
+      await expect(signup('new_user', 'short', 'invite-code')).rejects.toMatchObject({
         status: 400,
       })
       expect(getToken()).toBeNull()
@@ -104,7 +104,7 @@ describe('auth API client', () => {
     it('throws with the response status and does not store a token on a 401 (wrong signup code)', async () => {
       fetchMock.mockResolvedValue(jsonResponse({ error: 'unauthorized' }, 401))
 
-      await expect(signup('new@example.com', 'a-strong-password', 'wrong-code')).rejects.toMatchObject(
+      await expect(signup('new_user', 'a-strong-password', 'wrong-code')).rejects.toMatchObject(
         { status: 401 },
       )
       expect(getToken()).toBeNull()
@@ -113,7 +113,7 @@ describe('auth API client', () => {
     it('propagates a network/transport failure', async () => {
       fetchMock.mockRejectedValue(new TypeError('offline'))
       await expect(
-        signup('new@example.com', 'a-strong-password', 'invite-code'),
+        signup('new_user', 'a-strong-password', 'invite-code'),
       ).rejects.toThrow()
       expect(getToken()).toBeNull()
     })
@@ -126,7 +126,7 @@ describe('auth API client', () => {
 
     it('clearToken removes a stored token', async () => {
       fetchMock.mockResolvedValue(jsonResponse({ token: 'xyz' }))
-      await login('jane@example.com', 'correct-horse-battery')
+      await login('jane_doe', 'correct-horse-battery')
       expect(getToken()).toBe('xyz')
 
       clearToken()

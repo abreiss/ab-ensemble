@@ -47,7 +47,7 @@ public class DynamoDbTableInitializer implements ApplicationRunner {
 
 	static final String ITEMS_PARTITION_KEY = "itemId";
 	static final String OUTFITS_PARTITION_KEY = "outfitId";
-	static final String USERS_PARTITION_KEY = "email";
+	static final String USERS_PARTITION_KEY = "username";
 
 	/** Sparse per-user GSI (spec #15): items/outfits carry {@code userId}; the users table does not. */
 	static final String USER_ID_ATTRIBUTE = "userId";
@@ -64,7 +64,7 @@ public class DynamoDbTableInitializer implements ApplicationRunner {
 	@Override
 	public void run(ApplicationArguments args) {
 		// items + outfits are per-user queryable (spec #15) -> declare the userId GSI;
-		// the users table is looked up by email only and stays plain.
+		// the users table is looked up by username only and stays plain.
 		GsiSpec userIdGsi = new GsiSpec(USER_ID_ATTRIBUTE, USER_ID_INDEX);
 		ensureTable(props.tableName(), ITEMS_PARTITION_KEY, userIdGsi);
 		ensureTable(props.outfitsTableName(), OUTFITS_PARTITION_KEY, userIdGsi);
