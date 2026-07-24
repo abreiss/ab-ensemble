@@ -17,10 +17,12 @@ import org.testcontainers.utility.DockerImageName;
 
 import com.ensemble.config.DynamoDbProperties;
 import com.ensemble.config.DynamoDbTableInitializer;
+import com.ensemble.config.DynamoDbTableInitializer.GsiSpec;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
@@ -42,6 +44,8 @@ class OutfitRepositoryIT {
 			.withExposedPorts(PORT);
 
 	private OutfitRepository repository;
+	private DynamoDbEnhancedClient enhanced;
+	private String outfitsTable;
 
 	@BeforeEach
 	void setUp() {
@@ -52,24 +56,38 @@ class OutfitRepositoryIT {
 			.credentialsProvider(StaticCredentialsProvider.create(
 				AwsBasicCredentials.create("local", "local")))
 			.build();
-		DynamoDbEnhancedClient enhanced = DynamoDbEnhancedClient.builder()
+		enhanced = DynamoDbEnhancedClient.builder()
 			.dynamoDbClient(client)
 			.build();
 
-		String outfitsTable = "outfits-" + UUID.randomUUID();
+		outfitsTable = "outfits-" + UUID.randomUUID();
 		DynamoDbProperties props = new DynamoDbProperties(endpoint, "us-east-1", "unused-items", outfitsTable, "unused-users", true);
-		new DynamoDbTableInitializer(client, props).ensureTable(outfitsTable, "outfitId", "userId", "userId-index");
+		new DynamoDbTableInitializer(client, props).ensureTable(outfitsTable, "outfitId", new GsiSpec("userId", "userId-index"));
 		repository = new OutfitRepository(enhanced, props);
 	}
 
 	private SavedOutfit sample(String id) {
 		SavedOutfit outfit = new SavedOutfit();
 		outfit.setOutfitId(id);
+		// A "sample" outfit represents real, owned data; stamp a default owner so it
+		// clears OutfitRepository.save's owner-stamp guard. Tests that need an
+		// unowned/legacy row override this to null/blank and seed via saveUnowned(...).
+		outfit.setUserId("owner-default");
 		outfit.setItemIds(List.of("item-a", "item-b"));
 		outfit.setSource("manual");
 		outfit.setReason(null);
 		outfit.setCreatedAt(Instant.now().truncatedTo(ChronoUnit.MILLIS));
 		return outfit;
+	}
+
+	/**
+	 * Seeds an outfit straight through the enhanced client, deliberately bypassing
+	 * {@link OutfitRepository#save}'s owner-stamp guard — the faithful way to plant a
+	 * legacy pre-#15 <em>unowned</em> outfit (data that only ever reaches the table
+	 * through a path other than the guarded {@code save()}).
+	 */
+	private void saveUnowned(SavedOutfit outfit) {
+		enhanced.table(outfitsTable, TableSchema.fromBean(SavedOutfit.class)).putItem(outfit);
 	}
 
 	@Test
@@ -129,12 +147,15 @@ class OutfitRepositoryIT {
 	@Test
 	void findUnowned_returnsOnlyOutfitsWithNoOrBlankUserId() {
 		SavedOutfit orphan = sample("orphan");
+		orphan.setUserId(null);
 		SavedOutfit blankOwner = sample("blank");
 		blankOwner.setUserId("   ");
 		SavedOutfit owned = sample("owned");
 		owned.setUserId("userA");
-		repository.save(orphan);
-		repository.save(blankOwner);
+		// The unowned rows are seeded via the raw seam (the guarded save() refuses
+		// owner-less writes); only the owned row goes through repository.save.
+		saveUnowned(orphan);
+		saveUnowned(blankOwner);
 		repository.save(owned);
 
 		List<SavedOutfit> unowned = repository.findUnowned();

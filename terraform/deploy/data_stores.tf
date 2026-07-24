@@ -69,10 +69,12 @@ resource "aws_dynamodb_table" "outfits" {
   }
 
   # Per-user scoping (spec #15): a sparse GSI keyed on userId so the app queries
-  # only the caller's items instead of a full-table scan. Sparse by nature -- the
-  # reserved usage#<date> daily-cap counter rows carry no userId attribute and so
-  # never appear in this index. projection_type = "ALL" so a per-user query returns
-  # full item attributes without a follow-up GetItem.
+  # only the caller's saved outfits instead of a full-table scan. Sparse by nature
+  # -- a legacy pre-ownership outfit (written before spec #15) carries no userId
+  # attribute and so never appears in this index. This dedicated outfits table
+  # holds no usage#<date> counter rows (those live only in the items table), so
+  # there is nothing else to sparse-exclude here. projection_type = "ALL" so a
+  # per-user query returns full SavedOutfit attributes without a follow-up GetItem.
   attribute {
     name = "userId"
     type = "S"

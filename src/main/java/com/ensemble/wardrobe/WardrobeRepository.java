@@ -33,8 +33,23 @@ public class WardrobeRepository {
 		this.table = enhancedClient.table(props.tableName(), TableSchema.fromBean(Item.class));
 	}
 
-	/** Creates or replaces an item (full put). Returns the saved item. */
+	/**
+	 * Creates or replaces an item (full put). Returns the saved item.
+	 *
+	 * <p><strong>Owner-stamp precondition (spec #15).</strong> {@code userId} is the
+	 * entire per-user security boundary, so this persistence chokepoint refuses to
+	 * write a row with a null or blank owner — the last-line guarantee that no
+	 * owner-less ("unowned") row is ever persisted, independent of whether an
+	 * individual caller remembered to stamp the owner. A legacy pre-#15 unowned row
+	 * or a reserved {@code usage#<date>} counter row therefore never reaches the
+	 * table through this method; they exist only via paths that predate or bypass
+	 * this guard (and the purge exists to remove the former).
+	 */
 	public Item save(Item item) {
+		if (item.getUserId() == null || item.getUserId().isBlank()) {
+			throw new IllegalStateException(
+				"refusing to persist an item with no owner (userId); every write must be owner-stamped (spec #15)");
+		}
 		table.putItem(item);
 		return item;
 	}
